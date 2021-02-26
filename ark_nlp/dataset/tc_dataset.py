@@ -53,14 +53,12 @@ class TCDataset(BaseDataset):
             input_ids, input_mask, segment_ids = input_ids
             
             label_ids = self.cat2id[row_['label']]
-            
-            input_length = self._get_input_length(row_['text'], bert_tokenizer)
-            
+                        
             features.append({
                 'input_ids': input_ids, 
                 'attention_mask': input_mask, 
                 'token_type_ids': segment_ids, 
-                'label_ids': label_id
+                'label_ids': label_ids
             })
         
         return features        
