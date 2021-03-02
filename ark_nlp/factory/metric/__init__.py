@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-def topk(logits, labels, k, *, ignore_index=-100, reduction='mean'):
+def topk_accuracy(logits, labels, k, *, ignore_index=-100, reduction='mean'):
     """
     计算 TopK Accuracy
     
