@@ -201,6 +201,37 @@ class NamedentityTask(Task):
             
         self._on_epoch_end_record(logs)
 
+    def _get_module_inputs_on_train(
+        self,
+        inputs
+        label,
+        **kwargs
+    ):
+        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+
+    def _get_module_label_on_train(
+        self,
+        inputs
+        **kwargs
+    ):
+        return inputs['label_ids'].to(self.device)
+
+    def _get_module_inputs_on_eval(
+        self,
+        inputs,
+        label,
+        **kwargs
+    ):
+        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+
+    def _get_module_label_on_eval(
+        self,
+        inputs,
+        label,
+        **kwargs
+    ):
+        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+
     def fit(
         self, 
         train_data=None, 
@@ -225,8 +256,8 @@ class NamedentityTask(Task):
                 
                 self._on_step_begin(epoch, step, inputs, logs, **kwargs)
                                 
-                labels = inputs['label_ids'].to(self.device)
-                inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
+                labels = self._get_module_inputs_on_train(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_train(inputs, label, **kwargs)
                                 
                 # forward
                 logits = self.module(**inputs)
@@ -380,8 +411,8 @@ class NamedentityTask(Task):
                         
             for step, inputs in enumerate(generator):
                 
-                labels = inputs['label_ids'].to(self.device)
-                inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
+                labels = self._get_module_label_on_eval(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_eval(inputs, labels, **kwargs)
                 
                 # forward
                 logits = self.module(**inputs)

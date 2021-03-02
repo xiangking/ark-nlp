@@ -367,7 +367,7 @@ class ClassificationTask(Task):
             if is_proba:
                 probas.extend(F.softmax(logits, 1).cpu().detach().numpy())  
 
-        if is_prob:
+        if is_proba:
             return preds, probas
         
         return preds

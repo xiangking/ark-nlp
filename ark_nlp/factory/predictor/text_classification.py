@@ -24,7 +24,7 @@ from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
 
 
-class Predictor(object):
+class TCPredictor(object):
     def __init__(
         self, 
         module, 
@@ -70,12 +70,12 @@ class Predictor(object):
         self, 
         text
     ):
-        if tokenizer.tokenizer_type == 'vanilla':
+        if self.tokenizer.tokenizer_type == 'vanilla':
             return self._convert_to_vanilla_ids(text)
-        elif tokenizer.tokenizer_type == 'transfomer':
+        elif self.tokenizer.tokenizer_type == 'transfomer':
             return self._convert_to_transfomer_ids(text)
-        elif tokenizer.tokenizer_type == 'customized':
-            features = self._convert_to_customized_ids(tokenizer)
+        elif self.tokenizer.tokenizer_type == 'customized':
+            features = self._convert_to_customized_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist") 
 
@@ -83,43 +83,58 @@ class Predictor(object):
         self, 
         features
     ):
-        return {col: inputs[col].unsqueeze(0).to(self.device) for col in features}
+        return {col: features[col].unsqueeze(0).to(self.device) for col in features}
 
     def predict_one_sample(
         self, 
         text='', 
-        topk=None
+        topk=None,
+        return_label_name=True,
+        return_proba=False
     ):
         if topk == None:
             topk = len(self.cat2id)
 
-        features = self._get_input_ids(input_str)
+        features = self._get_input_ids(text)
+        self.module.eval()
         
         with torch.no_grad():
-            inputs = self._get_module_one_sample_inputs(features):
-            logit = self.model.module(**inputs)
+            inputs = self._get_module_one_sample_inputs(features)
+            logit = self.module(**inputs)
             logit = torch.nn.functional.softmax(logit, dim=1)
 
         probs, indices = logit.topk(topk, dim=1, sorted=True)
         
-        res_list = []
-        for pred_, prob_ in zip(indices.cpu().numpy()[0], probs.cpu().numpy()[0].tolist()):
-            res_list.append([self.id2cat[pred_], prob_])
+        preds = []
+        probas = []
+        for pred_, proba_ in zip(indices.cpu().numpy()[0], probs.cpu().numpy()[0].tolist()):
+            
+            if return_label_name:
+                pred_ = self.id2cat[pred_]
+            
+            preds.append(pred_)
+                
+            if return_proba:
+                probas.append(proba_)
+                
+        if return_proba:
+            return list(zip(preds, probas))
 
-        return res_list
+        return preds
 
     def _get_module_batch_inputs(
         self, 
         features
     ):
-        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+        return {col: features[col].to(self.device) for col in self.inputs_cols}
 
     def predict_batch(
         self, 
         test_data, 
         batch_size=16, 
-        shuffle=False, 
-        is_proba=False
+        shuffle=False,
+        return_label_name=True,
+        return_proba=False
     ):
         self.inputs_cols = test_data.dataset_cols
         
@@ -129,16 +144,21 @@ class Predictor(object):
         self.module.eval()
         generator = DataLoader(test_data, batch_size=batch_size, shuffle=False)
         
-        for step, inputs in enumerate(generator):
-            inputs = self._get_module_batch_inputs(inputs)
-            
-            logits = self.module(**inputs)
+        with torch.no_grad():
+            for step, inputs in enumerate(generator):
+                inputs = self._get_module_batch_inputs(inputs)
 
-            preds.extend(torch.max(logits, 1)[1].cpu().numpy())  
-            if is_proba:
-                probas.extend(F.softmax(logits, 1).cpu().detach().numpy())  
+                logits = self.module(**inputs)
 
-        if is_prob:
-            return preds, probas
+                preds.extend(torch.max(logits, 1)[1].cpu().numpy())  
+                if return_proba:
+                    logits = torch.nn.functional.softmax(logits, dim=1)
+                    probas.extend(logits.max(dim=1).values.cpu().detach().numpy())  
+                
+        if return_label_name:
+            preds = [self.id2cat[pred_] for pred_ in preds]
+
+        if return_proba:
+            return list(zip(preds, probas))
         
         return preds
