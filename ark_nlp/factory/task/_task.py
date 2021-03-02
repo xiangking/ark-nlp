@@ -27,7 +27,6 @@ from sklearn import metrics
 from ..loss_function import get_loss
 
 
-
 class Task(object):
     def __init__(
         self, 
@@ -123,4 +122,16 @@ class Task(object):
 
     def evaluate(self):
         pass
+
+    def _get_module_inputs_on_train(self):
+         pass
+
+    def _get_module_label_on_train(self):
+         pass
+
+    def _get_module_inputs_on_eval(self):
+         pass
+
+    def _get_module_label_on_eval(self):
+         pass
     

@@ -269,6 +269,36 @@ class ClassificationTask(Task):
             print('test loss is:{:.6f},test acc is:{:.6f},f1_score is:{:.6f}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
                                                                                      logs['eval_acc'] / logs['nb_eval_examples'] ,
                                                                                      f1_score))
+    def _get_module_inputs_on_train(
+        self,
+        inputs
+        label,
+        **kwargs
+    ):
+        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+
+    def _get_module_label_on_train(
+        self,
+        inputs
+        **kwargs
+    ):
+        return inputs['label_ids'].to(self.device)
+
+    def _get_module_inputs_on_eval(
+        self,
+        inputs,
+        label,
+        **kwargs
+    ):
+        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+
+    def _get_module_label_on_eval(
+        self,
+        inputs,
+        label,
+        **kwargs
+    ):
+        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
 
     def fit(
         self, 
@@ -292,8 +322,8 @@ class ClassificationTask(Task):
                 
                 self._on_step_begin(epoch, step, inputs, logs, **kwargs)
                                 
-                labels = inputs['label_ids'].to(self.device)
-                inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
+                labels = self._get_module_inputs_on_train(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_train(inputs, label, **kwargs)
                                 
                 # forward
                 logits = self.module(**inputs)
@@ -365,8 +395,8 @@ class ClassificationTask(Task):
                         
             for step, inputs in enumerate(generator):
                 
-                labels = inputs['label_ids'].to(self.device)
-                inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
+                labels = self._get_module_label_on_eval(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_eval(inputs, labels, **kwargs)
                 
                 # forward
                 logits = self.module(**inputs)
