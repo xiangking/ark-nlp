@@ -260,7 +260,7 @@ class ClassificationTask(Task):
 
         
         f1_score = sklearn_metrics.f1_score(labels_, preds_, average='macro')
-        report_ = sklearn_metrics.classification_report(labels_, preds_, target_names = validation_data.categories)
+        report_ = sklearn_metrics.classification_report(labels_, preds_, target_names = [str(category_) for category_ in validation_data.categories])
         confusion_matrix_ = sklearn_metrics.confusion_matrix(labels_, preds_)
         
         if is_evaluate_print:
@@ -271,15 +271,15 @@ class ClassificationTask(Task):
                                                                                      f1_score))
     def _get_module_inputs_on_train(
         self,
-        inputs
-        label,
+        inputs,
+        labels,
         **kwargs
     ):
         return {col: inputs[col].to(self.device) for col in self.inputs_cols}
 
     def _get_module_label_on_train(
         self,
-        inputs
+        inputs,
         **kwargs
     ):
         return inputs['label_ids'].to(self.device)
@@ -287,7 +287,7 @@ class ClassificationTask(Task):
     def _get_module_inputs_on_eval(
         self,
         inputs,
-        label,
+        labels,
         **kwargs
     ):
         return {col: inputs[col].to(self.device) for col in self.inputs_cols}
@@ -295,10 +295,9 @@ class ClassificationTask(Task):
     def _get_module_label_on_eval(
         self,
         inputs,
-        label,
         **kwargs
     ):
-        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+        return inputs['label_ids'].to(self.device)
 
     def fit(
         self, 
@@ -322,8 +321,8 @@ class ClassificationTask(Task):
                 
                 self._on_step_begin(epoch, step, inputs, logs, **kwargs)
                                 
-                labels = self._get_module_inputs_on_train(inputs, **kwargs)
-                inputs = self._get_module_inputs_on_train(inputs, label, **kwargs)
+                labels = self._get_module_label_on_train(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
                                 
                 # forward
                 logits = self.module(**inputs)

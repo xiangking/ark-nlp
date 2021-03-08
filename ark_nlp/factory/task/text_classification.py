@@ -25,7 +25,7 @@ import sklearn.metrics as sklearn_metrics
 
 from ..loss_function import get_loss
 from ..optimizer import get_optimizer
-from ..metric import topk
+from ..metric import topk_accuracy
 from ._task import Task
 from ._classification import ClassificationTask
 

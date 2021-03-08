@@ -203,15 +203,15 @@ class NamedentityTask(Task):
 
     def _get_module_inputs_on_train(
         self,
-        inputs
-        label,
+        inputs,
+        labels,
         **kwargs
     ):
         return {col: inputs[col].to(self.device) for col in self.inputs_cols}
 
     def _get_module_label_on_train(
         self,
-        inputs
+        inputs,
         **kwargs
     ):
         return inputs['label_ids'].to(self.device)
@@ -219,7 +219,7 @@ class NamedentityTask(Task):
     def _get_module_inputs_on_eval(
         self,
         inputs,
-        label,
+        labels,
         **kwargs
     ):
         return {col: inputs[col].to(self.device) for col in self.inputs_cols}
@@ -227,10 +227,9 @@ class NamedentityTask(Task):
     def _get_module_label_on_eval(
         self,
         inputs,
-        label,
         **kwargs
     ):
-        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+        return inputs['label_ids'].to(self.device)
 
     def fit(
         self, 
@@ -256,8 +255,8 @@ class NamedentityTask(Task):
                 
                 self._on_step_begin(epoch, step, inputs, logs, **kwargs)
                                 
-                labels = self._get_module_inputs_on_train(inputs, **kwargs)
-                inputs = self._get_module_inputs_on_train(inputs, label, **kwargs)
+                labels = self._get_module_label_on_train(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
                                 
                 # forward
                 logits = self.module(**inputs)

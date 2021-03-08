@@ -93,7 +93,7 @@ class TCPredictor(object):
         return_proba=False
     ):
         if topk == None:
-            topk = len(self.cat2id)
+            topk = len(self.cat2id) if len(self.cat2id) >2 else 1
 
         features = self._get_input_ids(text)
         self.module.eval()
