@@ -68,7 +68,6 @@ class TransfomerTokenizer(BaseTokenizer):
             else:
                 spaced += ch
         tokens = []
-        print(spaced.strip().split())
 
         for word in spaced.strip().split():
             tokens += self._word_piece_tokenize(word)

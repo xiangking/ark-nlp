@@ -8,7 +8,7 @@ class FGM(object):
     """
     基于FGM算法的攻击机制
 
-    :param model: (torch.nn.Module) 训练的模型
+    :param model (torch.nn.Module) : 训练的模型
 
     Examples::
     
@@ -55,7 +55,7 @@ class PGD(object):
     """
     基于PGD算法的攻击机制
 
-    :param model: (torch.nn.Module) 训练的模型
+    :param model (torch.nn.Module) : 训练的模型
 
     Examples::
     

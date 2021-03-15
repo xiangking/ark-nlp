@@ -28,6 +28,12 @@ from ..optimizer import get_optimizer
 from ._task import Task
 
 
+def to_tup(triple_list):
+    ret = []
+    for triple in triple_list:
+        ret.append(tuple(triple))
+    return ret
+
 
 class DataPreFetcher(object):
     def __init__(self, loader, device):
@@ -109,6 +115,8 @@ class CasrelRETask(Task):
         inputs_cols=None,
         **kwargs
     ):
+        self.id2cat = train_data.id2cat
+
         if self.class_num == None:
             self.class_num = train_data.class_num  
         
@@ -271,55 +279,20 @@ class CasrelRETask(Task):
             
         self._on_epoch_end_record(logs)
             
-    def _on_evaluate_begin(
-        self, 
-        validation_data, 
-        batch_size, 
-        logs, 
-        shuffle, 
+    def _get_module_inputs_on_train(
+        self,
+        inputs,
+        labels,
         **kwargs
     ):
-        
-        generator = DataLoader(validation_data, batch_size=batch_size, shuffle=False)
-        
-        self.module.eval()
-        
-        self._on_evaluate_begin_record(logs, **kwargs)
-        
-        return generator
-    
-    def _on_evaluate_begin_record(self, logs, **kwargs):
-        
-        logs['eval_loss'] = 0
-        logs['nb_eval_steps']  = 0
-        logs['nb_eval_examples']  = 0
-        
-        return logs     
-                    
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
-        
-        _, preds = torch.max(logits, 1)
+        return inputs
 
-        logs['nb_eval_examples'] +=  inputs['input_ids'].size(0)
-        logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item() * inputs['input_ids'].size(0)
-        
-        return logs
-    
-    def _on_evaluate_end(
-        self, 
-        validation_data,
-        logs,
-        epoch=1,
-        is_evaluate_print=True,
-        **kwargs):
-        
-        
-        
-        if is_evaluate_print:
-            print('classification_report: \n', report_)
-            print('confusion_matrix_: \n', confusion_matrix_)
-            print('test loss is:{:.6f}'.format(logs['eval_loss'] / logs['nb_eval_steps']))
+    def _get_module_label_on_train(
+        self,
+        inputs,
+        **kwargs
+    ):
+        return inputs['label_ids'].to(self.device)
 
     def fit(
         self, 
@@ -344,9 +317,10 @@ class CasrelRETask(Task):
             while inputs is not None:
                 
                 self._on_step_begin(epoch, step, inputs, logs, **kwargs)
-                                                
-                labels = inputs['label_ids']
-                                
+
+                labels = self._get_module_label_on_train(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
+                                                                                
                 # forward
                 logits = self.module(**inputs)
                                 
@@ -363,8 +337,11 @@ class CasrelRETask(Task):
                 self._on_step_end(step, logs, **kwargs)
                 
                 step += 1
+
+                inputs = train_data_prefetcher.next()
             
             self._on_epoch_end(epoch, logs, **kwargs)
+            
             
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
@@ -403,31 +380,157 @@ class CasrelRETask(Task):
         shuffle=False
     ):
         return self.predict(test_data, batch_size, shuffle, is_proba=True)[-1]
+
+    def _on_evaluate_begin(
+        self, 
+        validation_data, 
+        batch_size, 
+        logs, 
+        shuffle, 
+        num_workers=1,
+        **kwargs
+    ):
+
+        test_data_loader = DataLoader(dataset=validation_data,
+                                      batch_size=batch_size,
+                                      shuffle=False,
+                                      pin_memory=True,
+                                      num_workers=1,
+                                      collate_fn=self.casrel_collate_fn)  
+                
+        self.module.eval()
+        
+        self._on_evaluate_begin_record(logs, **kwargs)
+        
+        return test_data_loader
+    
+    def _on_evaluate_begin_record(self, logs, **kwargs):
+        
+        logs['correct_num'] = 0
+        logs['predict_num']  = 0
+        logs['gold_num']  = 0
+        logs['nb_tr_steps'] = 0
+        
+        return logs     
+                    
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
+        
+        _, preds = torch.max(logits, 1)
+
+        logs['nb_eval_examples'] +=  inputs['input_ids'].size(0)
+        logs['nb_eval_steps']  += 1
+        logs['eval_loss'] += loss.item() * inputs['input_ids'].size(0)
+        
+        return logs
+    
+    def _on_evaluate_end(
+        self, 
+        validation_data,
+        logs,
+        epoch=1,
+        is_evaluate_print=True,
+        **kwargs):
+                
+        if is_evaluate_print:
+            print('classification_report: \n', report_)
+            print('confusion_matrix_: \n', confusion_matrix_)
+            print('test loss is:{:.6f}'.format(logs['eval_loss'] / logs['nb_eval_steps']))
     
     def evaluate(
         self, 
         validation_data, 
         evaluate_batch_size=16, 
         return_pred=False, 
+        h_bar=0.5,
+        t_bar=0.5,
         **kwargs
     ):
         logs = dict()
-        
+
         generator = self._on_evaluate_begin(validation_data, evaluate_batch_size, logs, shuffle=False, **kwargs)
+
+        test_data_prefetcher = DataPreFetcher(generator, self.module.device)
+        inputs = test_data_prefetcher.next()
+        
+        step_ = 0
                 
         with torch.no_grad():
+            while inputs is not None:
+
+                step_ += 1
+
+                token_ids = inputs['input_ids']
+                tokens = inputs['tokens'][0]
+                mask = inputs['attention_mask']
+
+                encoded_text = self.module.bert(token_ids, mask)[0]
+
+                pred_sub_heads, pred_sub_tails = self.module.get_subs(encoded_text)
+                sub_heads, sub_tails = np.where(pred_sub_heads.cpu()[0] > h_bar)[0], np.where(pred_sub_tails.cpu()[0] > t_bar)[0]
+                 
+                subjects = []
+                for sub_head in sub_heads:
+                    sub_tail = sub_tails[sub_tails >= sub_head]
+                    if len(sub_tail) > 0:
+                        sub_tail = sub_tail[0]
+                        subject = tokens[sub_head: sub_tail]
+                        subjects.append((subject, sub_head, sub_tail))
+
+                if subjects:
+                    triple_list = []
+                    repeated_encoded_text = encoded_text.repeat(len(subjects), 1, 1)
+                    sub_head_mapping = torch.Tensor(len(subjects), 1, encoded_text.size(1)).zero_()
+                    sub_tail_mapping = torch.Tensor(len(subjects), 1, encoded_text.size(1)).zero_()
+                    for subject_idx, subject in enumerate(subjects):
+                        sub_head_mapping[subject_idx][0][subject[1]] = 1
+                        sub_tail_mapping[subject_idx][0][subject[2]] = 1
+                    sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
+                    sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
+                    
+                    pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(sub_head_mapping, 
+                                                                                          sub_tail_mapping, 
+                                                                                          repeated_encoded_text)
+                    for subject_idx, subject in enumerate(subjects):
+                        sub = subject[0]
+                        sub = ''.join([i.lstrip("##") for i in sub])
+                        sub = ' '.join(sub.split('[unused1]'))
                         
-            for step, inputs in enumerate(generator):
+                        obj_heads, obj_tails = np.where(pred_obj_heads.cpu()[subject_idx] > h_bar), np.where(pred_obj_tails.cpu()[subject_idx] > t_bar)
+                        for obj_head, rel_head in zip(*obj_heads):
+                            for obj_tail, rel_tail in zip(*obj_tails):
+                                if obj_head <= obj_tail and rel_head == rel_tail:
+                                    rel = self.id2cat[int(rel_head)]
+                                    obj = tokens[obj_head: obj_tail]
+                                    obj = ''.join([i.lstrip("##") for i in obj])
+                                    obj = ' '.join(obj.split('[unused1]'))
+                                    triple_list.append((sub, rel, obj))
+                                    break
+                    triple_set = set()
+                    for s, r, o in triple_list:
+                        triple_set.add((s, r, o))
+                    pred_list = list(triple_set)
+                else:
+                    pred_list = []
+
+                pred_triples = set(pred_list)
+                gold_triples = set(to_tup(inputs['label_ids'][0]))
+
+                correct_num += len(pred_triples & gold_triples)
+
+                if step_ < 11:
+                    print('pred_triples: ', pred_triples)
+                    print('gold_triples: ', gold_triples)
+                predict_num += len(pred_triples)
+                gold_num += len(gold_triples)
                 
-                labels = inputs['label_ids'].to(self.device)
-                inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
-                
-                # forward
-                logits = self.module(**inputs)
-                
-                # compute loss
-                loss = self._compute_loss(inputs, labels, logits, **kwargs)
-                
-                self._on_evaluate_step_end(inputs, labels, logits, loss, logs, **kwargs)
-                
-        self._on_evaluate_end(validation_data, logs)
+                inputs = test_data_prefetcher.next()
+
+        print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(correct_num, predict_num, gold_num))
+
+        precision = correct_num / (predict_num + 1e-10)
+        recall = correct_num / (gold_num + 1e-10)
+        f1_score = 2 * precision * recall / (precision + recall + 1e-10)
+        
+        print("precision: {}, recall: {}, f1_score: {}".format(precision, recall, f1_score))
+        
+        return precision, recall, f1_score
