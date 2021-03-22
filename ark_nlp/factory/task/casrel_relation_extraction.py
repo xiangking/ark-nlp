@@ -215,7 +215,7 @@ class CasrelRETask(Task):
         verbose,
         **kwargs
     ):        
-        logs['nb_tr_examples'] += inputs['input_ids'].size(0)
+        logs['nb_tr_examples'] += len(labels)
                 
         logs['b_loss'] += loss.item()
         logs['nb_tr_steps'] += 1
@@ -417,9 +417,9 @@ class CasrelRETask(Task):
         
         _, preds = torch.max(logits, 1)
 
-        logs['nb_eval_examples'] +=  inputs['input_ids'].size(0)
+        logs['nb_eval_examples'] +=  len(labels)
         logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item() * inputs['input_ids'].size(0)
+        logs['eval_loss'] += loss.item() * len(labels)
         
         return logs
     

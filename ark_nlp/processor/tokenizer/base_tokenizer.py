@@ -27,8 +27,10 @@ class BaseTokenizer(object, metaclass=abc.ABCMeta):
     def tokenize(self, text):
         return self.vocab.tokenize(text)
     
-    @abc.abstractmethod
     def text_to_sequence(self, text):
+        raise NotImplementedError
+
+    def text_to_graph(self, text):
         raise NotImplementedError
     
     def pad_and_truncate(self, sequence, maxlen, dtype='int64', padding='post', truncating='post', value=0):

@@ -41,10 +41,10 @@ class VanillaTokenizer(BaseTokenizer):
         if reverse:
             sequence = sequence[::-1]
 
-        return torch.Tensor(self.pad_and_truncate(sequence, 
-                                                  self.max_seq_len, 
-                                                  padding=padding, 
-                                                  truncating=truncating)).type(torch.long)
+        return self.pad_and_truncate(sequence, 
+                                     self.max_seq_len,
+                                     padding=padding,
+                                     truncating=truncating)
 
 
 class TransfomerTokenizer(BaseTokenizer):

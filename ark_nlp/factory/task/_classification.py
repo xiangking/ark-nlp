@@ -52,7 +52,7 @@ class ClassificationTask(Task):
         if inputs_cols == None:
             self.inputs_cols = train_data.dataset_cols
             
-        train_generator = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+        train_generator = DataLoader(train_data, batch_size=batch_size, shuffle=True, collate_fn=self._collate_fn)
         self.train_generator_lenth = len(train_generator)
             
         self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
@@ -133,14 +133,14 @@ class ClassificationTask(Task):
         verbose,
         **kwargs
     ):        
-        logs['nb_tr_examples'] += inputs['input_ids'].size(0)
+        logs['nb_tr_examples'] += len(labels)
         
         if verbose:
             with torch.no_grad():
                 _, preds = torch.max(logits, 1)
                 logs['b_acc'] += torch.sum(preds == labels).item()
                 
-        logs['b_loss'] += loss.item()
+        logs['b_loss'] += loss.item() * len(labels)
         logs['nb_tr_steps'] += 1
         
         return logs
@@ -213,7 +213,7 @@ class ClassificationTask(Task):
         **kwargs
     ):
         
-        generator = DataLoader(validation_data, batch_size=batch_size, shuffle=False)
+        generator = DataLoader(validation_data, batch_size=batch_size, shuffle=False, collate_fn=self._collate_fn)
         
         self.module.eval()
         
@@ -240,9 +240,9 @@ class ClassificationTask(Task):
         logs['labels'].append(labels)
         logs['logits'].append(logits)
             
-        logs['nb_eval_examples'] +=  inputs['input_ids'].size(0)
+        logs['nb_eval_examples'] +=  len(labels)
         logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item() * inputs['input_ids'].size(0)
+        logs['eval_loss'] += loss.item() * len(labels)
         logs['eval_acc'] += torch.sum(preds == labels.data).item()
         
         return logs
@@ -356,7 +356,7 @@ class ClassificationTask(Task):
         probas=[]
         
         self.module.eval()
-        generator = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+        generator = DataLoader(test_data, batch_size=batch_size, shuffle=False, collate_fn=self._collate_fn)
         
         for step, inputs in enumerate(generator):
             inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}

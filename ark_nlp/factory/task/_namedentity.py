@@ -139,7 +139,7 @@ class NamedentityTask(Task):
         verbose,
         **kwargs
     ):        
-        logs['b_loss'] += loss.item()
+        logs['b_loss'] += loss.item() * len(labels)
         logs['nb_tr_steps'] += 1
         
         return logs
@@ -349,9 +349,9 @@ class NamedentityTask(Task):
         logs['logits'].append(logits)
         logs['input_lengths'].append(inputs['input_lengths'])
             
-        logs['nb_eval_examples'] +=  inputs['input_ids'].size(0)
+        logs['nb_eval_examples'] +=  len(labels)
         logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item() * inputs['input_ids'].size(0)
+        logs['eval_loss'] += loss.item() * len(labels)
         
         return logs
     

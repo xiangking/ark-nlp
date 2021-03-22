@@ -23,6 +23,7 @@ import numpy as np
 import tqdm
 from tqdm import tqdm
 from sklearn import metrics
+from torch.utils.data._utils.collate import default_collate
 
 from ..loss_function import get_loss
 
@@ -62,6 +63,9 @@ class Task(object):
         
         if self.n_gpu > 1:
             self.module = torch.nn.DataParallel(self.module)
+    
+    def _collate_fn(self, batch):
+        return default_collate(batch)
 
     def _on_train_begin(self):
         pass

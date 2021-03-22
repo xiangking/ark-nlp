@@ -40,10 +40,10 @@ class VanillaTokenizer(BaseTokenizer):
         if reverse:
             sequence = sequence[::-1]
 
-        return torch.Tensor(self.pad_and_truncate(sequence, 
-                                                  self.max_seq_len, 
-                                                  padding=padding, 
-                                                  truncating=truncating)).type(torch.long)
+        return self.pad_and_truncate(sequence, 
+                                     self.max_seq_len,
+                                     padding=padding,
+                                     truncating=truncating)
 
 
 class TransfomerTokenizer(BaseTokenizer):
@@ -84,7 +84,4 @@ class TransfomerTokenizer(BaseTokenizer):
         # 对seq拼接填充序列
         sequence += padding 
 
-        return (torch.Tensor(sequence).type(torch.long), 
-                torch.Tensor(sequence_mask).type(torch.long),
-                torch.Tensor(segment_ids).type(torch.long),  )
-    
+        return (sequence, sequence_mask, segment_ids)
