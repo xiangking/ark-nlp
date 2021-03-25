@@ -21,9 +21,9 @@ def gcn_reduce(node):
 
     new_hidden,_ = torch.max(new_hidden, 1)
 
-    node_eta = torch.sigmoid(node.data['eta'])
-#     node_eta = F.leaky_relu(node.data['eta'])
-#     new_hidden = node_eta * node.data['h'] + (1 - node_eta) * new_hidden
+    # node_eta = torch.sigmoid(node.data['eta'])
+    # node_eta = F.leaky_relu(node.data['eta'])
+    # new_hidden = node_eta * node.data['h'] + (1 - node_eta) * new_hidden
 
     return {'h': new_hidden}
 
@@ -32,37 +32,39 @@ class TextLevelGCN(torch.nn.Module):
     def __init__(
         self,
         vocab_size,
-        emb_dim,
+        node_embed_size,
         edge_num,
-        pre_embed=False, 
-        emb_vectors=0, 
-        is_freeze=False,
+        class_num=2,
+        pre_node_embed=False, 
+        node_embed_vectors=0, 
+        is_node_freeze=False,
         pre_edge_embed=False,
-        edge_emb_vectors=0,
-        edge_freeze=False,
+        edge_embed_vectors=0,
+        is_edge_freeze=False,
         fc_dropout_rate=0.5
     ):
-        super(Model, self).__init__()
+        super(TextLevelGCN, self).__init__()
+
+        self.class_num = class_num
         
         self.vocab_size = vocab_size
-        self.embed_dim = emb_dim
+        self.node_embed_size = node_embed_size
 
-        self.pre_embed = pre_embed
-        self.freeze = is_freeze
+        self.pre_node_embed = pre_node_embed
+        self.node_freeze = is_node_freeze
         
-        if self.pre_embed:
-            self.node_embed = nn.Embedding.from_pretrained(embeddings=emb_vectors, 
-                                                           freeze=self.freeze)
+        if self.pre_node_embed:
+            self.node_embed = nn.Embedding.from_pretrained(embeddings=node_embed_vectors, freeze=self.node_freeze)
         else:
-            self.node_embed = nn.Embedding(self.vocab_size, self.embed_dim)
+            self.node_embed = nn.Embedding(self.vocab_size, self.node_embed_size)
             nn.init.uniform_(self.node_embed.weight.data)
 
         self.pre_edge_embed = pre_edge_embed
         self.edge_num = edge_num
-        self.edge_freeze = edge_freeze
+        self.edge_freeze = is_edge_freeze
         
         if self.pre_edge_embed:
-            self.edge_embed = torch.nn.Embedding.from_pretrained(embeddings=edge_emb_vectors, 
+            self.edge_embed = torch.nn.Embedding.from_pretrained(embeddings=edge_embed_vectors, 
                                                                  freeze=self.edge_freeze)
         else:
             self.edge_embed = torch.nn.Embedding.from_pretrained(torch.ones(edge_num, 1), 
@@ -72,7 +74,7 @@ class TextLevelGCN(torch.nn.Module):
 
         self.activation = torch.nn.ReLU()
 
-        self.classify = torch.nn.Linear(self.embed_dim, class_num, bias=True)
+        self.classify = torch.nn.Linear(self.node_embed_size, self.class_num, bias=True)
         
         self.reset_parameters()
         

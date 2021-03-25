@@ -15,12 +15,12 @@ class TextCNN(torch.nn.Module):
     """  
     def __init__(
         self, 
-        len_dic,
-        emb_dim, 
+        vocab_size,
+        embed_size, 
         class_num=2, 
         embed_dropout=0.2, 
         pre_embed=False, 
-        emb_vectors=0, 
+        embed_vectors=0, 
         is_freeze=False,
         kernel_num=100, 
         kernel_size=[3, 5, 7], 
@@ -29,19 +29,19 @@ class TextCNN(torch.nn.Module):
     ):
         super(TextCNN, self).__init__()
 
-        self.word_num = len_dic
-        self.embed_dim = emb_dim
+        self.vocab_size = vocab_size
+        self.embed_size = embed_size
 
         self.embed_dropout = embed_dropout
         self.pre_embed = pre_embed
         self.freeze = is_freeze
 
         if self.pre_embed == True:
-            self.embed = nn.Embedding.from_pretrained(embeddings=emb_vectors, freeze=self.freeze)
+            self.embed = nn.Embedding.from_pretrained(embeddings=embed_vectors, freeze=self.freeze)
             nn.init.normal_(self.embed.weight.data[0])
             nn.init.normal_(self.embed.weight.data[1])
         else:
-            self.embed = nn.Embedding(len_dic, emb_dim)
+            self.embed = nn.Embedding(self.vocab_size, self.embed_size)
             nn.init.uniform_(self.embed.weight.data)
             nn.init.normal_(self.embed.weight.data[0])
             nn.init.normal_(self.embed.weight.data[1])
@@ -53,7 +53,7 @@ class TextCNN(torch.nn.Module):
         self.kernel_num = kernel_num
             
         self.convs = nn.ModuleList(
-            [nn.Conv2d(1, self.kernel_num, (K, self.embed_dim), stride=self.stride, padding=(K // 2, 0)) for K in
+            [nn.Conv2d(1, self.kernel_num, (K, self.embed_size), stride=self.stride, padding=(K // 2, 0)) for K in
              self.kernel_size])
 
         covfeature_num = len(self.kernel_size) * self.kernel_num
