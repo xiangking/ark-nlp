@@ -35,7 +35,7 @@ class TCTask(ClassificationTask):
         
         super(TCTask, self).__init__(*args, **kwargs)
         
-    def _on_train_begin_record(self, logs):
+    def _on_train_begin_record(self, logs, **kwargs):
         
         logs['tr_loss'] = 0
         logs['logging_loss'] = 0

@@ -51,8 +51,10 @@ class NamedentityTask(Task):
         
         if inputs_cols == None:
             self.inputs_cols = train_data.dataset_cols
+        else:
+            self.inputs_cols = inputs_cols
             
-        train_generator = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+        train_generator = DataLoader(train_data, batch_size=batch_size, shuffle=True, collate_fn=self._collate_fn)
         self.train_generator_lenth = len(train_generator)
             
         self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
@@ -290,7 +292,7 @@ class NamedentityTask(Task):
         probas=[]
         
         self.module.eval()
-        generator = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+        generator = DataLoader(test_data, batch_size=batch_size, shuffle=False, collate_fn=self._collate_fn)
         
         for step, inputs in enumerate(generator):
             inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
@@ -323,7 +325,7 @@ class NamedentityTask(Task):
         **kwargs
     ):
         
-        generator = DataLoader(validation_data, batch_size=batch_size, shuffle=False)
+        generator = DataLoader(validation_data, batch_size=batch_size, shuffle=False, collate_fn=self._collate_fn)
         
         self.module.eval()
         

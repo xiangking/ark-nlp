@@ -38,7 +38,8 @@ class Task(object):
         scheduler=None,
         n_gpu=1,
         device=None,
-        cuda_device=0
+        cuda_device=0,
+        **kwargs
     ):
         
         self.module = module

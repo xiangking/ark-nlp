@@ -51,6 +51,8 @@ class ClassificationTask(Task):
         
         if inputs_cols == None:
             self.inputs_cols = train_data.dataset_cols
+        else:
+            self.inputs_cols = inputs_cols
             
         train_generator = DataLoader(train_data, batch_size=batch_size, shuffle=True, collate_fn=self._collate_fn)
         self.train_generator_lenth = len(train_generator)
@@ -95,7 +97,6 @@ class ClassificationTask(Task):
         **kwargs
     ):
         self._on_step_begin_record(epoch, step, inputs, logs, **kwargs)
-        pass
     
     def _on_step_begin_record(
         self, 

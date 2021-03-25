@@ -83,13 +83,13 @@ class BaseDataset(Dataset):
     
     def _convert_to_customized_ids(self, customized_tokenizer):
         pass
-
+    
     def convert_to_ids(self, tokenizer):
         """
         将文本转化成id的形式
         
         :param tokenizer: 
-        """        
+        """         
         if tokenizer.tokenizer_type == 'vanilla':
             features = self._convert_to_vanilla_ids(tokenizer)
         elif tokenizer.tokenizer_type == 'transfomer':
@@ -103,7 +103,7 @@ class BaseDataset(Dataset):
             self.retain_dataset = copy.deepcopy(self.dataset)
             
         self.dataset = features
-    
+
     @property
     def dataset_cols(self):
         return list(self.dataset[0].keys())

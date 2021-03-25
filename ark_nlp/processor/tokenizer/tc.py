@@ -11,6 +11,7 @@ Status: Active
 """
 
 import abc
+import dgl
 import torch
 import random
 import numpy as np
@@ -45,7 +46,7 @@ class VanillaTokenizer(BaseTokenizer):
                                      padding=padding,
                                      truncating=truncating)
 
-
+    
 class TransfomerTokenizer(BaseTokenizer):
     """
     Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
