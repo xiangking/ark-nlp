@@ -10,7 +10,6 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import dgl
 import copy
 import torch
 import pandas as pd
