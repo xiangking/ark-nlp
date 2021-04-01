@@ -79,7 +79,9 @@ class TransfomerTokenizer(BaseTokenizer):
         # 对seq拼接填充序列
         sequence += padding 
 
-        return (sequence, sequence_mask, segment_ids)
+        return (np.asarray(sequence, dtype='int64'),
+                np.asarray(sequence_mask, dtype='int64'), 
+                np.asarray(segment_ids, dtype='int64'))
 
         # return (torch.Tensor(sequence).type(torch.long), 
         #         torch.Tensor(sequence_mask).type(torch.long),
