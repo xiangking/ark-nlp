@@ -44,16 +44,17 @@ class BaseDataset(Dataset):
         :param data_path: (string) 数据所在路径
         :param data_format: (string) 数据存储格式
         """  
-        
         if data_format == None:
             data_format = data_path.split('.')[-1]
         
         if data_format == 'csv':
-            data_df = pd.read_csv(data_path)
+            data_df = pd.read_csv(data_path, dtype={'label': str})
         elif data_format == 'json':
-            data_df = pd.read_json(data_path)
+            data_df = pd.read_json(data_path, dtype={'label': str})
         elif data_format == 'tsv':
-            data_df = pd.read_csv(data_path, sep='\t')
+            data_df = pd.read_csv(data_path, sep='\t', , dtype={'label': str})
+        elif data_format == 'txt':
+            data_df = pd.read_csv(data_path, sep='\t', , dtype={'label': str})
         else:
             raise ValueError("The data format does not exist") 
         

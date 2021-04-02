@@ -2,7 +2,6 @@ from torch.optim import *
 from torch.optim import Optimizer
 
 
-
 all_optimizers_dict = dict(
     adadelta=Adadelta,
     adagrad=Adagrad,
