@@ -83,7 +83,7 @@ class TCPredictor(object):
         self, 
         features
     ):
-        return {col: features[col].unsqueeze(0).to(self.device) for col in features}
+        return {col: torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device) for col in features}
 
     def predict_one_sample(
         self, 
@@ -126,7 +126,7 @@ class TCPredictor(object):
         self, 
         features
     ):
-        return {col: features[col].to(self.device) for col in self.inputs_cols}
+        return {col: torch.Tensor(features[col]).type(torch.long).to(self.device) for col in self.inputs_cols}
 
     def predict_batch(
         self, 
