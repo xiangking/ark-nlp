@@ -10,7 +10,10 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import dgl
+try:
+    import dgl
+except:
+    ImportWarning('DGL Not Found')
 import copy
 import torch
 import pandas as pd

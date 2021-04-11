@@ -76,11 +76,10 @@ class TextLevelGCN(torch.nn.Module):
 
         self.classify = torch.nn.Linear(self.node_embed_size, self.class_num, bias=True)
         
-        self.reset_parameters()
+        self.init_weights()
         
-    def reset_parameters(self):        
+    def init_weights(self):        
         nn.init.xavier_uniform_(self.classify.weight)
-
 
     def forward(
         self, 

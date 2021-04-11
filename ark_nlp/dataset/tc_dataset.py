@@ -67,6 +67,7 @@ class TCDataset(BaseDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
+            length = len(row_)
             input_ids = vanilla_tokenizer.text_to_sequence(row_['text'])   
             label_ids = self.cat2id[row_['label']]
             

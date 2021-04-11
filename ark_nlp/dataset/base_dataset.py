@@ -52,9 +52,9 @@ class BaseDataset(Dataset):
         elif data_format == 'json':
             data_df = pd.read_json(data_path, dtype={'label': str})
         elif data_format == 'tsv':
-            data_df = pd.read_csv(data_path, sep='\t', , dtype={'label': str})
+            data_df = pd.read_csv(data_path, sep='\t', dtype={'label': str})
         elif data_format == 'txt':
-            data_df = pd.read_csv(data_path, sep='\t', , dtype={'label': str})
+            data_df = pd.read_csv(data_path, sep='\t', dtype={'label': str})
         else:
             raise ValueError("The data format does not exist") 
         

@@ -69,9 +69,9 @@ class ABCNN(torch.nn.Module):
         # self.classify = nn.Linear(covfeature_num // 2, self.class_num)
         # self.fc_dropout = nn.Dropout(self.fc_dropout_rate)
 
-        self.reset_parameters()
+        self.init_weights()
 
-    def reset_parameters(self):
+    def init_weights(self):
         nn.init.xavier_uniform_(self.linear.weight)
         nn.init.xavier_uniform_(self.classify.weight)
     
