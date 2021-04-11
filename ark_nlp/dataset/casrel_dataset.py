@@ -104,7 +104,7 @@ class CasRelDataset(BaseDataset):
         tokens = self.tokenizer.tokenize(text)
         
         if self.is_test:
-            token_ids, masks, segment_ids = self.tokenizer.text_to_sequence(text)
+            token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
             text_len = len(token_ids)
             sub_heads, sub_tails = np.zeros(text_len), np.zeros(text_len)
             sub_head, sub_tail = np.zeros(text_len), np.zeros(text_len)
@@ -126,7 +126,7 @@ class CasRelDataset(BaseDataset):
                     s2ro_map[sub].append((obj_head_idx, obj_head_idx + len(triple[2]), self.cat2id[triple[1]]))
 
             if s2ro_map:
-                token_ids, masks, segment_ids = self.tokenizer.text_to_sequence(text)
+                token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
                 text_len = len(token_ids)
                 sub_heads, sub_tails = np.zeros(text_len), np.zeros(text_len)
                 for s in s2ro_map:

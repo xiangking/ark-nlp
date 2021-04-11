@@ -13,17 +13,30 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from ..configuration.configuration_nezha import NeZhaConfig
 from transformers.file_utils import add_start_docstrings
 from transformers.modeling_utils import PreTrainedModel, prune_linear_layer
-from transformers.models.bert.modeling_bert import (
-    BertOutput,
-    BertPooler,
-    BertSelfOutput,
-    BertIntermediate,
-    BertOnlyMLMHead,
-    BertOnlyNSPHead,
-    BertPreTrainingHeads,
-    BERT_START_DOCSTRING,
-    BERT_INPUTS_DOCSTRING,
-)
+try:
+    from transformers.modeling_bert import (
+        BertOutput,
+        BertPooler,
+        BertSelfOutput,
+        BertIntermediate,
+        BertOnlyMLMHead,
+        BertOnlyNSPHead,
+        BertPreTrainingHeads,
+        BERT_START_DOCSTRING,
+        BERT_INPUTS_DOCSTRING,
+    )
+except:
+    from transformers.models.bert.modeling_bert import (
+        BertOutput,
+        BertPooler,
+        BertSelfOutput,
+        BertIntermediate,
+        BertOnlyMLMHead,
+        BertOnlyNSPHead,
+        BertPreTrainingHeads,
+        BERT_START_DOCSTRING,
+        BERT_INPUTS_DOCSTRING,
+    )
 
 logger = logging.getLogger(__name__)
 

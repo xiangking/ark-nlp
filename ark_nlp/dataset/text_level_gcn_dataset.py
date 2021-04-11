@@ -10,10 +10,6 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-try:
-    import dgl
-except:
-    ImportWarning('DGL Not Found')
 import copy
 import torch
 import pandas as pd
@@ -52,7 +48,7 @@ class TextLevelGCNDataset(TCDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
-            node_ids, edge_ids, sub_graph = graph_tokenizer.text_to_graph(row_['text'])             
+            node_ids, edge_ids, sub_graph = graph_tokenizer.sequence_to_graph(row_['text'])             
                         
             label_ids = self.cat2id[row_['label']]
                         

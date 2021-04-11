@@ -5,15 +5,19 @@ Author:
 import torch
 import torch.nn.functional as F
 
+from .basemodel import BasicModule
 from torch import nn
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from .basemodel import BasicModule
 
 
 class RNN(BasicModule):
     """
     封装了RNN系列模型，包括原始的RNN，LSTM和GRU 
+    
+    Reference: 
+        [1] https://github.com/aehrc/LAAT 
+        
     """  
     def __init__(
         self, 
@@ -23,11 +27,11 @@ class RNN(BasicModule):
         embed_dropout=0.2, 
         pre_embed=False, 
         is_freeze=False, 
-        hidden_size=64, 
+        hidden_size=100, 
         hidden_num=1, 
         lstm_dropout=0, 
         is_bidirectional=True, 
-        fc_dropout=0, 
+        fc_dropout=0.5, 
         rnn_cell='lstm'
     ):
         super(RNN, self).__init__()
@@ -58,11 +62,11 @@ class RNN(BasicModule):
         self.hidden_dropout = lstm_dropout
         self.bidirectional = is_bidirectional
 
-        self.rnn_module = rnn_module
+        self.rnn_cell = rnn_cell
 
         if self.rnn_cell == 'rnn':
             self.rnn = nn.RNN(
-                self.embed_dim, 
+                self.embed_size, 
                 self.hidden_size, 
                 num_layers=self.hidden_num, 
                 dropout=self.hidden_dropout, 
@@ -70,7 +74,7 @@ class RNN(BasicModule):
             )
         elif self.rnn_cell == 'lstm':
             self.rnn = nn.LSTM(
-                self.embed_dim, 
+                self.embed_size, 
                 self.hidden_size, 
                 dropout=self.hidden_dropout, 
                 num_layers=self.hidden_num, 
@@ -78,7 +82,7 @@ class RNN(BasicModule):
             )
         elif self.rnn_cell == 'gru':
             self.rnn = nn.GRU(
-                self.embed_dim, 
+                self.embed_size, 
                 self.hidden_size, 
                 dropout=self.hidden_dropout, 
                 num_layers=self.hidden_num,
@@ -106,11 +110,27 @@ class RNN(BasicModule):
         nn.init.xavier_uniform_(self.classify.weight)
 
     def init_hidden(self, batch_size, num_layers, device):
-        if self.rnn_module == 'lstm':
+        if self.rnn_cell == 'lstm':
             return (Variable(torch.zeros(num_layers, batch_size, self.hidden_size)).to(device),
                      Variable(torch.zeros(num_layers, batch_size, self.hidden_size)).to(device))
         else: 
             return (Variable(torch.zeros(num_layers, batch_size, self.hidden_size)).to(device))
+    
+    def get_last_hidden_output(self, hidden):
+        if self.bidirectional:
+            hidden_forward = hidden[-1]
+            hidden_backward = hidden[0]
+            if len(hidden_backward.shape) > 2:
+                hidden_forward = hidden_forward.squeeze(0)
+                hidden_backward = hidden_backward.squeeze(0)
+            last_rnn_output = torch.cat((hidden_forward, hidden_backward), 1)
+        else:
+
+            last_rnn_output = hidden[-1]
+            if len(hidden.shape) > 2:
+                last_rnn_output = last_rnn_output.squeeze(0)
+
+        return last_rnn_output
 
     def forward(
         self, 
@@ -125,23 +145,21 @@ class RNN(BasicModule):
         out = self.embed_dropout(out)
                 
         if self.bidirectional == True:
-            self.hidden = self.init_hidden(batch_size, 2, device)
+            hidden = self.init_hidden(batch_size, 2, device)
         else:
-            self.hidden = self.init_hidden(batch_size, 1, device)
-            
+            hidden = self.init_hidden(batch_size, 1, device)
+
         self.rnn.flatten_parameters()
         out = pack_padded_sequence(out, length, batch_first=True, enforce_sorted=False)
-                    
-        out, self.hidden = self.rnn(out, self.hidden)  
-        
-        out = pad_packed_sequence(out, batch_first=True)[0]
-        
-        out = out[-1,:,:]
-        
-        out = out.view(-1, self.lstm_out_dim)
+        _, hidden = self.rnn(out, hidden)
+        if self.rnn_cell == 'lstm':
+            hidden = hidden[0]
 
-        out = self.linear(F.relu(out))
+        hidden = self.get_last_hidden_output(hidden)
+                
+        out = self.linear(F.relu(hidden))
         out = self.fc_dropout(out)
+                
         output = self.classify(F.relu(out))
 
         return output

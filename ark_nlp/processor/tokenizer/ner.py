@@ -33,8 +33,17 @@ class VanillaTokenizer(BaseTokenizer):
         super(VanillaTokenizer, self).__init__(max_seq_len, vocab)
         self.tokenizer_type = 'vanilla'
         
-    def text_to_sequence(self, text, reverse=False, padding='post', truncating='post'):
-        sequence = self.vocab.convert_to_ids(self.tokenize(text))
+    def sequence_to_ids(
+        self, 
+        sequence, 
+        reverse=False, 
+        padding='post', 
+        truncating='post'
+    ):
+        if type(sequence) == str:
+            sequence = self.tokenize(sequence) 
+            
+        sequence = self.vocab.convert_to_ids(sequence)
         if len(sequence) == 0:
             sequence = [0]
         if reverse:
@@ -62,8 +71,10 @@ class TransfomerTokenizer(BaseTokenizer):
         text = ' '.join([token_ for token_ in text])
         return self.vocab.tokenize(text)
     
-    def text_to_sequence(self, text):
-        sequence = self.tokenize(text) 
+    def sequence_to_ids(self, sequence):
+        if type(sequence) == str:
+            sequence = self.tokenize(sequence) 
+
         # 对超长序列进行截断
         if len(sequence) > self.max_seq_len - 2:
             sequence = sequence[0:(self.max_seq_len - 2)]

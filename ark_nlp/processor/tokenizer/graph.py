@@ -35,8 +35,11 @@ class TextLevelGCNTokenizer(BaseTokenizer):
         self.graph = graph
         self.tokenizer_type = 'graph'
         
-    def text_to_graph(self, text):
-        sequence = self.vocab.convert_to_ids(self.tokenize(text))
+    def sequence_to_graph(self, sequence):
+        if type(sequence) == str:
+            sequence = self.tokenize(sequence) 
+
+        sequence = self.vocab.convert_to_ids(sequence)
         if len(sequence) == 0:
             sequence = [0]
 

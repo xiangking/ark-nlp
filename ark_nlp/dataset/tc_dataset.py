@@ -48,7 +48,7 @@ class TCDataset(BaseDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
-            input_ids = bert_tokenizer.text_to_sequence(row_['text'])              
+            input_ids = bert_tokenizer.sequence_to_ids(row_['text'])              
             
             input_ids, input_mask, segment_ids = input_ids
             
@@ -67,12 +67,14 @@ class TCDataset(BaseDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
-            length = len(row_)
-            input_ids = vanilla_tokenizer.text_to_sequence(row_['text'])   
+            tokens = vanilla_tokenizer.tokenize(row_['text'])
+            length = len(tokens)
+            input_ids = vanilla_tokenizer.sequence_to_ids(tokens)   
             label_ids = self.cat2id[row_['label']]
             
             features.append({
                 'input_ids': input_ids,
+                'length': length if length < vanilla_tokenizer.max_seq_len else vanilla_tokenizer.max_seq_len,
                 'label_ids': label_ids
             })
         

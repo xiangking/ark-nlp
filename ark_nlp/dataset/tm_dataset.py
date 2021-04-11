@@ -49,7 +49,7 @@ class TMDataset(BaseDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
-            input_ids = bert_tokenizer.text_to_sequence(row_['text_a'], row_['text_b'])
+            input_ids = bert_tokenizer.sequence_to_ids(row_['text_a'], row_['text_b'])
             
             input_ids, input_mask, segment_ids = input_ids
             
@@ -71,11 +71,15 @@ class TMDataset(BaseDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
-            input_ids = vanilla_tokenizer.text_to_sequence(row_['text'])   
+
+            input_a_ids = vanilla_tokenizer.sequence_to_ids(row_['text_a'])
+            input_b_ids = vanilla_tokenizer.sequence_to_ids(row_['text_b'])   
+
             label_ids = self.cat2id[row_['label']]
             
             features.append({
-                'input_ids': input_ids,
+                'input_a_ids': input_a_ids,
+                'input_b_ids': input_b_ids,
                 'label_ids': label_ids
             })
         
