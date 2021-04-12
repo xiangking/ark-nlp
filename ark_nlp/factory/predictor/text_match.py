@@ -46,7 +46,7 @@ class TMPredictor(object):
         text_a,
         text_b
     ):
-        input_ids = self.tokenizer.text_to_sequence(text_a, text_b)  
+        input_ids = self.tokenizer.sequence_to_ids(text_a, text_b)  
         input_ids, input_mask, segment_ids = input_ids
 
         features = {
@@ -61,10 +61,12 @@ class TMPredictor(object):
         text_a, 
         text_b
     ):
-        input_ids = self.tokenizer.text_to_sequence(text_a, text_b)   
+        input_a_ids = vanilla_tokenizer.sequence_to_ids(row_['text_a'])
+        input_b_ids = vanilla_tokenizer.sequence_to_ids(row_['text_b'])   
 
         features = {
-                'input_ids': input_ids
+                'input_a_ids': input_ids,
+                'input_b_ids': input_b_ids
             }
         return features
 

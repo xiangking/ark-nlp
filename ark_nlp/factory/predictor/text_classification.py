@@ -45,7 +45,7 @@ class TCPredictor(object):
         self, 
         text
     ):
-        input_ids = self.tokenizer.text_to_sequence(text)  
+        input_ids = self.tokenizer.sequence_to_ids(text)  
         input_ids, input_mask, segment_ids = input_ids
 
         features = {
@@ -59,10 +59,13 @@ class TCPredictor(object):
         self, 
         text
     ):
-        input_ids = self.tokenizer.text_to_sequence(text)   
+        tokens = vanilla_tokenizer.tokenize(text)
+        length = len(tokens)
+        input_ids = vanilla_tokenizer.sequence_to_ids(tokens)   
 
         features = {
-                'input_ids': input_ids
+                'input_ids': input_ids,
+                'length': length if length < vanilla_tokenizer.max_seq_len else vanilla_tokenizer.max_seq_len,
             }
         return features
 
