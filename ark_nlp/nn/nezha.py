@@ -195,6 +195,14 @@ class VanillaNeZha(BertPreTrainedModel):
         
         self.init_weights()
 
+    def get_encoder_feature(self, encoder_output):
+        if self.task == 'SequenceClassification':
+            return encoder_output[1]
+        elif self.task == 'TokenClassification':
+            return encoder_output[0]
+        else:
+            return encoder_output[1]
+
     def forward(
         self, 
         input_ids=None,
@@ -206,7 +214,7 @@ class VanillaNeZha(BertPreTrainedModel):
                             attention_mask=attention_mask,
                             token_type_ids=token_type_ids) 
 
-        sequence_output = outputs[1]
+        sequence_output = self.get_encoder_feature(outputs)
 
         sequence_output = self.dropout(sequence_output)
         out = self.classifier(sequence_output)
@@ -214,7 +222,7 @@ class VanillaNeZha(BertPreTrainedModel):
         return out
 
 
-class NeZhaForTextClassification(NeZhaPreTrainedModel):
+class NeZhaForSequenceClassification(NeZhaPreTrainedModel):
     """
     基于NeZha的文本分类模型
 

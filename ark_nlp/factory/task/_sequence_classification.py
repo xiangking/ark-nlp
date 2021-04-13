@@ -28,12 +28,13 @@ from ..optimizer import get_optimizer
 from ._task import Task
 
 
-class ClassificationTask(Task):
+class SequenceClassificationTask(Task):
     
     def __init__(self, *args, **kwargs):
         
-        super(ClassificationTask, self).__init__(*args, **kwargs)
-        
+        super(SequenceClassificationTask, self).__init__(*args, **kwargs)
+        self.module.task = 'SequenceClassification'
+
     def _on_train_begin(
         self, 
         train_data, 

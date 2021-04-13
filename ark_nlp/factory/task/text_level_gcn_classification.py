@@ -28,9 +28,9 @@ from ..loss_function import get_loss
 from ..optimizer import get_optimizer
 from ..metric import topk_accuracy
 from ._task import Task
-from ._classification import ClassificationTask
+from ._sequence_classification import SequenceClassificationTask
 
-class TextLevelGCNTask(ClassificationTask):
+class TextLevelGCNTask(SequenceClassificationTask):
     
     def __init__(self, *args, **kwargs):
         

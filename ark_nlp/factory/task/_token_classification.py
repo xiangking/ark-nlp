@@ -28,11 +28,12 @@ from ..optimizer import get_optimizer
 from ._task import Task
 from ..utils import conlleval
 
-class NamedentityTask(Task):
+class TokenClassificationTask(Task):
     
     def __init__(self, *args, **kwargs):
         
-        super(NamedentityTask, self).__init__(*args, **kwargs)
+        super(TokenClassificationTask, self).__init__(*args, **kwargs)
+        self.module.task = 'TokenClassification'
         
     def _on_train_begin(
         self, 

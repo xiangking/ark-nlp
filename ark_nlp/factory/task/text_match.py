@@ -26,9 +26,9 @@ import sklearn.metrics as sklearn_metrics
 from ..loss_function import get_loss
 from ..optimizer import get_optimizer
 from ._task import Task
-from ._classification import ClassificationTask
+from ._sequence_classification import SequenceClassificationTask
 
-class TMTask(ClassificationTask):
+class TMTask(SequenceClassificationTask):
     
     def __init__(self, *args, **kwargs):
         
