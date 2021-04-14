@@ -38,8 +38,6 @@ class VanillaBert(BertPreTrainedModel):
         bert_trained=True
     ):
         super(VanillaBert, self).__init__(config)
-
-        self.task = task
         
         self.bert = BertModel(config)
         
