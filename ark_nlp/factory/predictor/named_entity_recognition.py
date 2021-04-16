@@ -36,6 +36,8 @@ class NERPredictor(object):
         self.markup = markup
 
         self.module = module
+        self.module.task = 'TokenClassification'
+
         self.cat2id = cat2id
         self.tokenizer = tokernizer
         self.device = list(self.module.parameters())[0].device

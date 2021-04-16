@@ -25,7 +25,7 @@ from .base_vocab import Vocab
 
 class TransfomerVocab(BertTokenizer):
     
-    def _tokenize(self, text):
+    def tokenize(self, text):
         text = ''.join([ch for ch in text if unicodedata.category(ch) != 'Mn'])
         spaced = ''
         for ch in text:

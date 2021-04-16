@@ -33,6 +33,8 @@ class TCPredictor(object):
     ):
 
         self.module = module
+        self.module.task = 'SequenceClassification'
+        
         self.cat2id = cat2id
         self.tokenizer = tokernizer
         self.device = list(self.module.parameters())[0].device
