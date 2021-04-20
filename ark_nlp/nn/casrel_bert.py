@@ -22,26 +22,26 @@ class CasrelBert(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        bert_trained=True
+        encoder_trained=True
     ):
         super(CasrelBert, self).__init__(config)
         
         self.bert = BertModel(config)
         
         for param in self.bert.parameters():
-            param.requires_grad = bert_trained
+            param.requires_grad = encoder_trained
             
         self.num_labels = config.num_labels
         
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         
-        self.bert_dim = config.hidden_size
+        self.encoder_dim = config.hidden_size
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        self.sub_heads_linear = nn.Linear(self.bert_dim, 1)
-        self.sub_tails_linear = nn.Linear(self.bert_dim, 1)
-        self.obj_heads_linear = nn.Linear(self.bert_dim, self.num_labels)
-        self.obj_tails_linear = nn.Linear(self.bert_dim, self.num_labels)
+        self.sub_heads_linear = nn.Linear(self.encoder_dim, 1)
+        self.sub_tails_linear = nn.Linear(self.encoder_dim, 1)
+        self.obj_heads_linear = nn.Linear(self.encoder_dim, self.num_labels)
+        self.obj_tails_linear = nn.Linear(self.encoder_dim, self.num_labels)
 
     def get_objs_for_specific_sub(self, sub_head_mapping, sub_tail_mapping, encoded_text):
         sub_head = torch.matmul(sub_head_mapping, encoded_text)

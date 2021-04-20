@@ -202,14 +202,14 @@ class RoFormer(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        bert_trained=True
+        encoder_trained=True
     ):
         super(RoFormer, self).__init__(config)
         
-        self.bert = NeZhaModel(config)
+        self.roformer = NeZhaModel(config)
         
-        for param in self.bert.parameters():
-            param.requires_grad = bert_trained 
+        for param in self.roformer.parameters():
+            param.requires_grad = encoder_trained 
             
         self.num_labels = config.num_labels
 
@@ -233,7 +233,7 @@ class RoFormer(BertPreTrainedModel):
         token_type_ids=None,
         **kwargs
     ):
-        outputs = self.bert(input_ids, 
+        outputs = self.roformer(input_ids, 
                             attention_mask=attention_mask,
                             token_type_ids=token_type_ids) 
 

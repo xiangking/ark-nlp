@@ -174,19 +174,19 @@ class NeZha(BertPreTrainedModel):
     :returns: 
 
     Reference:
-        [1] BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding  
+        [1] 
     """ 
     def __init__(
         self, 
         config, 
-        bert_trained=True
+        encoder_trained=True
     ):
         super(NeZha, self).__init__(config)
         
         self.bert = NeZhaModel(config)
         
         for param in self.bert.parameters():
-            param.requires_grad = bert_trained 
+            param.requires_grad = encoder_trained 
             
         self.num_labels = config.num_labels
 

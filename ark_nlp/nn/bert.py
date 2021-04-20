@@ -35,14 +35,14 @@ class VanillaBert(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        bert_trained=True
+        encoder_trained=True
     ):
         super(VanillaBert, self).__init__(config)
         
         self.bert = BertModel(config)
         
         for param in self.bert.parameters():
-            param.requires_grad = bert_trained 
+            param.requires_grad = encoder_trained 
             
         self.num_labels = config.num_labels
 
@@ -93,14 +93,14 @@ class Bert(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        bert_trained=True
+        encoder_trained=True
     ):
         super(Bert, self).__init__(config)
         
         self.bert = BertModel(config)
         
         for param in self.bert.parameters():
-            param.requires_grad = bert_trained 
+            param.requires_grad = encoder_trained 
             
         self.num_labels = config.num_labels
 
@@ -152,14 +152,14 @@ class BertForSequenceClassification(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        bert_trained=True
+        encoder_trained=True
     ):
         super(BertForSequenceClassification, self).__init__(config)
         
         self.bert = BertModel(config)
         
         for param in self.bert.parameters():
-            param.requires_grad = bert_trained 
+            param.requires_grad = encoder_trained 
             
         self.num_labels = config.num_labels
 
@@ -203,14 +203,14 @@ class BertForTokenClassification(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        bert_trained=True
+        encoder_trained=True
     ):
         super(BertForTokenClassification, self).__init__(config)
         
         self.bert = BertModel(config)
         
         for param in self.bert.parameters():
-            param.requires_grad = bert_trained 
+            param.requires_grad = encoder_trained 
             
         self.num_labels = config.num_labels
 
