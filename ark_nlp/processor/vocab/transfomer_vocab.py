@@ -41,3 +41,9 @@ class TransfomerVocab(BertTokenizer):
         for word in re.split(' ', spaced.strip()):
             tokens += self.wordpiece_tokenizer.tokenize(word)
         return tokens
+
+
+class RoFormerVocab(TransfomerVocab):
+    
+    def tokenize(self, text):
+        return list(jieba.cut(text))

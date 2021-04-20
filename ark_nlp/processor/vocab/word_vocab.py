@@ -50,6 +50,7 @@ class WordVocab(Vocab):
             idx = len(self.id2token)
             self.id2token[idx] = token
             self.token2id[token] = idx
+            self.vocab_size += 1
 
         return idx
     

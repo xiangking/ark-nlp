@@ -26,7 +26,3 @@ class Vocab(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def tokenize(self):
         raise NotImplementedError
-        
-    @abc.abstractmethod
-    def save(self):
-        raise NotImplementedError
