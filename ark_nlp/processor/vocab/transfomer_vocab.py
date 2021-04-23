@@ -43,7 +43,7 @@ class TransfomerVocab(BertTokenizer):
         return tokens
 
 
-class RoFormerVocab(TransfomerVocab):
+class RoFormerVocab(BertTokenizer):
     
     def tokenize(self, text):
         return list(jieba.cut(text))
