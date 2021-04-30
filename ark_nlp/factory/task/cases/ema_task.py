@@ -25,12 +25,63 @@ import sklearn.metrics as sklearn_metrics
 
 from ark_nlp.factory.utils.ema import EMA
 from ark_nlp.factory.task import SequenceClassificationTask
+from ark_nlp.factory.task import TokenClassificationTask
 
 
 class EMATCTask(SequenceClassificationTask):
     def __init__(self, *args, **kwargs):
-        super(SequenceClassificationTask, self).__init__(*args, **kwargs)
-        self.module.task = 'SequenceClassification'
+        super(EMATCTask, self).__init__(*args, **kwargs)
+        self.ema = EMA(self.module.parameters(), decay=0.995)
+    
+    def _on_optimize(self, step, logs, **kwargs):
+        self.optimizer.step()  # 更新权值
+        self.ema.update(self.module.parameters())
+        
+        if self.scheduler:
+            self.scheduler.step()  # 更新学习率
+                
+        self.optimizer.zero_grad()  # 清空梯度
+        
+        self._on_optimize_record(logs)
+        
+        return step
+    
+    def evaluate(
+        self, 
+        validation_data, 
+        evaluate_batch_size=16, 
+        return_pred=False, 
+        **kwargs
+    ):
+        logs = dict()
+        
+        generator = self._on_evaluate_begin(validation_data, evaluate_batch_size, logs, shuffle=False, **kwargs)
+                
+        with torch.no_grad():
+            self.ema.store(self.module.parameters())
+            self.ema.copy_to(self.module.parameters())
+                        
+            for step, inputs in enumerate(generator):
+                
+                labels = self._get_module_label_on_eval(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_eval(inputs, labels, **kwargs)
+                
+                # forward
+                logits = self.module(**inputs)
+                
+                # compute loss
+                loss = self._compute_loss(inputs, labels, logits, **kwargs)
+                
+                self._on_evaluate_step_end(inputs, labels, logits, loss, logs, **kwargs)
+                
+            self.ema.restore(self.module.parameters())
+                
+        self._on_evaluate_end(validation_data, logs)
+
+
+class EMANERTask(TokenClassificationTask):
+    def __init__(self, *args, **kwargs):
+        super(EMATCTask, self).__init__(*args, **kwargs)
         self.ema = EMA(self.module.parameters(), decay=0.995)
     
     def _on_optimize(self, step, logs, **kwargs):

@@ -16,6 +16,7 @@ import math
 import torch.nn.functional as F
 
 from torch import nn
+from torch import Tensor
 from transformers import BertModel, BertPreTrainedModel
 from torch.nn import CrossEntropyLoss
 
@@ -179,12 +180,14 @@ class NeZha(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        encoder_trained=True
+        encoder_trained=True,
+        pooling='cls'
     ):
         super(NeZha, self).__init__(config)
         
         self.bert = NeZhaModel(config)
-        
+        self.pooling = pooling
+
         for param in self.bert.parameters():
             param.requires_grad = encoder_trained 
             
@@ -195,13 +198,32 @@ class NeZha(BertPreTrainedModel):
         
         self.init_weights()
 
-    def get_encoder_feature(self, encoder_output):
-        if self.task == 'SequenceClassification':
-            return encoder_output[1]
-        elif self.task == 'TokenClassification':
-            return encoder_output[0]
+    def mask_pooling(self, x: Tensor, attention_mask=None):
+        if attention_mask is None:
+            return torch.mean(x, dim=1)
+        return torch.sum(x * attention_mask.unsqueeze(2), dim=1) / torch.sum(attention_mask, dim=1, keepdim=True)
+
+    def sequence_pooling(self, sequence_feature, attention_mask):
+        if self.pooling == 'first_last_avg':
+            sequence_feature = sequence_feature[-1] + sequence_feature[1]
+        elif self.pooling == 'last_avg':
+            sequence_feature = sequence_feature[-1]
+        elif self.pooling == 'last_2_avg':
+            sequence_feature = sequence_feature[-1] + sequence_feature[-2]
+        elif self.pooling == 'cls':
+            return sequence_feature[-1][:, 0, :]
         else:
-            return encoder_output[1]
+            raise Exception("unknown pooling {}".format(self.pooling))
+
+        return self.mask_pooling(sequence_feature, attention_mask)
+
+    def get_encoder_feature(self, encoder_output, attention_mask):
+        if self.task == 'SequenceClassification':
+            return self.sequence_pooling(encoder_output, attention_mask)
+        elif self.task == 'TokenClassification':
+            return encoder_output[-1]
+        else:
+            return encoder_output[-1][:, 0, :]
 
     def forward(
         self, 
@@ -210,11 +232,14 @@ class NeZha(BertPreTrainedModel):
         token_type_ids=None,
         **kwargs
     ):
-        outputs = self.bert(input_ids, 
+        outputs = self.bert(input_ids,
                             attention_mask=attention_mask,
-                            token_type_ids=token_type_ids) 
+                            token_type_ids=token_type_ids,
+                            return_dict=True, 
+                            output_hidden_states=True
+                           ).hidden_states
 
-        sequence_output = self.get_encoder_feature(outputs)
+        encoder_feature = self.get_encoder_feature(outputs, attention_mask)
 
         sequence_output = self.dropout(sequence_output)
         out = self.classifier(sequence_output)

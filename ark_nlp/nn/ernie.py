@@ -34,7 +34,6 @@ class ErnieForSequenceClassification(BertForSequenceClassification):
         super(ErnieForSequenceClassification, self).__init__(config, encoder_trained)
 
 
-
 class ErnieForTokenClassification(BertForTokenClassification):
     def __init__(
         self, 

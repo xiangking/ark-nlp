@@ -15,9 +15,11 @@ import torch
 import math
 import torch.nn.functional as F
 from torch import nn
+from torch import Tensor
 from .basemodel import BasicModule
 from transformers import BertModel, BertPreTrainedModel
 from torch.nn import CrossEntropyLoss
+from ark_nlp.nn.layer.crf_block import CRF
 
 
 class VanillaBert(BertPreTrainedModel):
@@ -35,11 +37,12 @@ class VanillaBert(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        encoder_trained=True
+        encoder_trained=True,
+        pooling='cls'
     ):
         super(VanillaBert, self).__init__(config)
-        
         self.bert = BertModel(config)
+        self.pooling = pooling
         
         for param in self.bert.parameters():
             param.requires_grad = encoder_trained 
@@ -50,14 +53,33 @@ class VanillaBert(BertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, self.num_labels)
         
         self.init_weights()
+        
+    def mask_pooling(self, x: Tensor, attention_mask=None):
+        if attention_mask is None:
+            return torch.mean(x, dim=1)
+        return torch.sum(x * attention_mask.unsqueeze(2), dim=1) / torch.sum(attention_mask, dim=1, keepdim=True)
 
-    def get_encoder_feature(self, encoder_output):
-        if self.task == 'SequenceClassification':
-            return encoder_output[1]
-        elif self.task == 'TokenClassification':
-            return encoder_output[0]
+    def sequence_pooling(self, sequence_feature, attention_mask):
+        if self.pooling == 'first_last_avg':
+            sequence_feature = sequence_feature[-1] + sequence_feature[1]
+        elif self.pooling == 'last_avg':
+            sequence_feature = sequence_feature[-1]
+        elif self.pooling == 'last_2_avg':
+            sequence_feature = sequence_feature[-1] + sequence_feature[-2]
+        elif self.pooling == 'cls':
+            return sequence_feature[-1][:, 0, :]
         else:
-            return encoder_output[1]
+            raise Exception("unknown pooling {}".format(self.pooling))
+
+        return self.mask_pooling(sequence_feature, attention_mask)
+
+    def get_encoder_feature(self, encoder_output, attention_mask):
+        if self.task == 'SequenceLevel':
+            return self.sequence_pooling(encoder_output, attention_mask)
+        elif self.task == 'TokenLevel':
+            return encoder_output[-1]
+        else:
+            return encoder_output[-1][:, 0, :]
 
     def forward(
         self, 
@@ -66,11 +88,14 @@ class VanillaBert(BertPreTrainedModel):
         token_type_ids=None,
         **kwargs
     ):
-        outputs = self.bert(input_ids, 
+        outputs = self.bert(input_ids,
                             attention_mask=attention_mask,
-                            token_type_ids=token_type_ids) 
+                            token_type_ids=token_type_ids,
+                            return_dict=True, 
+                            output_hidden_states=True
+                           ).hidden_states
 
-        encoder_feature = self.get_encoder_feature(outputs)
+        encoder_feature = self.get_encoder_feature(outputs, attention_mask)
 
         encoder_feature = self.dropout(encoder_feature)
         out = self.classifier(encoder_feature)
@@ -93,11 +118,13 @@ class Bert(BertPreTrainedModel):
     def __init__(
         self, 
         config, 
-        encoder_trained=True
+        encoder_trained=True,
+        pooling='cls'
     ):
         super(Bert, self).__init__(config)
         
         self.bert = BertModel(config)
+        self.pooling = pooling
         
         for param in self.bert.parameters():
             param.requires_grad = encoder_trained 
@@ -108,14 +135,33 @@ class Bert(BertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, self.num_labels)
         
         self.init_weights()
+        
+    def mask_pooling(self, x: Tensor, attention_mask=None):
+        if attention_mask is None:
+            return torch.mean(x, dim=1)
+        return torch.sum(x * attention_mask.unsqueeze(2), dim=1) / torch.sum(attention_mask, dim=1, keepdim=True)
 
-    def get_encoder_feature(self, encoder_output):
-        if self.task == 'SequenceClassification':
-            return encoder_output[1]
-        elif self.task == 'TokenClassification':
-            return encoder_output[0]
+    def sequence_pooling(self, sequence_feature, attention_mask):
+        if self.pooling == 'first_last_avg':
+            sequence_feature = sequence_feature[-1] + sequence_feature[1]
+        elif self.pooling == 'last_avg':
+            sequence_feature = sequence_feature[-1]
+        elif self.pooling == 'last_2_avg':
+            sequence_feature = sequence_feature[-1] + sequence_feature[-2]
+        elif self.pooling == 'cls':
+            return sequence_feature[-1][:, 0, :]
         else:
-            return encoder_output[1]
+            raise Exception("unknown pooling {}".format(self.pooling))
+
+        return self.mask_pooling(sequence_feature, attention_mask)
+
+    def get_encoder_feature(self, encoder_output, attention_mask):
+        if self.task == 'SequenceLevel':
+            return self.sequence_pooling(encoder_output, attention_mask)
+        elif self.task == 'TokenLevel':
+            return encoder_output[-1]
+        else:
+            return encoder_output[-1][:, 0, :]
 
     def forward(
         self, 
@@ -124,11 +170,14 @@ class Bert(BertPreTrainedModel):
         token_type_ids=None,
         **kwargs
     ):
-        outputs = self.bert(input_ids, 
+        outputs = self.bert(input_ids,
                             attention_mask=attention_mask,
-                            token_type_ids=token_type_ids) 
+                            token_type_ids=token_type_ids,
+                            return_dict=True, 
+                            output_hidden_states=True
+                           ).hidden_states
 
-        encoder_feature = self.get_encoder_feature(outputs)
+        encoder_feature = self.get_encoder_feature(outputs, attention_mask)
 
         encoder_feature = self.dropout(encoder_feature)
         out = self.classifier(encoder_feature)
@@ -236,3 +285,23 @@ class BertForTokenClassification(BertPreTrainedModel):
         out = self.classifier(sequence_output)
 
         return out
+
+
+class BertCrf(BertForTokenClassification):
+    """
+    基于BERT + CRF 的命名实体模型
+
+    :param config: (obejct) 模型的配置对象
+    :param bert_trained: (bool) bert参数是否可训练，默认可训练
+
+    :returns: 
+    """ 
+
+    def __init__(
+        self, 
+        config, 
+        encoder_trained=True
+    ):
+        super(BertCrf, self).__init__(config, encoder_trained)
+
+        self.crf = CRF(num_tags=config.num_labels, batch_first=True)

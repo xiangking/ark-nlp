@@ -19,7 +19,8 @@ from torch.autograd import Variable, grad
 from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 
-import tqdm
+import os
+import time
 from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
 
@@ -33,7 +34,8 @@ class SequenceClassificationTask(Task):
     def __init__(self, *args, **kwargs):
         
         super(SequenceClassificationTask, self).__init__(*args, **kwargs)
-        self.module.task = 'SequenceClassification'
+        if hasattr(self.module, 'task') is False:
+            self.module.task = 'SequenceLevel'
 
     def _on_train_begin(
         self, 
@@ -69,6 +71,7 @@ class SequenceClassificationTask(Task):
     
     def _on_train_begin_record(self, logs, **kwargs):
         
+        logs['global_step'] = 0
         logs['tr_loss'] = 0
         logs['logging_loss'] = 0
         
@@ -144,6 +147,7 @@ class SequenceClassificationTask(Task):
                 
         logs['b_loss'] += loss.item() * len(labels)
         logs['nb_tr_steps'] += 1
+        logs['global_step'] += 1
         
         return logs
 
@@ -196,6 +200,8 @@ class SequenceClassificationTask(Task):
         epoch,
         logs,
         verbose=True,
+        save_steps=0,
+        save_module_path=None,
         **kwargs
     ):
         if verbose:
@@ -203,7 +209,13 @@ class SequenceClassificationTask(Task):
                 epoch,
                 logs['b_loss'] / logs['nb_tr_steps'],
                 logs['b_acc'] / logs['nb_tr_examples']))  
-            
+
+        if save_steps > 0 and logs['global_step'] % save_steps == 0:
+            if save_module_path is None:
+                prefix = './checkpoints/' + str(type(self.module.__class__.__name__)) + '_'
+                save_module_path = time.strftime(prefix + '%m%d_%H:%M:%S.pth')
+            torch.save(self.module.state_dict(), save_module_path)  
+                    
         self._on_epoch_end_record(logs)
             
     def _on_evaluate_begin(

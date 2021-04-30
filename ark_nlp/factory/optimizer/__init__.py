@@ -17,31 +17,61 @@ all_optimizers_dict = dict(
     adamw=AdamW)
 
 
-def get_optimizer(optimizer, module, lr=None, params=None):
+def get_optimizer(optimizer, module, lr=False, params=None):
+    
+    if params is None:
+        params_ = (p for p in module.parameters() if p.requires_grad)
+    else:
+        params_ = params
     
     if isinstance(optimizer, str):
-        optimizer = optimizer.lower()
-        if params is None:
-            params = (p for p in module.parameters() if p.requires_grad)
-        return all_optimizers_dict[optimizer](params, lr if lr is not None else 1e-3)
-    
+        optimizer = all_optimizers_dict[optimizer](params_)
     elif type(optimizer).__name__ == 'type' and issubclass(optimizer, Optimizer):
-        if params is None:
-            params = (p for p in module.parameters() if p.requires_grad)
-        return optimizer(params, lr if lr is not None else 1e-3)
-    
+        optimizer = optimizer(params_)
     elif isinstance(optimizer, Optimizer):
-        if lr is not None:
-            for param_groups_ in optimizer.param_groups:
-                param_groups_['lr'] = lr
-                
         if params is not None:
             optimizer.param_groups = params
-            
-        return optimizer
-    
     else:
         raise ValueError("The optimizer type does not exist") 
+
+    if lr is not False:
+        for param_groups_ in optimizer.param_groups:
+            param_groups_['lr'] = lr
+        
+    return optimizer
+
+
+# def get_optimizer(optimizer, module, lr=False, params=None):
+    
+#     if isinstance(optimizer, str):
+#         optimizer = optimizer.lower()
+#         if params is None:
+#             params = (p for p in module.parameters() if p.requires_grad)
+#             optimizer.param_groups = params
+
+#         if lr is not False:
+#             for param_groups_ in optimizer.param_groups:
+#                 param_groups_['lr'] = lr
+
+#         return all_optimizers_dict[optimizer](params, lr)
+    
+#     elif type(optimizer).__name__ == 'type' and issubclass(optimizer, Optimizer):
+#         if params is None:
+#             params = (p for p in module.parameters() if p.requires_grad)
+#         return optimizer(params, lr if lr is not None else 1e-3)
+    
+#     elif isinstance(optimizer, Optimizer):
+#         if params is not None:
+#             optimizer.param_groups = params
+
+#         if lr is not None:
+#             for param_groups_ in optimizer.param_groups:
+#                 param_groups_['lr'] = lr
+
+#         return optimizer
+    
+#     else:
+#         raise ValueError("The optimizer type does not exist") 
 
 
 def get_default_optimizer(module, module_name='bert', **kwargs):
@@ -49,6 +79,8 @@ def get_default_optimizer(module, module_name='bert', **kwargs):
 
     if module_name == 'bert':
         return get_default_bert_optimizer(module, **kwargs)
+    elif module_name == 'bert_crf':
+        return get_default_bert_crf_optimizer(module, **kwargs)
     else:
         raise ValueError("The default optimizer does not exist") 
 
@@ -72,5 +104,39 @@ def get_default_bert_optimizer(
                       eps=eps,
                       correct_bias=correct_bias,
                       weight_decay=weight_decay)
+    return optimizer_grouped_parameters
+
+
+def get_default_bert_crf_optimizer(
+    module,
+    lr: float = 3e-5,
+    crf_lr: float = 1e-3,
+    eps: float = 1e-6,
+    correct_bias: bool = True,
+    weight_decay: float = 1e-2,
+):
+    no_decay = ["bias", "LayerNorm.weight"]
+    bert_param_optimizer = list(dl_module.bert.named_parameters())
+    crf_param_optimizer = list(dl_module.crf.named_parameters())
+    linear_param_optimizer = list(dl_module.classifier.named_parameters())
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in bert_param_optimizer if not any(nd in n for nd in no_decay)],
+        'weight_decay': weight_decay, 'lr': lr},
+        {'params': [p for n, p in bert_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0,
+        'lr': lr},
+        {'params': [p for n, p in crf_param_optimizer if not any(nd in n for nd in no_decay)],
+        'weight_decay': weight_decay, 'lr': crf_lr},
+        {'params': [p for n, p in crf_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0,
+        'lr': crf_lr},
+
+        {'params': [p for n, p in linear_param_optimizer if not any(nd in n for nd in no_decay)],
+        'weight_decay': weight_decay, 'lr': crf_lr},
+        {'params': [p for n, p in linear_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0,
+        'lr': crf_lr}
+    ]
+    optimizer = AdamW(optimizer_grouped_parameters,
+                      eps=eps,
+                      correct_bias=correct_bias)
+
     return optimizer
     

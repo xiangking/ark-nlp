@@ -48,7 +48,7 @@ class FGM(object):
             if param.requires_grad and emb_name in name:
                 assert name in self.backup
                 param.data=self.backup[name]
-            self.backup={}
+        self.backup={}
             
 
 class PGD(object):

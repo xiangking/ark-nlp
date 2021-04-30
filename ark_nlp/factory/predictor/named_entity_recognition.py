@@ -10,19 +10,21 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import numpy as np
+import tqdm
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.autograd import Variable, grad
-from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 
-import tqdm
-from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
-from ..utils.conlleval import get_entities
+from tqdm import tqdm
+from torch.autograd import grad
+from torch.autograd import Variable
+from torch.optim import lr_scheduler
+from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
+from ark_nlp.factory.utils.conlleval import get_entities
 
 
 class NERPredictor(object):
@@ -36,7 +38,7 @@ class NERPredictor(object):
         self.markup = markup
 
         self.module = module
-        self.module.task = 'TokenClassification'
+        self.module.task = 'TokenLevel'
 
         self.cat2id = cat2id
         self.tokenizer = tokernizer

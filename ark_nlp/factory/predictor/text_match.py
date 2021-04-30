@@ -33,7 +33,7 @@ class TMPredictor(object):
     ):
 
         self.module = module
-        self.module.task = 'SequenceClassification'
+        self.module.task = 'SequenceLevel'
 
         self.cat2id = cat2id
         self.tokenizer = tokernizer

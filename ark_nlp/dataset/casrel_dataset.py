@@ -18,7 +18,7 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from .base_dataset import BaseDataset
+from ._dataset import BaseDataset
 
 
 def find_head_idx(source, target):

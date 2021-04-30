@@ -33,7 +33,8 @@ class TokenClassificationTask(Task):
     def __init__(self, *args, **kwargs):
         
         super(TokenClassificationTask, self).__init__(*args, **kwargs)
-        self.module.task = 'TokenClassification'
+        if hasattr(self.module, 'task') is False:
+            self.module.task = 'TokenLevel'
         
     def _on_train_begin(
         self, 
