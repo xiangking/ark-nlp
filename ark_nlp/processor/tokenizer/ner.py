@@ -96,4 +96,3 @@ class TransfomerTokenizer(BaseTokenizer):
         return (np.asarray(sequence, dtype='int64'),
                 np.asarray(sequence_mask, dtype='int64'), 
                 np.asarray(segment_ids, dtype='int64'))
-    
