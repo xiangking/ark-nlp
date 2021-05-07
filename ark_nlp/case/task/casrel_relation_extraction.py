@@ -23,9 +23,9 @@ import tqdm
 from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
 
-from ..loss_function import get_loss
-from ..optimizer import get_optimizer
-from ._task import Task
+from ark_nlp.factory.loss_function import get_loss
+from ark_nlp.factory.optimizer import get_optimizer
+from ark_nlp.factory.task._task import Task
 
 
 def to_tup(triple_list):
@@ -298,7 +298,7 @@ class CasrelRETask(Task):
         self, 
         train_data=None, 
         validation_data=None, 
-        lr=1e-3,
+        lr=False,
         params=None,
         batch_size=32,
         epochs=1,

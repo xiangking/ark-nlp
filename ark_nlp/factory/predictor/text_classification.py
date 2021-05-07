@@ -93,7 +93,7 @@ class TCPredictor(object):
     def predict_one_sample(
         self, 
         text='', 
-        topk=None,
+        topk=1,
         return_label_name=True,
         return_proba=False
     ):

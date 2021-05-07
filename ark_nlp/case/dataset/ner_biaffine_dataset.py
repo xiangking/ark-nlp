@@ -16,7 +16,7 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from ._dataset import BaseDataset
+from ark_nlp.dataset._dataset import BaseDataset
 
 import os
 import re

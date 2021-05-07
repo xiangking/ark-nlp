@@ -24,11 +24,12 @@ import tqdm
 from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
 
-from ..loss_function import get_loss
-from ..optimizer import get_optimizer
-from ..metric import topk_accuracy
-from ._task import Task
-from ._sequence_classification import SequenceClassificationTask
+from ark_nlp.factory.loss_function import get_loss
+from ark_nlp.factory.optimizer import get_optimizer
+from ark_nlp.factory.metric import topk_accuracy
+from ark_nlp.factory.task._task import Task
+from ark_nlp.factory.task._sequence_classification import SequenceClassificationTask
+
 
 class TextLevelGCNTask(SequenceClassificationTask):
     

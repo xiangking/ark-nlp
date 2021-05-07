@@ -16,7 +16,7 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from .tc_dataset import TCDataset
+from ark_nlp.dataset.tc_dataset import TCDataset
 
 
 class TextLevelGCNDataset(TCDataset):

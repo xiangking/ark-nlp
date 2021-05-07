@@ -20,7 +20,7 @@ from torch.utils.data import Dataset
 
 class BaseTokenizer(object, metaclass=abc.ABCMeta):
     
-    def __init__(self, max_seq_len, vocab):
+    def __init__(self, vocab, max_seq_len):
         self.vocab = vocab
         self.max_seq_len = max_seq_len
     

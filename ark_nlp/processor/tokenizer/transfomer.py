@@ -13,8 +13,10 @@ Status: Active
 import abc
 import torch
 import random
+import transformers 
 import numpy as np
 
+from transformers import AutoTokenizer
 from torch.utils.data import Dataset
 from ark_nlp.processor.tokenizer.base_tokenizer import BaseTokenizer
 
@@ -27,18 +29,75 @@ class TransfomerTokenizer(BaseTokenizer):
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
     """  
-    def __init__(self, max_seq_len, vocab):
-        super(TransfomerTokenizer, self).__init__(max_seq_len, vocab)
+    def __init__(self, vocab, max_seq_len):
+
+        if isinstance(vocab, str):
+            # TODO: 改成由自定义的字典所决定
+            vocab = transformers.AutoTokenizer.from_pretrained(vocab)
+
+        self.vocab = vocab
+        self.max_seq_len = max_seq_len
         self.tokenizer_type = 'transfomer'
+    
+    @staticmethod
+    def _is_control(ch):
+        """控制类字符判断
+        """
+        return unicodedata.category(ch) in ('Cc', 'Cf')
+    
+    @staticmethod
+    def _is_special(ch):
+        """判断是不是有特殊含义的符号
+        """
+        return bool(ch) and (ch[0] == '[') and (ch[-1] == ']')
+    
+    @staticmethod
+    def recover_bert_token(token):
+        """获取token的“词干”（如果是##开头，则自动去掉##）
+        """
+        if token[:2] == '##':
+            return token[2:]
+        else:
+            return token
+
+    def get_token_mapping(self, text, tokens):
+        """给出原始的text和tokenize后的tokens的映射关系
+        """
+        text = text.lower()
+
+        normalized_text, char_mapping = '', []
+        for i, ch in enumerate(text):
+            ch = unicodedata.normalize('NFD', ch)
+            ch = ''.join([c for c in ch if unicodedata.category(c) != 'Mn'])
+            ch = ''.join([
+                c for c in ch
+                if not (ord(c) == 0 or ord(c) == 0xfffd or self._is_control(c))
+            ])
+            normalized_text += ch
+            char_mapping.extend([i] * len(ch))
+
+        text, token_mapping, offset = normalized_text, [], 0
+        for token in tokens:
+            token = token.lower()
+            if self._is_special(token):
+                token_mapping.append([]) # 如果是[CLS]或者是[SEP]之类的词，则没有对应的映射
+            else:
+                token = self.recover_bert_token(token)
+                start = text[offset:].index(token) + offset
+                end = start + len(token)
+                token_mapping.append(char_mapping[start:end])
+                offset = end
+
+        return token_mapping
 
     def sequence_to_ids(self, sequence_a, sequence_b=None):
-    	if sequence_b is None:
-    		return self.sentence_to_ids(sequence_a)
-    	else:
-    		return self.pair_to_ids(sequence_a, sequence_b)
+        if sequence_b is None:
+            return self.sentence_to_ids(sequence_a)
+        else:
+            return self.pair_to_ids(sequence_a, sequence_b)
 
     def sentence_to_ids(self, sequence):
-       if type(sequence) == str:
+        if type(sequence) == str:
             sequence = self.tokenize(sequence) 
 
         # 对超长序列进行截断
@@ -136,9 +195,9 @@ class TokensTokenizer(TransfomerTokenizer):
     
     def sequence_to_ids(self, sequence):
         return self.sentence_to_ids(sequence)
-
-
- class MRCTokenizer(TransfomerTokenizer):
+    
+    
+class MRCTokenizer(TransfomerTokenizer):
     """
     Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
 
@@ -146,9 +205,6 @@ class TokensTokenizer(TransfomerTokenizer):
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
     """  
-    def __init__(self, max_seq_len, vocab):
-        super(PairTokenizer, self).__init__(max_seq_len, vocab)
-        self.tokenizer_type = 'transfomer'
 
     def tokenize(self, text):
         text = ' '.join([token_ for token_ in text])

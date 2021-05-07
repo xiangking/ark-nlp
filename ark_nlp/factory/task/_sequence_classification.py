@@ -317,7 +317,7 @@ class SequenceClassificationTask(Task):
         self, 
         train_data=None, 
         validation_data=None, 
-        lr=1e-3,
+        lr=False,
         params=None,
         batch_size=32,
         epochs=1,

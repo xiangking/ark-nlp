@@ -104,7 +104,7 @@ def get_default_bert_optimizer(
                       eps=eps,
                       correct_bias=correct_bias,
                       weight_decay=weight_decay)
-    return optimizer_grouped_parameters
+    return optimizer
 
 
 def get_default_bert_crf_optimizer(

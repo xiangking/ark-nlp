@@ -48,6 +48,7 @@ class TokenClassificationTask(Task):
         inputs_cols=None,
         **kwargs
     ):
+
         if self.class_num == None:
             self.class_num = train_data.class_num  
         
@@ -118,7 +119,6 @@ class TokenClassificationTask(Task):
         verbose=True,
         **kwargs
     ):      
-        
         
         active_loss = inputs['attention_mask'].view(-1) == 1
         active_logits = logits.view(-1, self.class_num)
@@ -239,7 +239,7 @@ class TokenClassificationTask(Task):
         self, 
         train_data=None, 
         validation_data=None, 
-        lr=1e-3,
+        lr=False,
         params=None,
         batch_size=32,
         epochs=1,
@@ -281,42 +281,6 @@ class TokenClassificationTask(Task):
             
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
-
-    def predict(
-        self, 
-        test_data, 
-        batch_size=16, 
-        shuffle=False, 
-        is_proba=False
-    ):
-        
-        preds = []
-        probas=[]
-        
-        self.module.eval()
-        generator = DataLoader(test_data, batch_size=batch_size, shuffle=False, collate_fn=self._collate_fn)
-        
-        for step, inputs in enumerate(generator):
-            inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
-            logits = self.module(**inputs)
-
-            preds.extend(torch.max(logits, 1)[1].cpu().numpy())  
-            if is_proba:
-                probas.extend(F.softmax(logits, 1).cpu().detach().numpy())  
-
-        if is_prob:
-            return preds, probas
-        
-        return preds
-    
-    def predict_proba(
-        self, 
-        test_data, 
-        batch_size=16, 
-        shuffle=False
-    ):
-        return self.predict(test_data, batch_size, shuffle, is_proba=True)[-1]
-    
     
     def _on_evaluate_begin(
         self, 
