@@ -11,9 +11,9 @@ Status: Active
 """
 
 
-from .bert import Bert
-from .bert import BertForSequenceClassification
-from .bert import BertForTokenClassification
+from ark_nlp.nn.base.bert import Bert
+from ark_nlp.nn.base.bert import BertForSequenceClassification
+from ark_nlp.nn.base.bert import BertForTokenClassification
 
 
 class Ernie(Bert):

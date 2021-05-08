@@ -18,7 +18,7 @@ import numpy as np
 
 from transformers import AutoTokenizer
 from torch.utils.data import Dataset
-from ark_nlp.processor.tokenizer.base_tokenizer import BaseTokenizer
+from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
 class TransfomerTokenizer(BaseTokenizer):

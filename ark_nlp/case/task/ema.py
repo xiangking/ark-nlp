@@ -81,7 +81,7 @@ class EMATCTask(SequenceClassificationTask):
 
 class EMANERTask(TokenClassificationTask):
     def __init__(self, *args, **kwargs):
-        super(EMATCTask, self).__init__(*args, **kwargs)
+        super(EMANERTask, self).__init__(*args, **kwargs)
         self.ema = EMA(self.module.parameters(), decay=0.995)
     
     def _on_optimize(self, step, logs, **kwargs):

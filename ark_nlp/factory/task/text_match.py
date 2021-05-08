@@ -23,68 +23,13 @@ import tqdm
 from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
 
-from ..loss_function import get_loss
-from ..optimizer import get_optimizer
-from ._task import Task
-from ._sequence_classification import SequenceClassificationTask
+from ark_nlp.factory.loss_function import get_loss
+from ark_nlp.factory.optimizer import get_optimizer
+from ark_nlp.factory.task.base._task import Task
+from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 class TMTask(SequenceClassificationTask):
     
     def __init__(self, *args, **kwargs):
         
         super(TMTask, self).__init__(*args, **kwargs)
-        
-    def _on_train_begin_record(self, logs):
-        
-        logs['tr_loss'] = 0
-        logs['logging_loss'] = 0
-        logs['global_step'] = 0
-        
-        return logs
-    
-    def _on_backward(
-        self, 
-        inputs, 
-        labels, 
-        logits, 
-        loss, 
-        logs,
-        verbose=True,
-        gradient_accumulation_steps=1,
-        grad_clip=None,
-        **kwargs
-    ):
-                
-        # 如果GPU数量大于1
-        if self.n_gpu > 1:
-            loss = loss.mean()
-        # 如果使用了梯度累积，除以累积的轮数
-        if gradient_accumulation_steps > 1:
-            loss = loss / gradient_accumulation_steps
-            
-        loss.backward() 
-        
-        if grad_clip != None:
-            torch.nn.utils.clip_grad_norm_(self.module.parameters(), grad_clip)
-        
-        self._on_backward_record(logs)
-        
-        return loss 
-    
-    def _on_optimize(
-        self, 
-        step, 
-        logs, 
-        gradient_accumulation_steps=1,
-        **kwargs
-    ):
-        if (step + 1) % gradient_accumulation_steps == 0:
-            self.optimizer.step()  # 更新权值
-            if self.scheduler:
-                self.scheduler.step()  # 更新学习率
-                
-            self.optimizer.zero_grad()  # 清空梯度
-            
-            logs['global_step'] += 1
-        
-        return step

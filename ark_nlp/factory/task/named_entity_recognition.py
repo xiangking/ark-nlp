@@ -23,14 +23,14 @@ import tqdm
 from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
 
-from ..loss_function import get_loss
-from ..optimizer import get_optimizer
-from ..metric import topk_accuracy
-from ._task import Task
-from ._token_classification import TokenClassificationTask
+from ark_nlp.factory.loss_function import get_loss
+from ark_nlp.factory.optimizer import get_optimizer
+from ark_nlp.factory.metric import topk_accuracy
+from ark_nlp.factory.task.base._task import Task
+from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
-class NERTask(TokenClassificationTask):
+class BIOTask(TokenClassificationTask):
     
     def __init__(self, *args, **kwargs):
         
-        super(NERTask, self).__init__(*args, **kwargs)
+        super(BIOTask, self).__init__(*args, **kwargs)

@@ -2,72 +2,68 @@
 Author:
     Xiang wang, xiangking1995@163.com
 """
+
 import torch
 import torch.nn.functional as F
+
 from torch import nn
 from ark_nlp.nn import BasicModule
 
 
-
-class ABCNN(torch.nn.Module):
+class TextCNN(torch.nn.Module):
     """
     封装了TextCNN模型
     """  
     def __init__(
         self, 
-        dic_size,
-        emb_dim, 
+        vocab_size,
+        embed_size, 
         class_num=2, 
         embed_dropout=0.2, 
         pre_embed=False, 
-        emb_vectors=0, 
+        embed_vectors=0, 
         is_freeze=False,
         kernel_num=100, 
         kernel_size=[3, 5, 7], 
         stride=1, 
-        fc_dropout_rate=0.5,
-        num_layer=1,
-        max_seq_len=50,
-        linear_size=
+        fc_dropout_rate=0.5
     ):
-        super(ABCNN, self).__init__()
+        super(TextCNN, self).__init__()
 
-        self.word_num = dic_size
-        self.embed_dim = emb_dim
+        self.vocab_size = vocab_size
+        self.embed_size = embed_size
 
         self.embed_dropout = embed_dropout
         self.pre_embed = pre_embed
         self.freeze = is_freeze
 
         if self.pre_embed == True:
-            self.embed = nn.Embedding.from_pretrained(embeddings=emb_vectors, freeze=self.freeze)
+            self.embed = nn.Embedding.from_pretrained(embeddings=embed_vectors, freeze=self.freeze)
             nn.init.normal_(self.embed.weight.data[0])
             nn.init.normal_(self.embed.weight.data[1])
         else:
-            self.embed = nn.Embedding(len_dic, emb_dim)
+            self.embed = nn.Embedding(self.vocab_size, self.embed_size)
             nn.init.uniform_(self.embed.weight.data)
             nn.init.normal_(self.embed.weight.data[0])
             nn.init.normal_(self.embed.weight.data[1])
 
         self.embed_dropout = nn.Dropout(self.embed_dropout)
 
-        self.conv = nn.ModuleList([Wide_Conv(kernel_size, embeddings.shape[1], device) for _ in range(self.num_layer)])
-
-        # self.stride = stride
-        # self.kernel_size = kernel_size
-        # self.kernel_num = kernel_num
+        self.stride = stride
+        self.kernel_size = kernel_size
+        self.kernel_num = kernel_num
             
-        # self.convs = nn.ModuleList(
-        #     [nn.Conv2d(1, self.kernel_num, (K, self.embed_dim), stride=self.stride, padding=(K // 2, 0)) for K in
-        #      self.kernel_size])
+        self.convs = nn.ModuleList(
+            [nn.Conv2d(1, self.kernel_num, (K, self.embed_size), stride=self.stride, padding=(K // 2, 0)) for K in
+             self.kernel_size])
 
-        # covfeature_num = len(self.kernel_size) * self.kernel_num
-        # self.fc_dropout_rate = fc_dropout_rate
-        # self.class_num = class_num  
+        covfeature_num = len(self.kernel_size) * self.kernel_num
+        self.fc_dropout_rate = fc_dropout_rate
+        self.class_num = class_num  
 
-        # self.linear = nn.Linear(covfeature_num, covfeature_num // 2)
-        # self.classify = nn.Linear(covfeature_num // 2, self.class_num)
-        # self.fc_dropout = nn.Dropout(self.fc_dropout_rate)
+        self.linear = nn.Linear(covfeature_num, covfeature_num // 2)
+        self.classify = nn.Linear(covfeature_num // 2, self.class_num)
+        self.fc_dropout = nn.Dropout(self.fc_dropout_rate)
 
         self.init_weights()
 

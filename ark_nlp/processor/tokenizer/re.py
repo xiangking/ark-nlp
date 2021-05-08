@@ -17,7 +17,7 @@ import numpy as np
 
 from torch.utils.data import Dataset
 from transformers.tokenization_utils import _is_control
-from .base_tokenizer import BaseTokenizer
+from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
 class VanillaTokenizer(BaseTokenizer):

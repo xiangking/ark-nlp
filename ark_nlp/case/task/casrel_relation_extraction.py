@@ -34,7 +34,6 @@ def to_tup(triple_list):
         ret.append(tuple(triple))
     return ret
 
-
 class DataPreFetcher(object):
     def __init__(self, loader, device):
         self.loader = iter(loader)
@@ -292,7 +291,8 @@ class CasrelRETask(Task):
         inputs,
         **kwargs
     ):
-        return inputs['label_ids'].to(self.device)
+        return inputs['label_ids']
+        # return inputs['label_ids'].to(self.device)
 
     def fit(
         self, 
@@ -439,7 +439,7 @@ class CasrelRETask(Task):
     def evaluate(
         self, 
         validation_data, 
-        evaluate_batch_size=16, 
+        evaluate_batch_size=1, 
         return_pred=False, 
         h_bar=0.5,
         t_bar=0.5,
@@ -451,7 +451,7 @@ class CasrelRETask(Task):
 
         test_data_prefetcher = DataPreFetcher(generator, self.module.device)
         inputs = test_data_prefetcher.next()
-        
+        correct_num, predict_num, gold_num = 0, 0, 0
         step_ = 0
                 
         with torch.no_grad():
@@ -513,6 +513,7 @@ class CasrelRETask(Task):
                     pred_list = []
 
                 pred_triples = set(pred_list)
+                
                 gold_triples = set(to_tup(inputs['label_ids'][0]))
 
                 correct_num += len(pred_triples & gold_triples)
@@ -520,9 +521,10 @@ class CasrelRETask(Task):
                 if step_ < 11:
                     print('pred_triples: ', pred_triples)
                     print('gold_triples: ', gold_triples)
+                    
                 predict_num += len(pred_triples)
                 gold_num += len(gold_triples)
-                
+                                
                 inputs = test_data_prefetcher.next()
 
         print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(correct_num, predict_num, gold_num))

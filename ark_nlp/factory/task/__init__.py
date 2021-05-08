@@ -1,8 +1,7 @@
-from ._sequence_classification import SequenceClassificationTask
-from ._token_classification import TokenClassificationTask
+from ark_nlp.factory.task.base._task import Task
+from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
+from ark_nlp.factory.task.base._sequence_classification import TokenClassificationTask
 
-from .named_entity_recognition import NERTask
-from .text_classification import TCTask
-from .text_match import TMTask
-
-
+from ark_nlp.factory.task.named_entity_recognition import BIOTask
+from ark_nlp.factory.task.text_classification import TCTask
+from ark_nlp.factory.task.text_match import TMTask

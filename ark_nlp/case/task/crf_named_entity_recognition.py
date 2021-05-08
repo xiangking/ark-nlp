@@ -14,7 +14,7 @@ from ark_nlp.factory.task import TokenClassificationTask
 from ark_nlp.factory.utils import conlleval
 
 
-class CRFTask(TokenClassificationTask):
+class CRFNERTask(TokenClassificationTask):
     def __init__(self, *args, **kwargs):
         super(CRFTask, self).__init__(*args, **kwargs)
     

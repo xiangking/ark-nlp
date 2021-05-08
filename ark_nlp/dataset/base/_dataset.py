@@ -10,8 +10,10 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
+import json
 import copy
 import torch
+import codecs
 import pandas as pd
 
 from functools import lru_cache
@@ -40,6 +42,15 @@ class BaseDataset(Dataset):
                 
     def _get_categories(self):
         pass
+
+    def read_line_json(self):
+        with codecs.open(data_path, mode='r', encoding='utf8') as f:
+            reader = json.load(f)
+            for index, line in enumerate(reader):
+                tokens = line['text']
+                label = line['label']
+                datasets.append({'text': tokens.strip(), 'label': label})
+        return pd.DataFrame(datasets)
             
     def _read_data(self, data_path, data_format=None):
         """
@@ -54,7 +65,10 @@ class BaseDataset(Dataset):
         if data_format == 'csv':
             data_df = pd.read_csv(data_path, dtype={'label': str})
         elif data_format == 'json':
-            data_df = pd.read_json(data_path, dtype={'label': str})
+            try:
+                data_df = pd.read_json(data_path, dtype={'label': str})
+            except:
+                data_df = self.read_line_json(data_path)
         elif data_format == 'tsv':
             data_df = pd.read_csv(data_path, sep='\t', dtype={'label': str})
         elif data_format == 'txt':

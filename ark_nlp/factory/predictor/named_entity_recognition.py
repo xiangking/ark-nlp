@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader
 from ark_nlp.factory.utils.conlleval import get_entities
 
 
-class NERPredictor(object):
+class BIOPredictor(object):
     def __init__(
         self, 
         module, 

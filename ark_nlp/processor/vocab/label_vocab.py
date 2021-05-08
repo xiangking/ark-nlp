@@ -20,7 +20,7 @@ from zhon.hanzi import punctuation
 from functools import lru_cache
 from transformers import BertTokenizer
 from transformers.tokenization_utils import _is_control
-from .base_vocab import Vocab
+from ark_nlp.processor.vocab._vocab import Vocab
 
 
 class LabelVocab(Vocab):

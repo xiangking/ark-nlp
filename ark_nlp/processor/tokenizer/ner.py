@@ -16,7 +16,7 @@ import random
 import numpy as np
 
 from torch.utils.data import Dataset
-from .base_tokenizer import BaseTokenizer
+from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
 class VanillaTokenizer(BaseTokenizer):

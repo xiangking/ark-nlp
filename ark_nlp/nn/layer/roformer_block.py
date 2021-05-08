@@ -9,7 +9,7 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss, MSELoss
 
-from ..configuration.configuration_roformer import RoFormerConfig
+from ark_nlp.nn.configuration.configuration_roformer import RoFormerConfig
 from transformers.file_utils import add_start_docstrings
 from transformers.modeling_utils import PreTrainedModel, prune_linear_layer
 try:

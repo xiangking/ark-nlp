@@ -21,7 +21,7 @@ from functools import lru_cache
 from collections import Counter
 from transformers import BertTokenizer
 from transformers.tokenization_utils import _is_control
-from .base_vocab import Vocab
+from ark_nlp.processor.vocab._vocab import Vocab
 
 
 class CharVocab(Vocab):

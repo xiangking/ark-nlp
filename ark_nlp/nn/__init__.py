@@ -1,13 +1,16 @@
-from .textcnn import TextCNN
-from .rnn import RNN
+from ark_nlp.nn.base.basemodel import BasicModule
 
-from .bert import VanillaBert
-from .bert import Bert
-from .ernie import Ernie
-from .nezha import NeZha
-from .roformer import RoFormer
-from .casrel_bert import CasrelBert
+from ark_nlp.nn.base.textcnn import TextCNN
+from ark_nlp.nn.base.rnn import RNN
+
+from ark_nlp.nn.base.bert import VanillaBert
+from ark_nlp.nn.base.bert import Bert
+from ark_nlp.nn.base.ernie import Ernie
+from ark_nlp.nn.base.nezha import NeZha
+from ark_nlp.nn.base.roformer import RoFormer
+from ark_nlp.nn.casrel_bert import CasrelBert
 
 from transformers import BertConfig
-from .configuration.configuration_nezha import NeZhaConfig
-from .configuration.configuration_roformer import RoFormerConfig
+from ark_nlp.nn.configuration import ErnieConfig
+from ark_nlp.nn.configuration.configuration_nezha import NeZhaConfig
+from ark_nlp.nn.configuration.configuration_roformer import RoFormerConfig
