@@ -16,7 +16,7 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from ._dataset import BaseDataset
+from ark_nlp.dataset.base._dataset import BaseDataset
 
 import os
 import re
@@ -32,14 +32,7 @@ from torch.utils.data import Dataset
 from zhon.hanzi import punctuation
 
 
-class NERDataset(BaseDataset):
-    def __init__(
-        self,
-        data_path, 
-        categories=None, 
-        is_retain_dataset=False
-    ):
-        super(NERDataset, self).__init__(data_path, categories, is_retain_dataset)
+class BIONERDataset(BaseDataset):
         
     def _get_categories(self):
         categories = sorted(list(set([label_ for data in self.dataset for label_ in data['label']])))
@@ -52,7 +45,8 @@ class NERDataset(BaseDataset):
         dataset = []
         
         data_df['text'] = data_df['text'].apply(lambda x: x.lower().strip())
-        data_df['label'] = data_df['label'].apply(lambda x: eval(x))
+        if not self.is_test:
+            data_df['label'] = data_df['label'].apply(lambda x: eval(x))
         
         feature_names = list(data_df.columns)
         for index_, row_ in enumerate(data_df.itertuples()):
@@ -65,22 +59,24 @@ class NERDataset(BaseDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
+
             input_ids = bert_tokenizer.sequence_to_ids(row_['text'])              
-            
             input_ids, input_mask, segment_ids = input_ids
-            
-            label_ids = bert_tokenizer.pad_and_truncate([self.cat2id[label_] for label_ in row_['label']], bert_tokenizer.max_seq_len - 2)
-            label_ids = np.array([self.cat2id['O']] + list(label_ids) + [self.cat2id['O']])
-            
             input_length = self._get_input_length(row_['text'], bert_tokenizer)
-            
-            features.append({
-                'input_ids': input_ids, 
-                'attention_mask': input_mask, 
-                'token_type_ids': segment_ids, 
-                'label_ids': label_ids,
+
+            feature = {
+                'input_ids': input_ids,
+                'attention_mask': input_mask,
+                'token_type_ids': segment_ids,
                 'input_lengths': input_length
-            })
+            }
+
+            if not self.is_test:
+                label_ids = bert_tokenizer.pad_and_truncate([self.cat2id[label_] for label_ in row_['label']], bert_tokenizer.max_seq_len - 2)
+                label_ids = np.array([self.cat2id['O']] + list(label_ids) + [self.cat2id['O']])
+                feature['label_ids'] = label_ids
+                        
+            features.append(feature)
         
         return features    
     
@@ -93,14 +89,17 @@ class NERDataset(BaseDataset):
         for (index_, row_) in enumerate(self.dataset):
             tokens = vanilla_tokenizer.tokenize(row_['text'])
             length = len(tokens)
+            input_ids = vanilla_tokenizer.sequence_to_ids(tokens) 
 
-            input_ids = vanilla_tokenizer.sequence_to_ids(tokens)   
-            label_ids = [self.cat2id[label_] for label_ in row_['label']]
-            
-            features.append({
+            feature = {
                 'input_ids': input_ids,
-                'length': length if length < vanilla_tokenizer.max_seq_len else vanilla_tokenizer.max_seq_len,
-                'label_ids': label_ids
-            })
+                'length': length if length < vanilla_tokenizer.max_seq_len else vanilla_tokenizer.max_seq_len
+            }
+
+            if not self.is_test:  
+                label_ids = [self.cat2id[label_] for label_ in row_['label']]
+                feature['label_ids'] = label_ids
+            
+            features.append(feature)
         
         return features

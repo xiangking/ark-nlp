@@ -16,8 +16,8 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
 import sklearn.metrics as sklearn_metrics
+
 from tqdm import tqdm
 from torch.autograd import grad
 from torch.autograd import Variable
@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader
 from ark_nlp.factory.utils.conlleval import get_entities
 
 
-class BIOPredictor(object):
+class BIONERPredictor(object):
     def __init__(
         self, 
         module, 
@@ -131,9 +131,3 @@ class BIOPredictor(object):
             })
         
         return entities
-        
-    def _get_module_batch_inputs(
-        self, 
-        features
-    ):
-        return {col: torch.Tensor(features[col]).type(torch.long).to(self.device) for col in self.inputs_cols}

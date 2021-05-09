@@ -10,18 +10,20 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import numpy as np
+import tqdm
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.autograd import Variable, grad
-from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
-
-import tqdm
-from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
+
+from tqdm import tqdm
+from torch.optim import lr_scheduler
+from torch.autograd import Variable
+from torch.autograd import grad
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 
 from ark_nlp.factory.utils.ema import EMA
 from ark_nlp.factory.task import SequenceClassificationTask
@@ -34,15 +36,17 @@ class EMATCTask(SequenceClassificationTask):
         self.ema = EMA(self.module.parameters(), decay=0.995)
     
     def _on_optimize(self, step, logs, **kwargs):
-        self.optimizer.step()  # 更新权值
-        self.ema.update(self.module.parameters())
-        
-        if self.scheduler:
-            self.scheduler.step()  # 更新学习率
+
+        if (step + 1) % gradient_accumulation_steps == 0:
+            self.optimizer.step()  # 更新权值
+            self.ema.update(self.module.parameters())
+
+            if self.scheduler:
+                self.scheduler.step()  # 更新学习率
                 
-        self.optimizer.zero_grad()  # 清空梯度
-        
-        self._on_optimize_record(logs)
+            self.optimizer.zero_grad()  # 清空梯度
+            
+            logs['global_step'] += 1
         
         return step
     
@@ -85,15 +89,17 @@ class EMANERTask(TokenClassificationTask):
         self.ema = EMA(self.module.parameters(), decay=0.995)
     
     def _on_optimize(self, step, logs, **kwargs):
-        self.optimizer.step()  # 更新权值
-        self.ema.update(self.module.parameters())
-        
-        if self.scheduler:
-            self.scheduler.step()  # 更新学习率
+
+        if (step + 1) % gradient_accumulation_steps == 0:
+            self.optimizer.step()  # 更新权值
+            self.ema.update(self.module.parameters())
+
+            if self.scheduler:
+                self.scheduler.step()  # 更新学习率
                 
-        self.optimizer.zero_grad()  # 清空梯度
-        
-        self._on_optimize_record(logs)
+            self.optimizer.zero_grad()  # 清空梯度
+            
+            logs['global_step'] += 1
         
         return step
     

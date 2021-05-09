@@ -10,23 +10,25 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import numpy as np
+import tqdm
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.autograd import Variable, grad
-from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
-
-import tqdm
-from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
+
+from tqdm import tqdm
+from torch.optim import lr_scheduler
+from torch.autograd import Variable
+from torch.autograd import grad
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 
 from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.task.base._task import Task
-from ark_nlp.factory.task.base._sequence_classification import Task
+from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 from ark_nlp.factory.utils import conlleval
 
@@ -39,17 +41,11 @@ class TokenClassificationTask(SequenceClassificationTask):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
             
-    def _on_train_begin_record(self, logs, **kwargs):
-        
-        logs['tr_loss'] = 0
-        logs['logging_loss'] = 0
-        
-        return logs
-            
     def _on_epoch_begin_record(self, logs):
         
         logs['b_loss'] = 0
         logs['nb_tr_steps'] = 0
+        logs['nb_tr_examples'] = 0
         
         return logs
             

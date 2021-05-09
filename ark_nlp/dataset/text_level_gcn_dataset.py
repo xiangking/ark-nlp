@@ -16,17 +16,10 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from ark_nlp.dataset.tc_dataset import TCDataset
+from ark_nlp.dataset import TCDataset
 
 
 class TextLevelGCNDataset(TCDataset):
-    def __init__(
-        self,
-        data_path, 
-        categories=None, 
-        is_retain_dataset=False,
-    ):
-        super(TCDataset, self).__init__(data_path, categories, is_retain_dataset)
         
     def convert_to_ids(self, tokenizer):
         """
@@ -48,15 +41,18 @@ class TextLevelGCNDataset(TCDataset):
         
         features = []
         for (index_, row_) in enumerate(self.dataset):
-            node_ids, edge_ids, sub_graph = graph_tokenizer.sequence_to_graph(row_['text'])             
-                        
-            label_ids = self.cat2id[row_['label']]
-                        
-            features.append({
+            node_ids, edge_ids, sub_graph = graph_tokenizer.sequence_to_graph(row_['text'])   
+
+            feature = {
                 'node_ids': node_ids,
                 'edge_ids': edge_ids,
-                'sub_graph': sub_graph,
-                'label_ids': label_ids
-            })
+                'sub_graph': sub_graph
+            }
+
+            if not self.is_test:
+                label_ids = self.cat2id[row_['label']]
+                feature['label_ids'] = label_ids
+                        
+            features.append(feature)
             
         return features   

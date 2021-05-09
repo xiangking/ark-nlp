@@ -25,7 +25,7 @@ import sklearn.metrics as sklearn_metrics
 from ark_nlp.factory.utils.conlleval import get_entities
 
 
-class NerPredictor(object):
+class CRFNERPredictor(object):
     def __init__(
         self, 
         module, 
@@ -131,9 +131,3 @@ class NerPredictor(object):
             })
         
         return entities
-        
-    def _get_module_batch_inputs(
-        self, 
-        features
-    ):
-        return {col: torch.Tensor(features[col]).type(torch.long).to(self.device) for col in self.inputs_cols}

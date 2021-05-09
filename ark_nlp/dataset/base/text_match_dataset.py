@@ -16,17 +16,10 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from ._dataset import BaseDataset
+from ark_nlp.dataset.base._dataset import BaseDataset
 
 
 class TMDataset(BaseDataset):
-    def __init__(
-        self,
-        data_path, 
-        categories=None, 
-        is_retain_dataset=False
-    ):
-        super(TMDataset, self).__init__(data_path, categories, is_retain_dataset)
         
     def _get_categories(self):
         return sorted(list(set([data['label'] for data in self.dataset])))
@@ -52,18 +45,21 @@ class TMDataset(BaseDataset):
             input_ids = bert_tokenizer.sequence_to_ids(row_['text_a'], row_['text_b'])
             
             input_ids, input_mask, segment_ids = input_ids
-            
-            label_ids = self.cat2id[row_['label']]
-            
+                        
             input_a_length = self._get_input_length(row_['text_a'], bert_tokenizer)
             input_b_length = self._get_input_length(row_['text_b'], bert_tokenizer)
-            
-            features.append({
+
+            feature = {
                 'input_ids': input_ids, 
                 'attention_mask': input_mask, 
-                'token_type_ids': segment_ids, 
-                'label_ids': label_ids
-            })
+                'token_type_ids': segment_ids
+            }
+
+            if not self.is_test:
+                label_ids = self.cat2id[row_['label']]
+                feature['label_ids'] = label_ids
+
+            features.append(feature)
         
         return features        
 
@@ -75,12 +71,15 @@ class TMDataset(BaseDataset):
             input_a_ids = vanilla_tokenizer.sequence_to_ids(row_['text_a'])
             input_b_ids = vanilla_tokenizer.sequence_to_ids(row_['text_b'])   
 
-            label_ids = self.cat2id[row_['label']]
-            
-            features.append({
+            feature = {
                 'input_a_ids': input_a_ids,
-                'input_b_ids': input_b_ids,
-                'label_ids': label_ids
-            })
+                'input_b_ids': input_b_ids
+            }
+
+            if not self.is_test:
+                label_ids = self.cat2id[row_['label']]
+                feature['label_ids'] = label_ids
+            
+            features.append(feature)
         
         return features

@@ -16,17 +16,10 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from ._dataset import BaseDataset
+from ark_nlp.dataset.base._dataset import BaseDataset
 
 
 class TCDataset(BaseDataset):
-    def __init__(
-        self,
-        data_path, 
-        categories=None, 
-        is_retain_dataset=False
-    ):
-        super(TCDataset, self).__init__(data_path, categories, is_retain_dataset)
         
     def _get_categories(self):
         return sorted(list(set([data['label'] for data in self.dataset])))
@@ -51,15 +44,18 @@ class TCDataset(BaseDataset):
             input_ids = bert_tokenizer.sequence_to_ids(row_['text'])              
             
             input_ids, input_mask, segment_ids = input_ids
-            
-            label_ids = self.cat2id[row_['label']]
-                        
-            features.append({
+
+            feature = {
                 'input_ids': input_ids, 
                 'attention_mask': input_mask, 
-                'token_type_ids': segment_ids, 
-                'label_ids': label_ids
-            })
+                'token_type_ids': segment_ids
+            }
+
+            if not self.is_test:
+                label_ids = self.cat2id[row_['label']]
+                feature['label_ids'] = label_ids
+                        
+            features.append(feature)
         
         return features        
 
@@ -69,13 +65,17 @@ class TCDataset(BaseDataset):
         for (index_, row_) in enumerate(self.dataset):
             tokens = vanilla_tokenizer.tokenize(row_['text'])
             length = len(tokens)
-            input_ids = vanilla_tokenizer.sequence_to_ids(tokens)   
-            label_ids = self.cat2id[row_['label']]
-            
-            features.append({
+            input_ids = vanilla_tokenizer.sequence_to_ids(tokens)  
+
+            feature = {
                 'input_ids': input_ids,
-                'length': length if length < vanilla_tokenizer.max_seq_len else vanilla_tokenizer.max_seq_len,
-                'label_ids': label_ids
-            })
+                'length': length if length < vanilla_tokenizer.max_seq_len else vanilla_tokenizer.max_seq_len
+            }
+
+            if not self.is_test:
+                label_ids = self.cat2id[row_['label']]
+                feature['label_ids'] = label_ids
+            
+            features.append(feature)
         
         return features

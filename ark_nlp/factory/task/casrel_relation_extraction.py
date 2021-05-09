@@ -10,22 +10,24 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import numpy as np
+import tqdm
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.autograd import Variable, grad
-from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
-
-import tqdm
-from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
+
+from tqdm import tqdm
+from torch.optim import lr_scheduler
+from torch.autograd import Variable
+from torch.autograd import grad
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 
 from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.optimizer import get_optimizer
-from ark_nlp.factory.task._task import Task
+from ark_nlp.factory.task import Task
 
 
 def to_tup(triple_list):
@@ -346,41 +348,6 @@ class CasrelRETask(Task):
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
 
-    def predict(
-        self, 
-        test_data, 
-        batch_size=16, 
-        shuffle=False, 
-        is_proba=False
-    ):
-        
-        preds = []
-        probas=[]
-        
-        self.module.eval()
-        generator = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-        
-        for step, inputs in enumerate(generator):
-            inputs = {col: inputs[col].to(self.device) for col in self.inputs_cols}
-            logits = self.module(**inputs)
-
-            preds.extend(torch.max(logits, 1)[1].cpu().numpy())  
-            if is_proba:
-                probas.extend(F.softmax(logits, 1).cpu().detach().numpy())  
-
-        if is_prob:
-            return preds, probas
-        
-        return preds
-    
-    def predict_proba(
-        self, 
-        test_data, 
-        batch_size=16, 
-        shuffle=False
-    ):
-        return self.predict(test_data, batch_size, shuffle, is_proba=True)[-1]
-
     def _on_evaluate_begin(
         self, 
         validation_data, 
@@ -473,7 +440,7 @@ class CasrelRETask(Task):
                     sub_tail = sub_tails[sub_tails >= sub_head]
                     if len(sub_tail) > 0:
                         sub_tail = sub_tail[0]
-                        subject = tokens[sub_head: sub_tail]
+                        subject = tokens[sub_head-1: sub_tail]
                         subjects.append((subject, sub_head, sub_tail))
 
                 if subjects:
@@ -500,7 +467,7 @@ class CasrelRETask(Task):
                             for obj_tail, rel_tail in zip(*obj_tails):
                                 if obj_head <= obj_tail and rel_head == rel_tail:
                                     rel = self.id2cat[int(rel_head)]
-                                    obj = tokens[obj_head: obj_tail]
+                                    obj = tokens[obj_head-1: obj_tail]
                                     obj = ''.join([i.lstrip("##") for i in obj])
                                     obj = ' '.join(obj.split('[unused1]'))
                                     triple_list.append((sub, rel, obj))

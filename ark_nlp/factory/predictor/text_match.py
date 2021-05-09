@@ -133,7 +133,7 @@ class TMPredictor(object):
         self, 
         features
     ):
-        return {col: torch.Tensor(features[col]).type(torch.long).to(self.device) for col in self.inputs_cols}
+        return {col: features[col].type(torch.long).to(self.device) for col in self.inputs_cols}
 
     def predict_batch(
         self, 

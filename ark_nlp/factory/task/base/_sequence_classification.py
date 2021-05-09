@@ -10,19 +10,20 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import numpy as np
+import tqdm
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.autograd import Variable, grad
-from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
-
-import os
-import time
-from tqdm import tqdm
 import sklearn.metrics as sklearn_metrics
+
+from tqdm import tqdm
+from torch.optim import lr_scheduler
+from torch.autograd import Variable
+from torch.autograd import grad
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 
 from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.optimizer import get_optimizer

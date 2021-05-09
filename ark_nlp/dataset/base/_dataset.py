@@ -22,8 +22,25 @@ from pandas.core.frame import DataFrame
 
 
 class BaseDataset(Dataset):
-    def __init__(self, data, categories=None, is_retain_dataset=True):
+    def __init__(
+        self, 
+        data, 
+        categories=None, 
+        is_retain_dataset=False,
+        is_train=True,
+        is_test=False
+    ):
+        
+        self.is_test = is_test
+        self.is_train = is_train
+
+        if self.is_test is True:
+            self.is_train = False
+
         if isinstance(data, DataFrame):
+            if 'label' in data.columns:
+                data['label'] = data['label'].apply(lambda x: str(x))
+
             self.dataset = self._convert_to_dataset(data)
         else:
             self.dataset = self._load_dataset(data)

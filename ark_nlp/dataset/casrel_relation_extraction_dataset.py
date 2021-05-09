@@ -11,14 +11,16 @@ Status: Active
 """
 
 import copy
+import json
 import torch
 import random
+import codecs
 import numpy as np
 import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from ark_nlp.dataset._dataset import BaseDataset
+from ark_nlp.dataset.base._dataset import BaseDataset
 
 
 def find_head_idx(source, target):
@@ -29,101 +31,72 @@ def find_head_idx(source, target):
     return -1
 
 
-class CasRelDataset(BaseDataset):
-    def __init__(
-        self,
-        data_path, 
-        is_test=False,
-        categories=None, 
-        is_retain_dataset=False
-    ):
-        super(CasRelDataset, self).__init__(data_path, categories, is_retain_dataset)
-        self.is_test = is_test
+class CasRelREDataset(BaseDataset):
         
     def _get_categories(self):
-        return sorted(list(set([triple_[1] for data_ in self.dataset for triple_ in data_['triples']])))
+        return sorted(list(set([triple_[1] for data_ in self.dataset for triple_ in data_['label']])))
     
     def _convert_to_dataset(self, data_df):
         
         dataset = []
         
         data_df['text'] = data_df['text'].apply(lambda x: x.lower().strip())
-        
+        if not self.is_test:
+            data_df['label'] = data_df['label'].apply(lambda x: eval(x))
+                        
         feature_names = list(data_df.columns)
         for index_, row_ in enumerate(data_df.itertuples()):
+ 
             dataset.append({feature_name_: getattr(row_, feature_name_) 
                              for feature_name_ in feature_names})
-            
         return dataset
     
-    def set_tokenizer(self, tokenizer):
+    def convert_to_ids(self, tokenizer):
+        """
+        将文本转化成id的形式
+        
+        :param tokenizer:
+        
+        ToDo: 将__getitem__部分ID化代码迁移到这部分
+        
+        """
         self.tokenizer = tokenizer
-
-#     def _convert_to_transfomer_ids(self, bert_tokenizer):
-        
-#         features = []
-#         for (index_, row_) in enumerate(self.dataset):
-#             input_ids = bert_tokenizer.text_to_sequence(row_['text'])              
             
-#             input_ids, input_mask, segment_ids = input_ids
-            
-#             label_ids = self.cat2id[row_['label']]
-            
-#             input_length = self._get_input_length(text, bert_tokenizer)
-            
-#             features.append({
-#                 'input_ids': input_ids, 
-#                 'attention_mask': input_mask, 
-#                 'token_type_ids': segment_ids, 
-#                 'label_ids': label_id
-#             })
-        
-#         return features        
-
-#     def _convert_to_vanilla_ids(self, vanilla_tokenizer):
-        
-#         features = []
-#         for (index_, row_) in enumerate(self.dataset):
-#             input_ids = vanilla_tokenizer.text_to_sequence(row_['text'])   
-#             label_ids = self.cat2id[row_['label']]
-            
-#             features.append({
-#                 'input_ids': input_ids,
-#                 'label_ids': label_ids
-#             })
-        
-#         return features
-        
+        if self.is_retain_dataset:
+            self.retain_dataset = copy.deepcopy(self.dataset)
+                    
     def __getitem__(self, idx):
         ins_json_data = self.dataset[idx]
         text = ins_json_data['text']
         
-        if len(text) > 512:
-            text = text[:512]
+        if len(text) > self.tokenizer.max_seq_len - 2:
+            text = text[:self.tokenizer.max_seq_len - 2]
             
         tokens = self.tokenizer.tokenize(text)
         
-        if self.is_test:
+        if not self.is_train:
             token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
             text_len = len(token_ids)
             sub_heads, sub_tails = np.zeros(text_len), np.zeros(text_len)
             sub_head, sub_tail = np.zeros(text_len), np.zeros(text_len)
             obj_heads, obj_tails = np.zeros((text_len, self.class_num)), np.zeros((text_len, self.class_num))
-            
-            return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['triples'], tokens
+            if self.is_test:
+                return token_ids, masks, text_len, tokens
+            else:
+                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens
         else:
             s2ro_map = {}
-            for triple in ins_json_data['triples']:
+            for triple in ins_json_data['label']:
                 triple = (self.tokenizer.tokenize(triple[0]), triple[1], self.tokenizer.tokenize(triple[2]))
-
+                
                 sub_head_idx = find_head_idx(tokens, triple[0])
                 obj_head_idx = find_head_idx(tokens, triple[2])
 
                 if sub_head_idx != -1 and obj_head_idx != -1:
-                    sub = (sub_head_idx, sub_head_idx + len(triple[0]))
+                    sub = (sub_head_idx+1, sub_head_idx + len(triple[0]))
                     if sub not in s2ro_map:
                         s2ro_map[sub] = []
-                    s2ro_map[sub].append((obj_head_idx, obj_head_idx + len(triple[2]), self.cat2id[triple[1]]))
+                    s2ro_map[sub].append((obj_head_idx+1, obj_head_idx + len(triple[2]), self.cat2id[triple[1]]))
 
             if s2ro_map:
                 token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
@@ -140,6 +113,6 @@ class CasRelDataset(BaseDataset):
                 for ro in s2ro_map.get((sub_head_idx, sub_tail_idx), []):
                     obj_heads[ro[0]][ro[2]] = 1
                     obj_tails[ro[1]][ro[2]] = 1
-                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['triples'], tokens
+                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens
             else:
                 return None

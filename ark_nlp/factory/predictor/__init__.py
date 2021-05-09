@@ -1,3 +1,5 @@
 from ark_nlp.factory.predictor.text_classification import TCPredictor
 from ark_nlp.factory.predictor.text_match import TMPredictor
-from ark_nlp.factory.predictor.named_entity_recognition import BIOPredictor
+from ark_nlp.factory.predictor.bio_named_entity_recognition import BIONERPredictor
+from ark_nlp.factory.predictor.crf_named_entity_recognition import CRFNERPredictor
+from ark_nlp.factory.predictor.casrel_relation_extraction import CasrelREPredictor

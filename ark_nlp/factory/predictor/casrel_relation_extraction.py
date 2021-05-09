@@ -16,8 +16,8 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
 import sklearn.metrics as sklearn_metrics
+
 from tqdm import tqdm
 from torch.autograd import grad
 from torch.autograd import Variable
@@ -48,7 +48,7 @@ class CasrelREPredictor(object):
         self, 
         text
     ):
-        tokens = self.tokenizer.tokenize(text)[:tokenizer.max_seq_len]
+        tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len]
         input_ids, input_mask, segment_ids = self.tokenizer.sequence_to_ids(tokens)
         
         features = {'input_ids': input_ids,
@@ -97,12 +97,13 @@ class CasrelREPredictor(object):
             sub_heads, sub_tails = np.where(pred_sub_heads.cpu()[0] > h_bar)[0], np.where(pred_sub_tails.cpu()[0] > t_bar)[0]
             
             tokens = inputs['tokens']
+
             subjects = []
             for sub_head in sub_heads:
                 sub_tail = sub_tails[sub_tails >= sub_head]
                 if len(sub_tail) > 0:
                     sub_tail = sub_tail[0]
-                    subject = tokens[sub_head: sub_tail]
+                    subject = tokens[sub_head-1: sub_tail]
                     subjects.append((subject, sub_head, sub_tail))                
                 
             if subjects:
@@ -130,7 +131,7 @@ class CasrelREPredictor(object):
                         for obj_tail, rel_tail in zip(*obj_tails):
                             if obj_head <= obj_tail and rel_head == rel_tail:
                                 rel = self.id2cat[int(rel_head)]
-                                obj = tokens[obj_head: obj_tail]
+                                obj = tokens[obj_head-1: obj_tail]
                                 obj = ''.join([i.lstrip("##") for i in obj])
                                 obj = ' '.join(obj.split('[unused1]'))
                                 triple_list.append((sub, rel, obj))
