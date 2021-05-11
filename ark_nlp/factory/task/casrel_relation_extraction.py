@@ -60,17 +60,17 @@ class DataPreFetcher(object):
         self.preload()
         return data
 
-    
+
 class CasrelRETask(Task):
-    
+
     def __init__(self, *args, **kwargs):
-        
+
         super(CasrelRETask, self).__init__(*args, **kwargs)
-        
+
     def casrel_collate_fn(self, batch):
         batch = list(filter(lambda x: x is not None, batch))
         batch.sort(key=lambda x: x[2], reverse=True)
-        token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, triples, tokens = zip(*batch)
+        token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, triples, tokens, token_mapping = zip(*batch)
         cur_batch = len(batch)
         max_text_len = max(text_len)
         batch_token_ids = torch.LongTensor(cur_batch, max_text_len).zero_()
@@ -101,8 +101,10 @@ class CasrelRETask(Task):
                 'obj_heads': batch_obj_heads,
                 'obj_tails': batch_obj_tails,
                 'label_ids': triples,
-                'tokens': tokens}
-        
+                'tokens': tokens,
+                'token_mapping': token_mapping
+               }
+
     def _on_train_begin(
         self, 
         train_data, 
@@ -120,54 +122,54 @@ class CasrelRETask(Task):
 
         if self.class_num == None:
             self.class_num = train_data.class_num  
-        
+
         if inputs_cols == None:
             self.inputs_cols = train_data.dataset_cols
-            
+
         train_generator = DataLoader(dataset=train_data,
                                      batch_size=batch_size,
                                      shuffle=True,
                                      pin_memory=True,
                                      num_workers=num_workers,
                                      collate_fn=self.casrel_collate_fn)  
-        
+
         self.train_generator_lenth = len(train_generator)
-            
+
         self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
         self.optimizer.zero_grad()
-            
+
         self.module.train()
-        
+
         self._on_train_begin_record(logs, **kwargs)
-        
+
         return train_generator
-    
+
     def _on_train_begin_record(self, logs, **kwargs):
-        
+
         logs['tr_loss'] = 0
         logs['logging_loss'] = 0
-        
+
         return logs
-    
+
     def _on_epoch_begin(self, logs, train_generator, **kwargs):
-        
+
         train_data_prefetcher = DataPreFetcher(train_generator, self.module.device)
         inputs = train_data_prefetcher.next()
-        
+
         self.module.train()
-        
+
         self._on_epoch_begin_record(logs)
-        
+
         return train_data_prefetcher, inputs
-            
+
     def _on_epoch_begin_record(self, logs):
-        
+
         logs['b_loss'] = 0
         logs['nb_tr_examples'] = 0
         logs['nb_tr_steps'] = 0
-        
+
         return logs
-        
+
     def _on_step_begin(
         self, 
         epoch, 
@@ -178,7 +180,7 @@ class CasrelRETask(Task):
     ):
         self._on_step_begin_record(epoch, step, inputs, logs, **kwargs)
         pass
-    
+
     def _on_step_begin_record(
         self, 
         epoch, 
@@ -188,7 +190,7 @@ class CasrelRETask(Task):
         **kwargs
     ):
         pass
-            
+
     def _compute_loss(
         self, 
         inputs, 
@@ -198,14 +200,14 @@ class CasrelRETask(Task):
         verbose=True,
         **kwargs
     ):  
-        
-        loss = self.loss_function(logits, inputs)     
-        
+
+        loss = self.loss_function(logits, inputs)
+
         if logs:
             self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
-                
+
         return loss
-    
+
     def _compute_loss_record(
         self,
         inputs, 
@@ -215,12 +217,12 @@ class CasrelRETask(Task):
         logs,
         verbose,
         **kwargs
-    ):        
+    ):
         logs['nb_tr_examples'] += len(labels)
-                
+
         logs['b_loss'] += loss.item()
         logs['nb_tr_steps'] += 1
-        
+
         return logs
 
     def _on_backward(
@@ -232,24 +234,24 @@ class CasrelRETask(Task):
         logs,
         **kwargs
     ):
-                
-        loss.backward() 
-        
+
+        loss.backward()
+
         self._on_backward_record(logs)
-        
+
         return loss
-    
+
     def _on_optimize(self, step, logs, **kwargs):
         self.optimizer.step()  # 更新权值
         if self.scheduler:
             self.scheduler.step()  # 更新学习率
-                
+
         self.optimizer.zero_grad()  # 清空梯度
-        
+
         self._on_optimize_record(logs)
-        
+
         return step
-    
+
     def _on_step_end(
         self, 
         step,
@@ -263,9 +265,9 @@ class CasrelRETask(Task):
                 step, 
                 self.train_generator_lenth,
                 logs['b_loss'] / logs['nb_tr_steps']))
-            
+
         self._on_step_end_record(logs)
-            
+
     def _on_epoch_end(
         self, 
         epoch,
@@ -277,9 +279,9 @@ class CasrelRETask(Task):
             print('epoch:[{}],train loss is:{:.6f} \n'.format(
                 epoch,
                 logs['b_loss'] / logs['nb_tr_steps']))  
-            
+
         self._on_epoch_end_record(logs)
-            
+
     def _get_module_inputs_on_train(
         self,
         inputs,
@@ -307,44 +309,43 @@ class CasrelRETask(Task):
         **kwargs
     ):
         logs = dict()
-        
+
         train_generator = self._on_train_begin(train_data, validation_data, batch_size, lr, params, logs, shuffle=True, **kwargs)
-                
+
         for epoch in range(epochs):
-            
+
             train_data_prefetcher, inputs = self._on_epoch_begin(logs, train_generator, **kwargs)
-            
+
             step = 0
-            
+
             while inputs is not None:
-                
+
                 self._on_step_begin(epoch, step, inputs, logs, **kwargs)
 
                 labels = self._get_module_label_on_train(inputs, **kwargs)
                 inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
-                                                                                
+
                 # forward
                 logits = self.module(**inputs)
-                                
+
                 # 计算损失
                 loss = self._compute_loss(inputs, labels, logits, logs, **kwargs)
-                                                
+
                 # loss backword
                 loss = self._on_backward(inputs, labels, logits, loss, logs, **kwargs)
-                
+
                 # optimize
                 step = self._on_optimize(step, logs, **kwargs)
-                
+
                 # setp evaluate
                 self._on_step_end(step, logs, **kwargs)
-                
+
                 step += 1
 
                 inputs = train_data_prefetcher.next()
-            
+
             self._on_epoch_end(epoch, logs, **kwargs)
-            
-            
+
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
 
@@ -364,32 +365,32 @@ class CasrelRETask(Task):
                                       pin_memory=True,
                                       num_workers=1,
                                       collate_fn=self.casrel_collate_fn)  
-                
+
         self.module.eval()
-        
+
         self._on_evaluate_begin_record(logs, **kwargs)
-        
+
         return test_data_loader
-    
+
     def _on_evaluate_begin_record(self, logs, **kwargs):
-        
+
         logs['correct_num'] = 0
-        logs['predict_num']  = 0
-        logs['gold_num']  = 0
+        logs['predict_num'] = 0
+        logs['gold_num'] = 0
         logs['nb_tr_steps'] = 0
-        
-        return logs     
-                    
+
+        return logs
+
     def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
-        
+
         _, preds = torch.max(logits, 1)
 
         logs['nb_eval_examples'] +=  len(labels)
         logs['nb_eval_steps']  += 1
         logs['eval_loss'] += loss.item() * len(labels)
-        
+
         return logs
-    
+
     def _on_evaluate_end(
         self, 
         validation_data,
@@ -397,12 +398,12 @@ class CasrelRETask(Task):
         epoch=1,
         is_evaluate_print=True,
         **kwargs):
-                
+
         if is_evaluate_print:
             print('classification_report: \n', report_)
             print('confusion_matrix_: \n', confusion_matrix_)
             print('test loss is:{:.6f}'.format(logs['eval_loss'] / logs['nb_eval_steps']))
-    
+
     def evaluate(
         self, 
         validation_data, 
@@ -420,7 +421,7 @@ class CasrelRETask(Task):
         inputs = test_data_prefetcher.next()
         correct_num, predict_num, gold_num = 0, 0, 0
         step_ = 0
-                
+
         with torch.no_grad():
             while inputs is not None:
 
@@ -428,19 +429,22 @@ class CasrelRETask(Task):
 
                 token_ids = inputs['input_ids']
                 tokens = inputs['tokens'][0]
+                token_mapping = inputs['token_mapping'][0]
                 mask = inputs['attention_mask']
 
                 encoded_text = self.module.bert(token_ids, mask)[0]
 
                 pred_sub_heads, pred_sub_tails = self.module.get_subs(encoded_text)
                 sub_heads, sub_tails = np.where(pred_sub_heads.cpu()[0] > h_bar)[0], np.where(pred_sub_tails.cpu()[0] > t_bar)[0]
-                 
+
                 subjects = []
                 for sub_head in sub_heads:
                     sub_tail = sub_tails[sub_tails >= sub_head]
                     if len(sub_tail) > 0:
                         sub_tail = sub_tail[0]
-                        subject = tokens[sub_head-1: sub_tail]
+                        subject = ''.join([token_mapping[index_] if index_ < len(token_mapping) else '' for index_ in range(sub_head-1, sub_tail)])
+                        if subject == '':
+                            continue
                         subjects.append((subject, sub_head, sub_tail))
 
                 if subjects:
@@ -453,34 +457,32 @@ class CasrelRETask(Task):
                         sub_tail_mapping[subject_idx][0][subject[2]] = 1
                     sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
                     sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
-                    
+
                     pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(sub_head_mapping, 
                                                                                           sub_tail_mapping, 
                                                                                           repeated_encoded_text)
                     for subject_idx, subject in enumerate(subjects):
                         sub = subject[0]
-                        sub = ''.join([i.lstrip("##") for i in sub])
-                        sub = ' '.join(sub.split('[unused1]'))
-                        
+
                         obj_heads, obj_tails = np.where(pred_obj_heads.cpu()[subject_idx] > h_bar), np.where(pred_obj_tails.cpu()[subject_idx] > t_bar)
                         for obj_head, rel_head in zip(*obj_heads):
                             for obj_tail, rel_tail in zip(*obj_tails):
                                 if obj_head <= obj_tail and rel_head == rel_tail:
                                     rel = self.id2cat[int(rel_head)]
-                                    obj = tokens[obj_head-1: obj_tail]
-                                    obj = ''.join([i.lstrip("##") for i in obj])
-                                    obj = ' '.join(obj.split('[unused1]'))
+                                    obj = ''.join([token_mapping[index_] if index_ < len(token_mapping) else '' for index_ in range(obj_head-1, obj_tail)])
                                     triple_list.append((sub, rel, obj))
                                     break
                     triple_set = set()
                     for s, r, o in triple_list:
+                        if o == '' or s == '':
+                            continue
                         triple_set.add((s, r, o))
                     pred_list = list(triple_set)
                 else:
                     pred_list = []
 
                 pred_triples = set(pred_list)
-                
+
                 gold_triples = set(to_tup(inputs['label_ids'][0]))
 
                 correct_num += len(pred_triples & gold_triples)
@@ -488,10 +490,10 @@ class CasrelRETask(Task):
                 if step_ < 11:
                     print('pred_triples: ', pred_triples)
                     print('gold_triples: ', gold_triples)
-                    
+
                 predict_num += len(pred_triples)
                 gold_num += len(gold_triples)
-                                
+
                 inputs = test_data_prefetcher.next()
 
         print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(correct_num, predict_num, gold_num))
@@ -499,7 +501,7 @@ class CasrelRETask(Task):
         precision = correct_num / (predict_num + 1e-10)
         recall = correct_num / (gold_num + 1e-10)
         f1_score = 2 * precision * recall / (precision + recall + 1e-10)
-        
+
         print("precision: {}, recall: {}, f1_score: {}".format(precision, recall, f1_score))
-        
+
         return precision, recall, f1_score

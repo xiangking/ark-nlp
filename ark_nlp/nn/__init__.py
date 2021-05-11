@@ -8,7 +8,9 @@ from ark_nlp.nn.base.bert import Bert
 from ark_nlp.nn.base.ernie import Ernie
 from ark_nlp.nn.base.nezha import NeZha
 from ark_nlp.nn.base.roformer import RoFormer
+
 from ark_nlp.nn.casrel_bert import CasrelBert
+from ark_nlp.nn.crf_bert import CrfBert
 
 from transformers import BertConfig
 from ark_nlp.nn.configuration import ErnieConfig

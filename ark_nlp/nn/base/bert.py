@@ -287,23 +287,3 @@ class BertForTokenClassification(BertPreTrainedModel):
         out = self.classifier(sequence_output)
 
         return out
-
-
-class BertCrf(BertForTokenClassification):
-    """
-    基于BERT + CRF 的命名实体模型
-
-    :param config: (obejct) 模型的配置对象
-    :param bert_trained: (bool) bert参数是否可训练，默认可训练
-
-    :returns: 
-    """ 
-
-    def __init__(
-        self, 
-        config, 
-        encoder_trained=True
-    ):
-        super(BertCrf, self).__init__(config, encoder_trained)
-
-        self.crf = CRF(num_tags=config.num_labels, batch_first=True)

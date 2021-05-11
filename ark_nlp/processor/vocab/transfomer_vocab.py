@@ -16,6 +16,12 @@ import pickle
 import jieba
 import unicodedata
 
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 from zhon.hanzi import punctuation
 from functools import lru_cache
 from transformers import BertTokenizer
@@ -23,24 +29,13 @@ from transformers.tokenization_utils import _is_control
 from ark_nlp.processor.vocab._vocab import Vocab
 
 
-class TransfomerVocab(BertTokenizer):
-    
-    def tokenize(self, text):
-        text = ''.join([ch for ch in text if unicodedata.category(ch) != 'Mn'])
-        spaced = ''
-        for ch in text:
-            if ord(ch) == 0 or ord(ch) == 0xfffd or _is_control(ch):
-                continue
-            elif '\u4e00' <= ch <= '\u9fff':
-                spaced += ch
-            elif ch == ' ':
-                spaced += ' ' + '[unused1]' + ' '
-            else:
-                spaced += ' ' + ch + ' '
+class TransfomerWithBlankVocab(BertTokenizer):
+    def tokenize(self, text, **kwargs) -> List[str]:
         tokens = []
-        for word in re.split(' ', spaced.strip()):
-            tokens += self.wordpiece_tokenizer.tokenize(word)
-        return tokens
+        for span_ in text.split():
+            tokens += self._tokenize(span_)
+            tokens += [' ']
+        return tokens[:-1]
 
 
 class RoFormerVocab(BertTokenizer):

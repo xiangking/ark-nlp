@@ -1,0 +1,1 @@
+from ark_nlp.model.bert_sequence_classification import BertSequenceClassificationModel

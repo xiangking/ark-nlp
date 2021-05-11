@@ -10,12 +10,20 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
+import unicodedata
 import abc
 import torch
 import random
 import transformers 
 import numpy as np
 
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+from copy import deepcopy
 from transformers import AutoTokenizer
 from torch.utils.data import Dataset
 from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
@@ -28,7 +36,7 @@ class TransfomerTokenizer(BaseTokenizer):
     :param max_seq_len: (int) 预设的文本最大长度
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
-    """  
+    """
     def __init__(self, vocab, max_seq_len):
 
         if isinstance(vocab, str):
@@ -38,19 +46,19 @@ class TransfomerTokenizer(BaseTokenizer):
         self.vocab = vocab
         self.max_seq_len = max_seq_len
         self.tokenizer_type = 'transfomer'
-    
+
     @staticmethod
     def _is_control(ch):
         """控制类字符判断
         """
         return unicodedata.category(ch) in ('Cc', 'Cf')
-    
+
     @staticmethod
     def _is_special(ch):
         """判断是不是有特殊含义的符号
         """
         return bool(ch) and (ch[0] == '[') and (ch[-1] == ']')
-    
+
     @staticmethod
     def recover_bert_token(token):
         """获取token的“词干”（如果是##开头，则自动去掉##）
@@ -60,9 +68,10 @@ class TransfomerTokenizer(BaseTokenizer):
         else:
             return token
 
-    def get_token_mapping(self, text, tokens):
+    def get_token_mapping(self, text, tokens, is_mapping_index=True):
         """给出原始的text和tokenize后的tokens的映射关系
         """
+        raw_text = deepcopy(text)
         text = text.lower()
 
         normalized_text, char_mapping = '', []
@@ -79,13 +88,22 @@ class TransfomerTokenizer(BaseTokenizer):
         text, token_mapping, offset = normalized_text, [], 0
         for token in tokens:
             token = token.lower()
-            if self._is_special(token):
+            if token == '[unk]':
+                if is_mapping_index:
+                    token_mapping.append(char_mapping[offset:offset+1])
+                else:
+                    token_mapping.append(raw_text[offset:offset+1])
+                offset = offset + 1
+            elif self._is_special(token):
                 token_mapping.append([]) # 如果是[CLS]或者是[SEP]之类的词，则没有对应的映射
             else:
                 token = self.recover_bert_token(token)
                 start = text[offset:].index(token) + offset
                 end = start + len(token)
-                token_mapping.append(char_mapping[start:end])
+                if is_mapping_index:
+                    token_mapping.append(char_mapping[start:end])
+                else:
+                    token_mapping.append(raw_text[start:end])
                 offset = end
 
         return token_mapping
@@ -108,7 +126,7 @@ class TransfomerTokenizer(BaseTokenizer):
         segment_ids = [0] * len(sequence) 
         # ID化
         sequence = self.vocab.convert_tokens_to_ids(sequence)
-            
+
         # 根据max_seq_len与seq的长度产生填充序列
         padding = [0] * (self.max_seq_len - len(sequence))
         # 创建seq_mask
@@ -116,32 +134,32 @@ class TransfomerTokenizer(BaseTokenizer):
         # 创建seq_segment
         segment_ids = segment_ids + padding
         # 对seq拼接填充序列
-        sequence += padding 
+        sequence += padding
 
         return (np.asarray(sequence, dtype='int64'),
-                np.asarray(sequence_mask, dtype='int64'), 
+                np.asarray(sequence_mask, dtype='int64'),
                 np.asarray(segment_ids, dtype='int64'))
-    
+
     def pair_to_ids(self, sequence_a, sequence_b):
         if type(sequence_a) == str:
-            sequence_a = self.tokenize(sequence_a) 
+            sequence_a = self.tokenize(sequence_a)
 
         if type(sequence_b) == str:
             sequence_b = self.tokenize(sequence_b) 
-        
+
         # 对超长序列进行截断
         if len(sequence_a) > ((self.max_seq_len - 3)//2):
             sequence_a = sequence_a[0:(self.max_seq_len - 3)//2]
         if len(sequence_b) > ((self.max_seq_len - 3)//2):
             sequence_b = sequence_b[0:(self.max_seq_len - 3)//2]
-            
+
         # 分别在首尾拼接特殊符号
         sequence = ['[CLS]'] + sequence_a + ['[SEP]'] + sequence_b + ['[SEP]']
         segment_ids = [0] * (len(sequence_a) + 2) + [1] * (len(sequence_b) + 1)
-        
+
         # ID化
         sequence = self.vocab.convert_tokens_to_ids(sequence)
-            
+
         # 根据max_seq_len与seq的长度产生填充序列
         padding = [0] * (self.max_seq_len - len(sequence))
         # 创建seq_mask
@@ -149,10 +167,10 @@ class TransfomerTokenizer(BaseTokenizer):
         # 创建seq_segment
         segment_ids = segment_ids + padding
         # 对seq拼接填充序列
-        sequence += padding 
+        sequence += padding
 
         return (np.asarray(sequence, dtype='int64'),
-                np.asarray(sequence_mask, dtype='int64'), 
+                np.asarray(sequence_mask, dtype='int64'),
                 np.asarray(segment_ids, dtype='int64'))
 
 
@@ -188,56 +206,12 @@ class TokensTokenizer(TransfomerTokenizer):
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
     """  
-
-    def tokenize(self, text):
-        text = ' '.join([token_ for token_ in text])
-        return self.vocab.tokenize(text)
+    def tokenize(self, text, **kwargs) -> List[str]:
+        tokens = []
+        for span_ in text.split():
+            tokens += self.vocab.tokenize(span_)
+            tokens += [' ']
+        return tokens[:-1]
     
     def sequence_to_ids(self, sequence):
         return self.sentence_to_ids(sequence)
-    
-    
-class MRCTokenizer(TransfomerTokenizer):
-    """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
-
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
-
-    """  
-
-    def tokenize(self, text):
-        text = ' '.join([token_ for token_ in text])
-        return self.vocab.tokenize(text)
-    
-    def sequence_to_ids(self, sequence_a, sequence_b):
-        if type(sequence_a) == str:
-            sequence_a = self.tokenize(sequence_a) 
-
-        if type(sequence_b) == str:
-            sequence_b = self.tokenize(sequence_b) 
-        
-        # 对超长序列进行截断
-        sequence_a = sequence_a
-        if len(sequence_b) > ((self.max_seq_len - 3) - len(sequence_a)):
-            sequence_b = sequence_b[0:(self.max_seq_len - 3) - len(sequence_a)]
-            
-        # 分别在首尾拼接特殊符号
-        sequence = ['[CLS]'] + sequence_a + ['[SEP]'] + sequence_b + ['[SEP]']
-        segment_ids = [0] * (len(sequence_a) + 2) + [1] * (len(sequence_b) + 1)
-        
-        # ID化
-        sequence = self.vocab.convert_tokens_to_ids(sequence)
-            
-        # 根据max_seq_len与seq的长度产生填充序列
-        padding = [0] * (self.max_seq_len - len(sequence))
-        # 创建seq_mask
-        sequence_mask = [1] * len(sequence) + padding
-        # 创建seq_segment
-        segment_ids = segment_ids + padding
-        # 对seq拼接填充序列
-        sequence += padding 
-
-        return (np.asarray(sequence, dtype='int64'),
-                np.asarray(sequence_mask, dtype='int64'), 
-                np.asarray(segment_ids, dtype='int64'))

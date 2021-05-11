@@ -16,10 +16,10 @@ import pandas as pd
 
 from functools import lru_cache
 from torch.utils.data import Dataset
-from ark_nlp.dataset import TCDataset
+from ark_nlp.dataset import SentenceClassificationDataset
 
 
-class TextLevelGCNDataset(TCDataset):
+class TextLevelGCNDataset(SentenceClassificationDataset):
         
     def convert_to_ids(self, tokenizer):
         """

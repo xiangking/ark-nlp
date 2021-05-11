@@ -1,4 +1,4 @@
-__version__ = '0.0.26'
+__version__ = '0.0.28'
 __author__ = 'Xiang Wang'
 
 # List maintainers here

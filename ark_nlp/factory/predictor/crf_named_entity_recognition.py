@@ -107,7 +107,7 @@ class CRFNERPredictor(object):
             inputs = self._get_module_one_sample_inputs(features)
             logit = self.module(**inputs)
             
-        tags = model.module.crf.decode(logit, inputs['attention_mask'])
+        tags = self.module.crf.decode(logit, inputs['attention_mask'])
         tags  = tags.squeeze(0)
                                         
         preds = tags.detach().cpu().numpy().tolist()
@@ -124,8 +124,8 @@ class CRFNERPredictor(object):
         entities = []
         for entity_ in label_entities:
             entities.append({
-                "start":entity_[1],
-                "stop":entity_[2],
+                "start_idx":entity_[1],
+                "end_idx":entity_[2],
                 "entity":text[entity_[1]: entity_[2]+1],
                 "type":entity_[0]
             })

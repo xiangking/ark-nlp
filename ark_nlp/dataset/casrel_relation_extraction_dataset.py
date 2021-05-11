@@ -40,7 +40,7 @@ class CasRelREDataset(BaseDataset):
         
         dataset = []
         
-        data_df['text'] = data_df['text'].apply(lambda x: x.lower().strip())
+        data_df['text'] = data_df['text'].apply(lambda x: x.strip())
         if not self.is_test:
             data_df['label'] = data_df['label'].apply(lambda x: eval(x))
                         
@@ -71,8 +71,9 @@ class CasRelREDataset(BaseDataset):
         
         if len(text) > self.tokenizer.max_seq_len - 2:
             text = text[:self.tokenizer.max_seq_len - 2]
-            
+        
         tokens = self.tokenizer.tokenize(text)
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
         
         if not self.is_train:
             token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
@@ -83,7 +84,7 @@ class CasRelREDataset(BaseDataset):
             if self.is_test:
                 return token_ids, masks, text_len, tokens
             else:
-                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens
+                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens, token_mapping
         else:
             s2ro_map = {}
             for triple in ins_json_data['label']:
@@ -113,6 +114,6 @@ class CasRelREDataset(BaseDataset):
                 for ro in s2ro_map.get((sub_head_idx, sub_tail_idx), []):
                     obj_heads[ro[0]][ro[2]] = 1
                     obj_tails[ro[1]][ro[2]] = 1
-                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens
+                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens, token_mapping
             else:
                 return None

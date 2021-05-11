@@ -124,8 +124,8 @@ class BIONERPredictor(object):
         entities = []
         for entity_ in label_entities:
             entities.append({
-                "start":entity_[1],
-                "stop":entity_[2],
+                "start_idx":entity_[1],
+                "end_idx":entity_[2],
                 "entity":text[entity_[1]: entity_[2]+1],
                 "type":entity_[0]
             })

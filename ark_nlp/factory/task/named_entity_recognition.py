@@ -32,6 +32,8 @@ from ark_nlp.factory.metric import topk_accuracy
 from ark_nlp.factory.task.base._task import Task
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
+from ark_nlp.factory.metric import BiaffineSpanMetrics
+
 
 class BIONERTask(TokenClassificationTask):
     
@@ -41,8 +43,6 @@ class BIONERTask(TokenClassificationTask):
 
 
 class CRFNERTask(TokenClassificationTask):
-    def __init__(self, *args, **kwargs):
-        super(CRFTask, self).__init__(*args, **kwargs)
     
     def _compute_loss(
         self, 
@@ -59,6 +59,21 @@ class CRFNERTask(TokenClassificationTask):
             self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
                 
         return loss
+
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
+        
+        tags = self.module.crf.decode(logits, inputs['attention_mask'])
+        tags  = tags.squeeze(0)
+        
+        logs['labels'].append(labels)
+        logs['logits'].append(tags)
+        logs['input_lengths'].append(inputs['input_lengths'])
+            
+        logs['nb_eval_examples'] +=  len(labels)
+        logs['nb_eval_steps']  += 1
+        logs['eval_loss'] += loss.item() * len(labels)
+        
+        return logs
         
     def _on_evaluate_end(
         self, 
@@ -99,3 +114,86 @@ class CRFNERTask(TokenClassificationTask):
                                                                                               eval_info['acc'], 
                                                                                               eval_info['recall'],
                                                                                               eval_info['f1']))  
+
+
+class BiaffineNERTask(TokenClassificationTask):
+    
+    def _compute_loss(
+        self, 
+        inputs, 
+        labels, 
+        logits, 
+        logs=None,
+        verbose=True,
+        **kwargs
+    ):      
+        
+        span_label = labels.view(size=(-1,))
+        span_logits = logits.view(size=(-1, self.class_num))
+        
+        span_loss = self.loss_function(span_logits, span_label)
+    
+        span_mask = inputs['span_mask'].view(size=(-1,))
+        
+        span_loss *= span_mask
+        loss = torch.sum(span_loss) / inputs['span_mask'].size()[0]
+        
+        if logs:
+            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
+                
+        return loss
+
+    def _compute_loss_record(
+        self,
+        inputs, 
+        labels, 
+        logits, 
+        loss, 
+        logs,
+        verbose,
+        **kwargs
+    ):        
+        logs['b_loss'] += loss.item() 
+        logs['nb_tr_steps'] += 1
+        
+        return logs
+        
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
+        
+        logits = torch.nn.functional.softmax(logits, dim=-1)
+                
+        logs['labels'].append(labels.cpu())
+        logs['logits'].append(logits.cpu())
+            
+        logs['nb_eval_examples'] +=  len(labels)
+        logs['nb_eval_steps']  += 1
+        logs['eval_loss'] += loss.item()
+        
+        return logs
+        
+    def _on_evaluate_end(
+        self, 
+        validation_data,
+        logs,
+        epoch=1,
+        is_evaluate_print=True,
+        id2cat=None,
+        markup='bio',
+        **kwargs):
+
+        if id2cat == None:
+            id2cat = self.id2cat
+            
+        biaffine_metric = BiaffineSpanMetrics()
+
+        preds_ = torch.cat(logs['logits'], dim=0)     
+        labels_ = torch.cat(logs['labels'], dim=0)
+
+        with torch.no_grad():
+            recall, precise, span_f1 = biaffine_metric(preds_, labels_)
+
+        if is_evaluate_print:
+            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
+                                                                                              precise, 
+                                                                                              recall,
+                                                                                              span_f1)) 

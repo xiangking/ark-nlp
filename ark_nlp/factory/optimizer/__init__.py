@@ -79,7 +79,7 @@ def get_default_optimizer(module, module_name='bert', **kwargs):
 
     if module_name == 'bert':
         return get_default_bert_optimizer(module, **kwargs)
-    elif module_name == 'bert_crf':
+    elif module_name == 'crf_bert':
         return get_default_bert_crf_optimizer(module, **kwargs)
     else:
         raise ValueError("The default optimizer does not exist") 
@@ -107,7 +107,7 @@ def get_default_bert_optimizer(
     return optimizer
 
 
-def get_default_bert_crf_optimizer(
+def get_default_crf_bert_optimizer(
     module,
     lr: float = 3e-5,
     crf_lr: float = 1e-3,
@@ -116,9 +116,9 @@ def get_default_bert_crf_optimizer(
     weight_decay: float = 1e-2,
 ):
     no_decay = ["bias", "LayerNorm.weight"]
-    bert_param_optimizer = list(dl_module.bert.named_parameters())
-    crf_param_optimizer = list(dl_module.crf.named_parameters())
-    linear_param_optimizer = list(dl_module.classifier.named_parameters())
+    bert_param_optimizer = list(module.bert.named_parameters())
+    crf_param_optimizer = list(module.crf.named_parameters())
+    linear_param_optimizer = list(module.classifier.named_parameters())
     optimizer_grouped_parameters = [
         {'params': [p for n, p in bert_param_optimizer if not any(nd in n for nd in no_decay)],
         'weight_decay': weight_decay, 'lr': lr},
