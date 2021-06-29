@@ -30,8 +30,6 @@ from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.task.base._task import Task
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
-from ark_nlp.factory.utils import conlleval
-
 
 class TokenClassificationTask(SequenceClassificationTask):
     
@@ -82,7 +80,7 @@ class TokenClassificationTask(SequenceClassificationTask):
         verbose,
         **kwargs
     ):        
-        logs['b_loss'] += loss.item() * len(labels)
+        logs['b_loss'] += loss.item()
         logs['nb_tr_steps'] += 1
         
         return logs
@@ -131,51 +129,13 @@ class TokenClassificationTask(SequenceClassificationTask):
                     
     def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
         
-        logs['labels'].append(labels)
-        logs['logits'].append(logits)
-        logs['input_lengths'].append(inputs['input_lengths'])
+        logs['labels'].append(labels.cpu())
+        logs['logits'].append(logits.cpu())
+        logs['input_lengths'].append(inputs['input_lengths'].cpu())
             
         logs['nb_eval_examples'] +=  len(labels)
         logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item() * len(labels)
+        logs['eval_loss'] += loss.item()
         
         return logs
     
-    def _on_evaluate_end(
-        self, 
-        validation_data,
-        logs,
-        epoch=1,
-        is_evaluate_print=True,
-        id2cat=None,
-        markup='bio',
-        **kwargs):
-
-        if id2cat == None:
-            id2cat = self.id2cat
-        
-        self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
-        preds_ = torch.argmax(torch.cat(logs['logits'], dim=0), -1).cpu().numpy().tolist()        
-        labels_ = torch.cat(logs['labels'], dim=0).cpu().numpy().tolist()
-        input_lens_ = torch.cat(logs['input_lengths'], dim=0).cpu().numpy()
-                
-        for index_, label_ in enumerate(labels_):
-            label_list_ = []
-            pred_list_ = []
-            for jndex_, _ in enumerate(label_):
-                if jndex_ == 0:
-                    continue
-                elif jndex_ == input_lens_[index_]-1:
-                    self.ner_metric.update(pred_paths=[pred_list_], label_paths=[label_list_])
-                    break
-                else:
-                    label_list_.append(labels_[index_][jndex_])
-                    pred_list_.append(preds_[index_][jndex_])        
-        
-        eval_info, entity_info = self.ner_metric.result()
-
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
-                                                                                              eval_info['acc'], 
-                                                                                              eval_info['recall'],
-                                                                                              eval_info['f1']))    

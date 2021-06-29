@@ -21,6 +21,11 @@ class FormatError(Exception):
 Metrics = namedtuple('Metrics', 'tp fp fn prec rec fscore')
 
 
+def global_pointer_f1_score(y_true, y_pred):
+    y_pred = torch.gt(y_pred, 0)
+    return torch.sum(y_true * y_pred).item(), torch.sum(y_true + y_pred).item()
+
+
 def get_entity_bios(seq, id2label):
     """Gets entities from sequence.
     note: BIOS

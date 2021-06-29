@@ -12,5 +12,5 @@ from ark_nlp.dataset.casrel_relation_extraction_dataset import CasRelREDataset
 from ark_nlp.dataset.text_classification_dataset import TCDataset
 from ark_nlp.dataset.text_match_dataset import TMDataset
 from ark_nlp.dataset.bio_named_entity_recognition_dataset import BIONERDataset
-
+from ark_nlp.dataset.global_pointer_named_entity_recognition_dataset import GlobalPointerNERDataset
 

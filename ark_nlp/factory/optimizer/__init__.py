@@ -109,8 +109,8 @@ def get_default_bert_optimizer(
 
 def get_default_crf_bert_optimizer(
     module,
-    lr: float = 3e-5,
-    crf_lr: float = 1e-3,
+    lr: float = 2e-5,
+    crf_lr: float = 2e-3,
     eps: float = 1e-6,
     correct_bias: bool = True,
     weight_decay: float = 1e-2,

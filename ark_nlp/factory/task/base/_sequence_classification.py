@@ -50,6 +50,7 @@ class SequenceClassificationTask(Task):
         inputs_cols=None,
         **kwargs
     ):
+        
         if self.class_num == None:
             self.class_num = train_data.class_num  
         
@@ -71,7 +72,7 @@ class SequenceClassificationTask(Task):
         return train_generator
     
     def _on_train_begin_record(self, logs, **kwargs):
-        
+
         logs['global_step'] = 0
         logs['tr_loss'] = 0
         logs['logging_loss'] = 0
@@ -82,10 +83,10 @@ class SequenceClassificationTask(Task):
         
         self.module.train()
         
-        self._on_epoch_begin_record(logs)
+        self._on_epoch_begin_record(logs, **kwargs)
             
-    def _on_epoch_begin_record(self, logs):
-        
+    def _on_epoch_begin_record(self, logs, **kwargs):
+
         logs['b_loss'] = 0
         logs['b_acc'] = 0
         logs['nb_tr_examples'] = 0
@@ -101,6 +102,7 @@ class SequenceClassificationTask(Task):
         logs, 
         **kwargs
     ):
+        
         self._on_step_begin_record(epoch, step, inputs, logs, **kwargs)
     
     def _on_step_begin_record(
@@ -121,12 +123,11 @@ class SequenceClassificationTask(Task):
         logs=None,
         verbose=True,
         **kwargs
-    ):        
-        loss = self.loss_function(logits, labels)     
+    ):  
+        loss = self.loss_function(logits, labels)  
         
         if logs:
-            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
-                
+            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)                
         return loss
     
     def _compute_loss_record(
@@ -138,7 +139,8 @@ class SequenceClassificationTask(Task):
         logs,
         verbose,
         **kwargs
-    ):        
+    ):  
+
         logs['nb_tr_examples'] += len(labels)
         
         if verbose:
@@ -179,7 +181,15 @@ class SequenceClassificationTask(Task):
         self._on_backward_record(logs)
         
         return loss
-    
+
+    def _on_backward_record(
+        self, 
+        logs,
+        **kwargs
+    ):
+
+        return logs    
+
     def _on_optimize(
         self, 
         step, 
@@ -187,16 +197,27 @@ class SequenceClassificationTask(Task):
         gradient_accumulation_steps=1,
         **kwargs
     ):
+
         if (step + 1) % gradient_accumulation_steps == 0:
             self.optimizer.step()  # 更新权值
             if self.scheduler:
                 self.scheduler.step()  # 更新学习率
                 
             self.optimizer.zero_grad()  # 清空梯度
-            
-            logs['global_step'] += 1
-        
+
+            self._on_optimize_record(logs, **kwargs)
+                    
         return step
+
+    def _on_optimize_record(
+        self, 
+        logs,
+        **kwargs
+    ):
+
+        logs['global_step'] += 1
+
+        return logs  
     
     def _on_step_end(
         self, 
@@ -206,6 +227,7 @@ class SequenceClassificationTask(Task):
         print_step=100,
         **kwargs
     ):
+
         if verbose and (step + 1) % print_step == 0:
             print('[{}/{}],train loss is:{:.6f},train acc is:{:.6f}'.format(
                 step, 
@@ -214,6 +236,13 @@ class SequenceClassificationTask(Task):
                 logs['b_acc'] / logs['nb_tr_examples']))
             
         self._on_step_end_record(logs)
+
+    def _on_optimize_record(
+        self, 
+        logs,
+        **kwargs
+    ):
+        return logs  
             
     def _on_epoch_end(
         self, 
@@ -234,9 +263,16 @@ class SequenceClassificationTask(Task):
             if save_module_path is None:
                 prefix = './checkpoints/' + str(type(self.module.__class__.__name__)) + '_'
                 save_module_path = time.strftime(prefix + '%m%d_%H:%M:%S.pth')
-            torch.save(self.module.state_dict(), save_module_path)  
-                    
+            torch.save(self.module.state_dict(), save_module_path) 
+
         self._on_epoch_end_record(logs)
+
+    def _on_epoch_end_record(
+        self, 
+        logs,
+        **kwargs
+    ):
+        return logs  
             
     def _on_evaluate_begin(
         self, 
@@ -264,7 +300,7 @@ class SequenceClassificationTask(Task):
         
         logs['labels'] = []
         logs['logits'] = []
-        
+
         return logs     
                     
     def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
@@ -303,6 +339,7 @@ class SequenceClassificationTask(Task):
             print('test loss is:{:.6f},test acc is:{:.6f},f1_score is:{:.6f}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
                                                                                      logs['eval_acc'] / logs['nb_eval_examples'] ,
                                                                                      f1_score))
+
     def _get_module_inputs_on_train(
         self,
         inputs,

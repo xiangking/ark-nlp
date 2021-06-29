@@ -69,64 +69,184 @@ class Task(object):
     def _collate_fn(self, batch):
         return default_collate(batch)
 
-    def _on_train_begin(self):
-        pass
-    
-    def _on_train_begin_record(self, logs):
+    def _prepare_train_begin(self, **kwargs):
         pass
 
-    def _on_epoch_begin(self,):
-        pass
-    
-    def _on_epoch_begin_record(self, logs):
+    def _on_train_begin(self, **kwargs):
         pass
 
-    def _on_step_begin(self):
-        pass
-    
-    def _on_step_begin_record(self, logs):
+    def _finish_train_begin(self, **kwargs):
         pass
 
-    def _compute_loss(self,):
+    def _prepare_train_begin_record(self, logs, **kwargs):
         pass
     
-    def _compute_loss_record(self, logs):
+    def _on_train_begin_record(self, logs, **kwargs):
         pass
 
+    def _finish_train_begin_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_epoch_begin(self, **kwargs):
+        pass
+
+    def _on_epoch_begin(self, **kwargs):
+        pass
+
+    def _finish_epoch_begin(self, **kwargs):
+        pass
+
+    def _prepare_epoch_begin_record(self, logs, **kwargs):
+        pass
+    
+    def _on_epoch_begin_record(self, logs, **kwargs):
+        pass
+
+    def _finish_epoch_begin_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_step_begin(self, **kwargs):
+        pass
+
+    def _on_step_begin(self, **kwargs):
+        pass
+
+    def _finish_step_begin(self, **kwargs):
+        pass
+
+    def _prepare_step_begin_record(self, logs, **kwargs):
+        pass
+    
+    def _on_step_begin_record(self, logs, **kwargs):
+        pass
+
+    def _finish_step_begin_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_compute_loss(self, **kwargs):
+        pass
+
+    def _compute_loss(self, **kwargs):
+        pass
+
+    def _finish_compute_loss(self, **kwargs):
+        pass
+
+    def _prepare_compute_loss_record(self, logs, **kwargs):
+        pass
+    
+    def _compute_loss_record(self, logs, **kwargs):
+        pass
+
+    def _finish_compute_loss_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_backward(self, **kwargs):
+        pass
+    
     def _on_backward(self,):
         pass
-    
-    def _on_backward_record(self, logs):
+
+    def _finish_backward(self, **kwargs):
         pass
 
-    def _on_optimize(self):
-        pass
-    
-    def _on_optimize_record(self, logs):
-        pass
-
-    def _on_step_end(self,):
+    def _prepare_backward_record(self, logs, **kwargs):
         pass
     
-    def _on_step_end_record(self, logs):
+    def _on_backward_record(self, logs, **kwargs):
         pass
 
-    def _on_epoch_end(self,):
+    def _finish_backward_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_optimize(self, **kwargs):
         pass
     
-    def _on_epoch_end_record(self, logs):
+    def _on_optimize(self, **kwargs):
         pass
 
-    def _on_train_end(self,):
+    def _finish_optimize(self, **kwargs):
+        pass
+
+    def _prepare_optimize_record(self, logs, **kwargs):
         pass
     
-    def _on_train_end_record(self, logs):
+    def _on_optimize_record(self, logs, **kwargs):
         pass
 
-    def fit(self):
+    def _finish_optimize_record(self, logs, **kwargs):
         pass
 
-    def evaluate(self):
+    def _prepare_step_end(self, **kwargs):
+        pass
+    
+    def _on_step_end(self, **kwargs):
+        pass
+
+    def _finish_step_end(self, **kwargs):
+        pass
+
+    def _prepare_step_end_record(self, logs, **kwargs):
+        pass
+    
+    def _on_step_end_record(self, logs, **kwargs):
+        pass
+
+    def _finish_step_end_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_epoch_end(self, **kwargs):
+        pass
+    
+    def _on_epoch_end(self, **kwargs):
+        pass
+
+    def _finish_epoch_end(self, **kwargs):
+        pass
+
+    def _prepare_epoch_end_record(self, logs, **kwargs):
+        pass
+    
+    def _on_epoch_end_record(self, logs, **kwargs):
+        pass
+
+    def _finish_epoch_end_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_train_end(self, **kwargs):
+        pass
+    
+    def _on_train_end(self, **kwargs):
+        pass
+
+    def _finish_train_end(self, **kwargs):
+        pass
+
+    def _prepare_train_end_record(self, logs, **kwargs):
+        pass
+    
+    def _on_train_end_record(self, logs, **kwargs):
+        pass
+
+    def _finish_train_end_record(self, logs, **kwargs):
+        pass
+
+    def _prepare_fit(self, **kwargs):
+        pass
+    
+    def fit(self, **kwargs):
+        pass
+
+    def _finish_fit(self, **kwargs):
+        pass
+
+    def _prepare_evaluate(self, **kwargs):
+        pass
+    
+    def evaluate(self, **kwargs):
+        pass
+
+    def _finish_evaluate(self, **kwargs):
         pass
 
     def _get_module_inputs_on_train(self):

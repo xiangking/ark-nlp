@@ -2,6 +2,7 @@ from torch.nn.modules.loss import *
 from .casrel_loss import CasrelLoss
 from .focal_loss import FocalLoss
 from .label_smoothing_ce_loss import LabelSmoothingCrossEntropy
+from .global_pointer_ce_loss import GlobalPointerCrossEntropy
 
 
 all_losses_dict = dict(binarycrossentropy=BCEWithLogitsLoss,
@@ -12,6 +13,7 @@ all_losses_dict = dict(binarycrossentropy=BCEWithLogitsLoss,
                        casrel=CasrelLoss,
                        labelsmoothingcrossentropy=LabelSmoothingCrossEntropy,
                        lsce=LabelSmoothingCrossEntropy,
+                       gpce=GlobalPointerCrossEntropy,
                       )
 
 

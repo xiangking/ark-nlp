@@ -10,6 +10,18 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
+"""
+# Copyright Xiang Wang, Inc. All Rights Reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at 
+# http://www.apache.org/licenses/LICENSE-2.0
+
+Author: Xiang Wang, xiangking1995@163.com
+Status: Active
+"""
+
 import unicodedata
 import abc
 import torch
@@ -45,6 +57,7 @@ class TransfomerTokenizer(BaseTokenizer):
 
         self.vocab = vocab
         self.max_seq_len = max_seq_len
+        self.additional_special_tokens = set()
         self.tokenizer_type = 'transfomer'
 
     @staticmethod
@@ -88,7 +101,7 @@ class TransfomerTokenizer(BaseTokenizer):
         text, token_mapping, offset = normalized_text, [], 0
         for token in tokens:
             token = token.lower()
-            if token == '[unk]':
+            if token == '[unk]' or token in self.additional_special_tokens:
                 if is_mapping_index:
                     token_mapping.append(char_mapping[offset:offset+1])
                 else:
@@ -114,9 +127,12 @@ class TransfomerTokenizer(BaseTokenizer):
         else:
             return self.pair_to_ids(sequence_a, sequence_b)
 
-    def sentence_to_ids(self, sequence):
+    def sentence_to_ids(self, sequence, return_sequence_length=False):
         if type(sequence) == str:
             sequence = self.tokenize(sequence) 
+
+        if return_sequence_length:
+            sequence_length = len(sequence)
 
         # 对超长序列进行截断
         if len(sequence) > self.max_seq_len - 2:
@@ -136,16 +152,24 @@ class TransfomerTokenizer(BaseTokenizer):
         # 对seq拼接填充序列
         sequence += padding
 
-        return (np.asarray(sequence, dtype='int64'),
-                np.asarray(sequence_mask, dtype='int64'),
-                np.asarray(segment_ids, dtype='int64'))
+        sequence = np.asarray(sequence, dtype='int64')
+        sequence_mask = np.asarray(sequence_mask, dtype='int64')
+        segment_ids = np.asarray(segment_ids, dtype='int64')
 
-    def pair_to_ids(self, sequence_a, sequence_b):
+        if return_sequence_length:
+            return (sequence, sequence_mask, segment_ids, sequence_length)
+
+        return (sequence, sequence_mask, segment_ids)
+
+    def pair_to_ids(self, sequence_a, sequence_b, return_sequence_length=False):
         if type(sequence_a) == str:
             sequence_a = self.tokenize(sequence_a)
 
         if type(sequence_b) == str:
             sequence_b = self.tokenize(sequence_b) 
+
+        if return_sequence_length:
+            sequence_length = (len(sequence_a), len(sequence_b))
 
         # 对超长序列进行截断
         if len(sequence_a) > ((self.max_seq_len - 3)//2):
@@ -169,9 +193,14 @@ class TransfomerTokenizer(BaseTokenizer):
         # 对seq拼接填充序列
         sequence += padding
 
-        return (np.asarray(sequence, dtype='int64'),
-                np.asarray(sequence_mask, dtype='int64'),
-                np.asarray(segment_ids, dtype='int64'))
+        sequence = np.asarray(sequence, dtype='int64')
+        sequence_mask = np.asarray(sequence_mask, dtype='int64')
+        segment_ids = np.asarray(segment_ids, dtype='int64')
+
+        if return_sequence_length:
+            return (sequence, sequence_mask, segment_ids, sequence_length)
+
+        return (sequence, sequence_mask, segment_ids)
 
 
 class SentenceTokenizer(TransfomerTokenizer):
@@ -182,8 +211,8 @@ class SentenceTokenizer(TransfomerTokenizer):
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
     """  
-    def sequence_to_ids(self, sequence):
-    	return self.sentence_to_ids(sequence)
+    def sequence_to_ids(self, sequence, **kwargs):
+    	return self.sentence_to_ids(sequence, **kwargs)
 
 
 class PairTokenizer(TransfomerTokenizer):
@@ -194,11 +223,11 @@ class PairTokenizer(TransfomerTokenizer):
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
     """  
-    def sequence_to_ids(self, sequence_a, sequence_b):
-    	return self.pair_to_ids(sequence_a, sequence_b)
+    def sequence_to_ids(self, sequence_a, sequence_b, **kwargs):
+    	return self.pair_to_ids(sequence_a, sequence_b, **kwargs)
 
 
-class TokensTokenizer(TransfomerTokenizer):
+class TokenTokenizer(TransfomerTokenizer):
     """
     Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
 
@@ -206,12 +235,39 @@ class TokensTokenizer(TransfomerTokenizer):
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
     """  
+    def tokenize(self, text, **kwargs):
+        tokens = []
+        text = ' '.join([token_ for token_ in text])
+        tokens = self.vocab.tokenize(text)
+        return tokens
+    
+    def sequence_to_ids(self, sequence, **kwargs):
+        return self.sentence_to_ids(sequence, **kwargs)
+
+
+class SpanTokenizer(TransfomerTokenizer):
+    """
+    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+
+    :param max_seq_len: (int) 预设的文本最大长度
+    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
+
+    """  
+    def __init__(self, vocab, max_seq_len, split_token=' ', additional_special_token='[Blank]'):
+        super(SpanTokenizer, self).__init__(vocab, max_seq_len)
+        self.split_token = split_token
+        self.additional_special_token = self.split_token
+        if self.additional_special_token:
+            self.additional_special_token = additional_special_token
+            self.vocab.add_special_tokens({'additional_special_tokens': [self.additional_special_token]})
+            self.additional_special_tokens = set([self.additional_special_token])
+
     def tokenize(self, text, **kwargs) -> List[str]:
         tokens = []
-        for span_ in text.split():
+        for span_ in text.split(self.split_token):
             tokens += self.vocab.tokenize(span_)
-            tokens += [' ']
+            tokens += [self.additional_special_token]
         return tokens[:-1]
     
-    def sequence_to_ids(self, sequence):
-        return self.sentence_to_ids(sequence)
+    def sequence_to_ids(self, sequence, **kwargs):
+        return self.sentence_to_ids(sequence, **kwargs)
