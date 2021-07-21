@@ -26,7 +26,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
 
-class GlobalPointerNERPredictor(object):
+class SpanNERPredictor(object):
     def __init__(
         self, 
         module, 
@@ -55,16 +55,10 @@ class GlobalPointerNERPredictor(object):
         input_ids = self.tokenizer.sequence_to_ids(tokens)              
         input_ids, input_mask, segment_ids = input_ids
 
-        zero = [0 for i in range(self.tokenizer.max_seq_len)]
-        span_mask=[input_mask for i in range(sum(input_mask))]
-        span_mask.extend([zero for i in range(sum(input_mask), self.tokenizer.max_seq_len)])
-        span_mask = np.array(span_mask)
-
         features = {
             'input_ids': input_ids, 
             'attention_mask': input_mask, 
             'token_type_ids': segment_ids, 
-            'span_mask': span_mask
         }   
         
         return features, token_mapping
@@ -100,26 +94,31 @@ class GlobalPointerNERPredictor(object):
         
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            scores =  self.module(**inputs)[0].cpu() 
-
-        scores[:, [0, -1]] -= np.inf
-        scores[:, :, [0, -1]] -= np.inf
+            start_logits, end_logits =  self.module(**inputs)
+            start_scores = torch.argmax(start_logits[0].cpu(), -1).numpy()[1:]
+            end_scores = torch.argmax(end_logits[0].cpu(), -1).numpy()[1:]
         
         entities = []
-        for l, start, end in zip(*np.where(scores > threshold)):
-            if end-1 > token_mapping[-1][-1]:
+        for index_, s_l in enumerate(start_scores):
+            if s_l == 0:
+                continue
+                
+            if index_ > token_mapping[-1][-1]:
                 break
-            if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
-                entitie_ = {
-                    "start_idx":token_mapping[start-1][0],
-                    "end_idx":token_mapping[end-1][-1],
-                    "entity":text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
-                    "type": self.id2cat[l]
-                }
+                
+            for jndex_, e_l in enumerate(end_scores[index_:]):
+                
+                if index_ + jndex_ > token_mapping[-1][-1]:
+                    break
+                
+                if s_l == e_l:
+                    entitie_ = {
+                        "start_idx":token_mapping[index_][0],
+                        "end_idx":token_mapping[index_+jndex_][-1],
+                        "type": self.id2cat[s_l],
+                        "entity": text[token_mapping[index_][0]: token_mapping[index_+jndex_][-1]+1]                    
+                    }
+                    entities.append(entitie_)
+                    break        
 
-                if entitie_['entity'] == '':
-                    continue
-
-                entities.append(entitie_)
-
-        return entities      
+        return entities   

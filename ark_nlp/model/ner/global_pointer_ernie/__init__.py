@@ -1,0 +1,17 @@
+from ark_nlp.dataset import GlobalPointerNERDataset as Dataset 
+from ark_nlp.dataset import GlobalPointerNERDataset as GlobalPointerErnieNERDataset
+
+from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as GlobalPointerErnieNERTokenizer
+
+from ark_nlp.nn import BertConfig as GlobalPointerErnieConfig
+from ark_nlp.model.ner.global_pointer_ernie.global_pointer_ernie import GlobalPointerErnie
+
+from ark_nlp.factory.optimizer import get_default_bert_optimizer as get_default_model_optimizer
+from ark_nlp.factory.optimizer import get_default_bert_optimizer as get_default_global_pointer_ernie_optimizer
+
+from ark_nlp.factory.task import GlobalPointerNERTask as Task
+from ark_nlp.factory.task import GlobalPointerNERTask as GlobalPointerErnieNERTask
+
+from ark_nlp.factory.predictor import GlobalPointerNERPredictor as Predictor
+from ark_nlp.factory.predictor import GlobalPointerNERPredictor as GlobalPointerErnieNERPredictor

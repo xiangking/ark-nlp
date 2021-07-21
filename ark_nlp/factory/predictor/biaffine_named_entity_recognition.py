@@ -19,20 +19,21 @@ import torch.nn.functional as F
 import sklearn.metrics as sklearn_metrics
 
 from tqdm import tqdm
-from torch.autograd import grad
-from torch.autograd import Variable
 from torch.optim import lr_scheduler
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+from torch.autograd import Variable, grad
+from torch.utils.data import DataLoader, Dataset
 
 
-class GlobalPointerNERPredictor(object):
+class BiaffineNERPredictor(object):
     def __init__(
         self, 
         module, 
         tokernizer, 
-        cat2id
+        cat2id,
+        markup='bio'
     ):
+        self.markup = markup
+
         self.module = module
         self.module.task = 'TokenLevel'
 
@@ -43,18 +44,17 @@ class GlobalPointerNERPredictor(object):
         self.id2cat = {}
         for cat_, idx_ in self.cat2id.items():
             self.id2cat[idx_] = cat_
-    
+
     def _convert_to_transfomer_ids(
-        self,
+        self, 
         text
     ):
-        
         tokens = self.tokenizer.tokenize(text)
-        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
-        
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)        
+
         input_ids = self.tokenizer.sequence_to_ids(tokens)              
         input_ids, input_mask, segment_ids = input_ids
-
+        
         zero = [0 for i in range(self.tokenizer.max_seq_len)]
         span_mask=[input_mask for i in range(sum(input_mask))]
         span_mask.extend([zero for i in range(sum(input_mask), self.tokenizer.max_seq_len)])
@@ -65,7 +65,7 @@ class GlobalPointerNERPredictor(object):
             'attention_mask': input_mask, 
             'token_type_ids': segment_ids, 
             'span_mask': span_mask
-        }   
+        }     
         
         return features, token_mapping
 
@@ -92,34 +92,33 @@ class GlobalPointerNERPredictor(object):
         self, 
         text='', 
         return_label_name=True,
-        return_proba=False,
-        threshold=0
+        return_proba=False
     ):
+
         features, token_mapping = self._get_input_ids(text)
         self.module.eval()
         
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            scores =  self.module(**inputs)[0].cpu() 
-
-        scores[:, [0, -1]] -= np.inf
-        scores[:, :, [0, -1]] -= np.inf
-        
+            scores = torch.argmax(self.module(**inputs), dim=-1)[0].to(torch.device('cpu')).numpy().tolist()    
+            
         entities = []
-        for l, start, end in zip(*np.where(scores > threshold)):
-            if end-1 > token_mapping[-1][-1]:
-                break
-            if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
-                entitie_ = {
-                    "start_idx":token_mapping[start-1][0],
-                    "end_idx":token_mapping[end-1][-1],
-                    "entity":text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
-                    "type": self.id2cat[l]
-                }
+        for start in range(len(scores)):
+            for end in range(start, len(scores[start])):
+                if scores[start][end] > 0:
+                    if end-1 > token_mapping[-1][-1]:
+                        break
+                    if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
+                        entitie_ = {
+                            "start_idx":token_mapping[start-1][0],
+                            "end_idx":token_mapping[end-1][-1],
+                            "entity":text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
+                            "type": self.id2cat[scores[start][end]]
+                        }      
+                        
+                        if entitie_['entity'] == '':
+                            continue
 
-                if entitie_['entity'] == '':
-                    continue
-
-                entities.append(entitie_)
-
-        return entities      
+                        entities.append(entitie_)
+                    
+        return entities

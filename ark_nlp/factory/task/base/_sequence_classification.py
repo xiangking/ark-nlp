@@ -64,7 +64,7 @@ class SequenceClassificationTask(Task):
             
         self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
         self.optimizer.zero_grad()
-            
+        
         self.module.train()
         
         self._on_train_begin_record(logs, **kwargs)
@@ -200,6 +200,10 @@ class SequenceClassificationTask(Task):
 
         if (step + 1) % gradient_accumulation_steps == 0:
             self.optimizer.step()  # 更新权值
+
+            if self.ema_decay:
+                self.ema.update(self.module.parameters())
+
             if self.scheduler:
                 self.scheduler.step()  # 更新学习率
                 
@@ -301,7 +305,15 @@ class SequenceClassificationTask(Task):
         logs['labels'] = []
         logs['logits'] = []
 
-        return logs     
+        return logs   
+
+    def _on_evaluate_epoch_begin(self, logs, **kwargs):
+
+        if self.ema_decay:
+            self.ema.store(self.module.parameters())
+            self.ema.copy_to(self.module.parameters())
+        
+        self._on_epoch_begin_record(logs, **kwargs)
                     
     def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
         
@@ -316,6 +328,23 @@ class SequenceClassificationTask(Task):
         logs['eval_acc'] += torch.sum(preds == labels.data).item()
         
         return logs
+
+    def _on_evaluate_epoch_end(
+        self, 
+        logs,
+        **kwargs
+    ):
+        if self.ema_decay:
+            self.ema.restore(self.module.parameters())
+
+        self._on_evaluate_epoch_end_record(logs)
+
+    def _on_evaluate_epoch_end_record(
+        self, 
+        logs,
+        **kwargs
+    ):
+        return logs  
     
     def _on_evaluate_end(
         self, 
@@ -429,7 +458,9 @@ class SequenceClassificationTask(Task):
         generator = self._on_evaluate_begin(validation_data, evaluate_batch_size, logs, shuffle=False, **kwargs)
                 
         with torch.no_grad():
-                        
+
+            self._on_evaluate_epoch_begin(logs, **kwargs)
+
             for step, inputs in enumerate(generator):
                 
                 labels = self._get_module_label_on_eval(inputs, **kwargs)
@@ -442,5 +473,7 @@ class SequenceClassificationTask(Task):
                 loss = self._compute_loss(inputs, labels, logits, **kwargs)
                 
                 self._on_evaluate_step_end(inputs, labels, logits, loss, logs, **kwargs)
+            
+            self._on_evaluate_epoch_end(logs, **kwargs)
                 
         self._on_evaluate_end(validation_data, logs)

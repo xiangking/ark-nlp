@@ -19,54 +19,54 @@ from torch.utils.data import Dataset
 from ark_nlp.dataset import BIOTokenClassificationDataset
 
 
-class BiaffineNERDataset(BIOTokenClassificationDataset):
+class SpanNERDataset(BIOTokenClassificationDataset):
 
     def _get_categories(self):
-        categories = sorted(list(set([label_['type'] for data in self.dataset for label_ in data['label']])))
+        categories = sorted(list(set([label_['type'] 
+                                      for data in self.dataset for label_ in data['label']])))
         if 'O' in categories:
             categories.remove('O')
         categories.insert(0, 'O')
         return categories
-    
+
     def _convert_to_transfomer_ids(self, bert_tokenizer):
 
         features = []
         for (index_, row_) in enumerate(self.dataset):
             tokens = bert_tokenizer.tokenize(row_['text'])[:bert_tokenizer.max_seq_len-2]
             token_mapping = bert_tokenizer.get_token_mapping(row_['text'], tokens)
-                        
+
             start_mapping = {j[0]: i for i, j in enumerate(token_mapping) if j}
             end_mapping = {j[-1]: i for i, j in enumerate(token_mapping) if j}
-            
+
             input_ids = bert_tokenizer.sequence_to_ids(tokens)
 
             input_ids, input_mask, segment_ids = input_ids
 
-            zero = [0 for i in range(bert_tokenizer.max_seq_len)]
-            span_mask = [input_mask for _ in range(sum(input_mask))]
-            span_mask.extend([zero for _ in range(sum(input_mask),
-                                                  bert_tokenizer.max_seq_len)])
-            span_mask = np.array(span_mask)
+            start_label = torch.zeros((bert_tokenizer.max_seq_len))
 
-            span_label = [0 for _ in range(bert_tokenizer.max_seq_len)]
-            span_label = [span_label for _ in range(bert_tokenizer.max_seq_len)]
-            span_label = np.array(span_label)
-
+            end_label = torch.zeros((bert_tokenizer.max_seq_len))
+            
+            label_ = set()
             for info_ in row_['label']:
                 if info_['start_idx'] in start_mapping and info_['end_idx'] in end_mapping:
                     start_idx = start_mapping[info_['start_idx']]
-                    end_idx = end_mapping[info_['end_idx'] ]
+                    end_idx = end_mapping[info_['end_idx']]
                     if start_idx > end_idx or info_['entity'] == '':
                         continue
+                        
+                    start_label[start_idx+1] = self.cat2id[info_['type']]
+                    end_label[end_idx+1] = self.cat2id[info_['type']]
                     
-                    span_label[start_idx+1, end_idx+1] = self.cat2id[info_['type']]
+                    label_.add((self.cat2id[info_['type']], start_idx, end_idx))
 
             features.append({
                 'input_ids': input_ids, 
                 'attention_mask': input_mask, 
                 'token_type_ids': segment_ids, 
-                'label_ids': span_label,
-                'span_mask': span_mask
+                'start_label_ids': start_label,
+                'end_label_ids': end_label,
+                'label_ids': list(label_)
             })
             
         return features

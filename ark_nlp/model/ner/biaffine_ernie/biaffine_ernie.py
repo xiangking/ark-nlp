@@ -9,7 +9,7 @@ from ark_nlp.nn.base.bert import BertForTokenClassification
 from ark_nlp.nn.layer.biaffine_block import Biaffine
 
 
-class BiaffineBert(BertForTokenClassification):
+class BiaffineErnie(BertForTokenClassification):
     """
     基于Biaffine的命名实体模型
 
@@ -27,7 +27,7 @@ class BiaffineBert(BertForTokenClassification):
         config, 
         encoder_trained=True
     ):
-        super(BiaffineBert, self).__init__(config)
+        super(BiaffineErnie, self).__init__(config)
         
         self.num_labels = config.num_labels
         

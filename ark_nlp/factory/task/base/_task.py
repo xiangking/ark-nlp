@@ -27,6 +27,7 @@ from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import default_collate
 
 from ark_nlp.factory.loss_function import get_loss
+from ark_nlp.factory.utils.ema import EMA
 
 
 class Task(object):
@@ -40,12 +41,13 @@ class Task(object):
         n_gpu=1,
         device=None,
         cuda_device=0,
+        ema_decay=None,
         **kwargs
     ):
         
         self.module = module
         self.optimizer = optimizer
-        self.loss_function = get_loss(loss_function)
+        self.loss_function = get_loss(loss_function)       
         
         self.class_num = class_num
         self.scheduler = scheduler
@@ -65,6 +67,10 @@ class Task(object):
         
         if self.n_gpu > 1:
             self.module = torch.nn.DataParallel(self.module)
+        
+        self.ema_decay = ema_decay
+        if self.ema_decay:
+            self.ema = EMA(self.module.parameters(), decay=self.ema_decay)     
     
     def _collate_fn(self, batch):
         return default_collate(batch)
@@ -247,6 +253,9 @@ class Task(object):
         pass
 
     def _finish_evaluate(self, **kwargs):
+        pass
+
+    def _on_evaluate_epoch_begin_record(self, logs, **kwargs):
         pass
 
     def _get_module_inputs_on_train(self):
