@@ -25,18 +25,19 @@ class GlobalPointerBert(BertForTokenClassification):
     def __init__(
         self, 
         config, 
-        encoder_trained=True
+        encoder_trained=True,
+        head_size=64,
     ):
         super(GlobalPointerBert, self).__init__(config)
         
         self.num_labels = config.num_labels
-        
+
         self.bert = BertModel(config)
         
         for param in self.bert.parameters():
             param.requires_grad = encoder_trained 
         
-        self.global_pointer = GlobalPointer(self.num_labels, 64, 768)
+        self.global_pointer = GlobalPointer(self.num_labels, head_size, config.hidden_size)
 
         self.init_weights()
 
