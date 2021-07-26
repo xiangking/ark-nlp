@@ -25,7 +25,9 @@ class BiaffineErnie(BertForTokenClassification):
     def __init__(
         self, 
         config, 
-        encoder_trained=True
+        encoder_trained=True,
+        biaffine_hidden_size=128,
+        lstm_dropout=0.4
     ):
         super(BiaffineErnie, self).__init__(config)
         
@@ -36,22 +38,22 @@ class BiaffineErnie(BertForTokenClassification):
         for param in self.bert.parameters():
             param.requires_grad = encoder_trained 
                         
-        self.lstm=torch.nn.LSTM(input_size=768,
-                                hidden_size=768,
+        self.lstm=torch.nn.LSTM(input_size=config.hidden_size,
+                                hidden_size=config.hidden_size,
                                 num_layers=1,
                                 batch_first=True,
-                                dropout=0.4,
+                                dropout=lstm_dropout,
                                 bidirectional=True)
             
         self.start_encoder = torch.nn.Sequential(torch.nn.Linear(in_features=2*config.hidden_size, 
-                                                                 out_features=128),
+                                                                 out_features=biaffine_hidden_size),
                                                  torch.nn.ReLU())
         
         self.end_encoder = torch.nn.Sequential(torch.nn.Linear(in_features=2*config.hidden_size, 
-                                                               out_features=128),
+                                                               out_features=biaffine_hidden_size),
                                                torch.nn.ReLU())            
        
-        self.biaffne = Biaffine(128, self.num_labels)
+        self.biaffne = Biaffine(biaffine_hidden_size, self.num_labels)
         
         self.reset_params()
 
@@ -74,7 +76,7 @@ class BiaffineErnie(BertForTokenClassification):
                            ).hidden_states
         
 
-        sequence_output = outputs[-4]
+        sequence_output = outputs[-1]
         
         # lstm编码
         sequence_output, _ = self.lstm(sequence_output)
