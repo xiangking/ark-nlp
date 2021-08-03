@@ -112,7 +112,6 @@ class CasrelRETask(Task):
         batch_size,
         lr, 
         params, 
-        logs,
         shuffle,
         num_workers=1,
         inputs_cols=None,
@@ -140,71 +139,45 @@ class CasrelRETask(Task):
 
         self.module.train()
 
-        self._on_train_begin_record(logs, **kwargs)
+        self._on_train_begin_record(**kwargs)
 
         return train_generator
 
-    def _on_train_begin_record(self, logs, **kwargs):
+    def _on_train_begin_record(self, **kwargs):
 
-        logs['tr_loss'] = 0
-        logs['logging_loss'] = 0
+        self.logs['tr_loss'] = 0
+        self.logs['logging_loss'] = 0
 
-        return logs
-
-    def _on_epoch_begin(self, logs, train_generator, **kwargs):
+    def _on_epoch_begin(self, train_generator, **kwargs):
 
         train_data_prefetcher = DataPreFetcher(train_generator, self.module.device)
         inputs = train_data_prefetcher.next()
 
         self.module.train()
 
-        self._on_epoch_begin_record(logs)
+        self._on_epoch_begin_record(**kwargs)
 
         return train_data_prefetcher, inputs
 
-    def _on_epoch_begin_record(self, logs):
+    def _on_epoch_begin_record(self, **kwargs):
 
-        logs['b_loss'] = 0
-        logs['nb_tr_examples'] = 0
-        logs['nb_tr_steps'] = 0
-
-        return logs
-
-    def _on_step_begin(
-        self, 
-        epoch, 
-        step, 
-        inputs, 
-        logs, 
-        **kwargs
-    ):
-        self._on_step_begin_record(epoch, step, inputs, logs, **kwargs)
-        pass
-
-    def _on_step_begin_record(
-        self, 
-        epoch, 
-        step, 
-        inputs, 
-        logs, 
-        **kwargs
-    ):
-        pass
+        self.logs['epoch_loss'] = 0
+        self.logs['epoch_example'] = 0
+        self.logs['epoch_step'] = 0
 
     def _compute_loss(
         self, 
         inputs, 
         labels, 
         logits, 
-        logs=None,
         verbose=True,
         **kwargs
     ):  
 
         loss = self.loss_function(logits, inputs)
 
-        if logs:
-            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
+        if self.logs:
+            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
 
         return loss
 
@@ -214,16 +187,13 @@ class CasrelRETask(Task):
         labels, 
         logits, 
         loss, 
-        logs,
         verbose,
         **kwargs
     ):
-        logs['nb_tr_examples'] += len(labels)
+        self.logs['epoch_example'] += len(labels)
 
-        logs['b_loss'] += loss.item()
-        logs['nb_tr_steps'] += 1
-
-        return logs
+        self.logs['epoch_loss'] += loss.item()
+        self.logs['epoch_step'] += 1
 
     def _on_backward(
         self, 
@@ -231,31 +201,29 @@ class CasrelRETask(Task):
         labels, 
         logits, 
         loss, 
-        logs,
         **kwargs
     ):
 
         loss.backward()
 
-        self._on_backward_record(logs)
+        self._on_backward_record(**kwargs)
 
         return loss
 
-    def _on_optimize(self, step, logs, **kwargs):
+    def _on_optimize(self, step, **kwargs):
         self.optimizer.step()  # 更新权值
         if self.scheduler:
             self.scheduler.step()  # 更新学习率
 
         self.optimizer.zero_grad()  # 清空梯度
 
-        self._on_optimize_record(logs)
+        self._on_optimize_record(**kwargs)
 
         return step
 
     def _on_step_end(
         self, 
         step,
-        logs,
         verbose=True,
         print_step=100,
         **kwargs
@@ -264,23 +232,22 @@ class CasrelRETask(Task):
             print('[{}/{}],train loss is:{:.6f}'.format(
                 step, 
                 self.train_generator_lenth,
-                logs['b_loss'] / logs['nb_tr_steps']))
+                self.logs['epoch_loss'] / self.logs['epoch_step']))
 
-        self._on_step_end_record(logs)
+        self._on_step_end_record(**kwargs)
 
     def _on_epoch_end(
         self, 
         epoch,
-        logs,
         verbose=True,
         **kwargs
     ):
         if verbose:
             print('epoch:[{}],train loss is:{:.6f} \n'.format(
                 epoch,
-                logs['b_loss'] / logs['nb_tr_steps']))  
+                self.logs['epoch_loss'] / self.logs['epoch_step']))  
 
-        self._on_epoch_end_record(logs)
+        self._on_epoch_end_record(**kwargs)
 
     def _get_module_inputs_on_train(
         self,
@@ -308,19 +275,19 @@ class CasrelRETask(Task):
         epochs=1,
         **kwargs
     ):
-        logs = dict()
+        self.logs = dict()
 
-        train_generator = self._on_train_begin(train_data, validation_data, batch_size, lr, params, logs, shuffle=True, **kwargs)
+        train_generator = self._on_train_begin(train_data, validation_data, batch_size, lr, params, shuffle=True, **kwargs)
 
         for epoch in range(epochs):
 
-            train_data_prefetcher, inputs = self._on_epoch_begin(logs, train_generator, **kwargs)
+            train_data_prefetcher, inputs = self._on_epoch_begin(train_generator, **kwargs)
 
             step = 0
 
             while inputs is not None:
 
-                self._on_step_begin(epoch, step, inputs, logs, **kwargs)
+                self._on_step_begin(epoch, step, inputs, **kwargs)
 
                 labels = self._get_module_label_on_train(inputs, **kwargs)
                 inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
@@ -329,22 +296,22 @@ class CasrelRETask(Task):
                 logits = self.module(**inputs)
 
                 # 计算损失
-                loss = self._compute_loss(inputs, labels, logits, logs, **kwargs)
+                loss = self._compute_loss(inputs, labels, logits, **kwargs)
 
                 # loss backword
-                loss = self._on_backward(inputs, labels, logits, loss, logs, **kwargs)
+                loss = self._on_backward(inputs, labels, logits, loss, **kwargs)
 
                 # optimize
-                step = self._on_optimize(step, logs, **kwargs)
+                step = self._on_optimize(step, **kwargs)
 
                 # setp evaluate
-                self._on_step_end(step, logs, **kwargs)
+                self._on_step_end(step, **kwargs)
 
                 step += 1
 
                 inputs = train_data_prefetcher.next()
 
-            self._on_epoch_end(epoch, logs, **kwargs)
+            self._on_epoch_end(epoch, **kwargs)
 
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
@@ -353,7 +320,6 @@ class CasrelRETask(Task):
         self, 
         validation_data, 
         batch_size, 
-        logs, 
         shuffle, 
         num_workers=1,
         **kwargs
@@ -368,41 +334,18 @@ class CasrelRETask(Task):
 
         self.module.eval()
 
-        self._on_evaluate_begin_record(logs, **kwargs)
+        self._on_evaluate_begin_record(**kwargs)
 
         return test_data_loader
 
-    def _on_evaluate_begin_record(self, logs, **kwargs):
+    def _on_evaluate_begin_record(self, **kwargs):
 
-        logs['correct_num'] = 0
-        logs['predict_num'] = 0
-        logs['gold_num'] = 0
-        logs['nb_tr_steps'] = 0
-
-        return logs
-
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
-
-        _, preds = torch.max(logits, 1)
-
-        logs['nb_eval_examples'] +=  len(labels)
-        logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item() * len(labels)
-
-        return logs
-
-    def _on_evaluate_end(
-        self, 
-        validation_data,
-        logs,
-        epoch=1,
-        is_evaluate_print=True,
-        **kwargs):
-
-        if is_evaluate_print:
-            print('classification_report: \n', report_)
-            print('confusion_matrix_: \n', confusion_matrix_)
-            print('test loss is:{:.6f}'.format(logs['eval_loss'] / logs['nb_eval_steps']))
+        self.evaluate_logs['correct_num'] = 0
+        self.evaluate_logs['predict_num'] = 0
+        self.evaluate_logs['gold_num'] = 0
+        self.evaluate_logs['eval_step'] = 0
+        self.evaluate_logs['eval_loss'] = 0
+        self.evaluate_logs['eval_example'] = 0
 
     def evaluate(
         self, 
@@ -413,9 +356,9 @@ class CasrelRETask(Task):
         t_bar=0.5,
         **kwargs
     ):
-        logs = dict()
+        self.evaluate_logs = dict()
 
-        generator = self._on_evaluate_begin(validation_data, evaluate_batch_size, logs, shuffle=False, **kwargs)
+        generator = self._on_evaluate_begin(validation_data, evaluate_batch_size, shuffle=False, **kwargs)
 
         test_data_prefetcher = DataPreFetcher(generator, self.module.device)
         inputs = test_data_prefetcher.next()

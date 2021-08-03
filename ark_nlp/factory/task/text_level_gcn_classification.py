@@ -64,23 +64,19 @@ class TextLevelGCNTask(SequenceClassificationTask):
         
     def _on_train_begin_record(
         self, 
-        logs, 
         **kwargs
     ):
         
-        logs['tr_loss'] = 0
-        logs['logging_loss'] = 0
-        logs['global_step'] = 0
-        
-        return logs
-    
+        self.logs['tr_loss'] = 0
+        self.logs['logging_loss'] = 0
+        self.logs['global_step'] = 0
+            
     def _on_backward(
         self, 
         inputs, 
         labels, 
         logits, 
         loss, 
-        logs,
         verbose=True,
         gradient_accumulation_steps=1,
         grad_clip=None,
@@ -99,14 +95,13 @@ class TextLevelGCNTask(SequenceClassificationTask):
         if grad_clip != None:
             torch.nn.utils.clip_grad_norm_(self.module.parameters(), grad_clip)
         
-        self._on_backward_record(logs)
+        self._on_backward_record(**kwargs)
         
         return loss 
     
     def _on_optimize(
         self, 
         step, 
-        logs, 
         gradient_accumulation_steps=1,
         **kwargs
     ):
@@ -116,7 +111,5 @@ class TextLevelGCNTask(SequenceClassificationTask):
                 self.scheduler.step()  # 更新学习率
                 
             self.optimizer.zero_grad()  # 清空梯度
-            
-            logs['global_step'] += 1
-        
+                    
         return step

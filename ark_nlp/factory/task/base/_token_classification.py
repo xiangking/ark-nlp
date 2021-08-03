@@ -39,20 +39,11 @@ class TokenClassificationTask(SequenceClassificationTask):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
             
-    def _on_epoch_begin_record(self, logs):
-        
-        logs['b_loss'] = 0
-        logs['nb_tr_steps'] = 0
-        logs['nb_tr_examples'] = 0
-        
-        return logs
-            
     def _compute_loss(
         self, 
         inputs, 
         labels, 
         logits, 
-        logs=None,
         verbose=True,
         **kwargs
     ):      
@@ -65,8 +56,8 @@ class TokenClassificationTask(SequenceClassificationTask):
                                    )
         loss = self.loss_function(active_logits, active_labels)
         
-        if logs:
-            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
+        if self.logs:
+            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
                 
         return loss
     
@@ -76,19 +67,15 @@ class TokenClassificationTask(SequenceClassificationTask):
         labels, 
         logits, 
         loss, 
-        logs,
         verbose,
         **kwargs
     ):        
-        logs['b_loss'] += loss.item()
-        logs['nb_tr_steps'] += 1
-        
-        return logs
-    
+        self.logs['epoch_loss'] += loss.item()
+        self.logs['epoch_step'] += 1
+            
     def _on_step_end(
         self, 
         step,
-        logs,
         verbose=True,
         print_step=100,
         **kwargs
@@ -97,45 +84,40 @@ class TokenClassificationTask(SequenceClassificationTask):
             print('[{}/{}],train loss is:{:.6f}'.format(
                 step, 
                 self.train_generator_lenth,
-                logs['b_loss'] / logs['nb_tr_steps']))
+                self.logs['epoch_loss'] / self.logs['epoch_step']))
                         
-        self._on_step_end_record(logs)
+        self._on_step_end_record(**kwargs)
             
     def _on_epoch_end(
         self, 
         epoch,
-        logs,
         verbose=True,
         **kwargs
     ):
         if verbose:
             print('epoch:[{}],train loss is:{:.6f}\n'.format(
                 epoch,
-                logs['b_loss'] / logs['nb_tr_steps']))  
+                self.logs['epoch_loss'] / self.logs['epoch_step']))  
             
-        self._on_epoch_end_record(logs)
+        self._on_epoch_end_record(**kwargs)
     
-    def _on_evaluate_begin_record(self, logs, **kwargs):
+    def _on_evaluate_begin_record(self, **kwargs):
         
-        logs['eval_loss'] = 0
-        logs['nb_eval_steps']  = 0
-        logs['nb_eval_examples']  = 0
+        self.evaluate_logs['eval_loss'] = 0
+        self.evaluate_logs['eval_step']  = 0
+        self.evaluate_logs['eval_example']  = 0
         
-        logs['labels'] = []
-        logs['logits'] = []
-        logs['input_lengths'] = []
+        self.evaluate_logs['labels'] = []
+        self.evaluate_logs['logits'] = []
+        self.evaluate_logs['input_lengths'] = []
+                            
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
         
-        return logs     
-                    
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
-        
-        logs['labels'].append(labels.cpu())
-        logs['logits'].append(logits.cpu())
-        logs['input_lengths'].append(inputs['input_lengths'].cpu())
+        self.evaluate_logs['labels'].append(labels.cpu())
+        self.evaluate_logs['logits'].append(logits.cpu())
+        self.evaluate_logs['input_lengths'].append(inputs['input_lengths'].cpu())
             
-        logs['nb_eval_examples'] +=  len(labels)
-        logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item()
-        
-        return logs
-    
+        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_step']  += 1
+        self.evaluate_logs['eval_loss'] += loss.item()
+            

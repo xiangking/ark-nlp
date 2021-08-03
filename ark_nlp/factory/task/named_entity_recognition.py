@@ -46,23 +46,23 @@ class BIONERTask(TokenClassificationTask):
         
         super(BIONERTask, self).__init__(*args, **kwargs)
 
-    def _on_evaluate_end(
+    def _on_evaluate_epoch_end(
         self, 
         validation_data,
-        logs,
         epoch=1,
         is_evaluate_print=True,
         id2cat=None,
         markup='bio',
-        **kwargs):
+        **kwargs
+    ):
 
         if id2cat == None:
             id2cat = self.id2cat
         
         self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
-        preds_ = torch.argmax(torch.cat(logs['logits'], dim=0), -1).numpy().tolist()        
-        labels_ = torch.cat(logs['labels'], dim=0).numpy().tolist()
-        input_lens_ = torch.cat(logs['input_lengths'], dim=0).numpy()
+        preds_ = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1).numpy().tolist()        
+        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
+        input_lens_ = torch.cat(self.evaluate_logs['input_lengths'], dim=0).numpy()
                 
         for index_, label_ in enumerate(labels_):
             label_list_ = []
@@ -80,7 +80,7 @@ class BIONERTask(TokenClassificationTask):
         eval_info, entity_info = self.ner_metric.result()
 
         if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
+            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'], 
                                                                                               eval_info['acc'], 
                                                                                               eval_info['recall'],
                                                                                               eval_info['f1']))    
@@ -93,50 +93,47 @@ class CRFNERTask(TokenClassificationTask):
         inputs, 
         labels, 
         logits, 
-        logs=None,
         verbose=True,
         **kwargs
     ):      
         loss = -1 * self.module.crf(emissions = logits, tags=labels, mask=inputs['attention_mask'])
         
-        if logs:
-            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
+        if self.logs:
+            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
                 
         return loss
 
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
         
         tags = self.module.crf.decode(logits, inputs['attention_mask'])
         tags  = tags.squeeze(0)
         
-        logs['labels'].append(labels.cpu())
-        logs['logits'].append(tags.cpu())
-        logs['input_lengths'].append(inputs['input_lengths'].cpu())
+        self.logs['labels'].append(labels.cpu())
+        self.logs['logits'].append(tags.cpu())
+        self.logs['input_lengths'].append(inputs['input_lengths'].cpu())
             
-        logs['nb_eval_examples'] +=  len(labels)
-        logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item() * len(labels)
-        
-        return logs
-        
-    def _on_evaluate_end(
+        self.logs['eval_example'] +=  len(labels)
+        self.logs['eval_step']  += 1
+        self.logs['eval_loss'] += loss.item() 
+                
+    def _on_evaluate_epoch_end(
         self, 
         validation_data,
-        logs,
         epoch=1,
         is_evaluate_print=True,
         id2cat=None,
         markup='bio',
-        **kwargs):
+        **kwargs
+    ):
 
         if id2cat == None:
             id2cat = self.id2cat
         
         self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
         
-        preds_ = torch.cat(logs['logits'], dim=0).numpy().tolist()        
-        labels_ = torch.cat(logs['labels'], dim=0).numpy().tolist()
-        input_lens_ = torch.cat(logs['input_lengths'], dim=0).numpy()
+        preds_ = torch.cat(self.evaluate_logs['logits'], dim=0).numpy().tolist()        
+        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
+        input_lens_ = torch.cat(self.evaluate_logs['input_lengths'], dim=0).numpy()
                 
         for index_, label_ in enumerate(labels_):
             label_list_ = []
@@ -154,7 +151,7 @@ class CRFNERTask(TokenClassificationTask):
         eval_info, entity_info = self.ner_metric.result()
 
         if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
+            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'], 
                                                                                               eval_info['acc'], 
                                                                                               eval_info['recall'],
                                                                                               eval_info['f1']))  
@@ -167,7 +164,6 @@ class BiaffineNERTask(TokenClassificationTask):
         inputs, 
         labels, 
         logits, 
-        logs=None,
         verbose=True,
         **kwargs
     ):      
@@ -182,47 +178,45 @@ class BiaffineNERTask(TokenClassificationTask):
         span_loss *= span_mask
         loss = torch.sum(span_loss) / inputs['span_mask'].size()[0]
         
-        if logs:
-            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
+        if self.logs:
+            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
                 
         return loss
         
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
         
         logits = torch.nn.functional.softmax(logits, dim=-1)
                 
-        logs['labels'].append(labels.cpu())
-        logs['logits'].append(logits.cpu())
+        self.evaluate_logs['labels'].append(labels.cpu())
+        self.evaluate_logs['logits'].append(logits.cpu())
             
-        logs['nb_eval_examples'] +=  len(labels)
-        logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item()
+        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_step']  += 1
+        self.evaluate_logs['eval_loss'] += loss.item()
         
-        return logs
-        
-    def _on_evaluate_end(
+    def _on_evaluate_epoch_end(
         self, 
         validation_data,
-        logs,
         epoch=1,
         is_evaluate_print=True,
         id2cat=None,
         markup='bio',
-        **kwargs):
+        **kwargs
+    ):
 
         if id2cat == None:
             id2cat = self.id2cat
             
         biaffine_metric = BiaffineSpanMetrics()
 
-        preds_ = torch.cat(logs['logits'], dim=0)     
-        labels_ = torch.cat(logs['labels'], dim=0)
+        preds_ = torch.cat(self.evaluate_logs['logits'], dim=0)     
+        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0)
 
         with torch.no_grad():
             recall, precise, span_f1 = biaffine_metric(preds_, labels_)
 
         if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
+            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'], 
                                                                                               precise, 
                                                                                               recall,
                                                                                               span_f1)) 
@@ -237,14 +231,13 @@ class GlobalPointerNERTask(TokenClassificationTask):
         inputs, 
         labels, 
         logits, 
-        logs=None,
         verbose=True,
         **kwargs
     ):      
         loss = self.loss_function(logits, labels)
         
-        if logs:
-            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
+        if self.logs:
+            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
                 
         return loss
 
@@ -254,47 +247,39 @@ class GlobalPointerNERTask(TokenClassificationTask):
         labels, 
         logits, 
         loss, 
-        logs,
         verbose,
         **kwargs
     ):        
-        logs['b_loss'] += loss.item() 
-        logs['nb_tr_steps'] += 1
+        self.logs['epoch_loss'] += loss.item() 
+        self.logs['epoch_step'] += 1
+            
+    def _on_evaluate_begin_record(self, **kwargs):
         
-        return logs
-    
-    def _on_evaluate_begin_record(self, logs, **kwargs):
+        self.evaluate_logs['eval_loss'] = 0
+        self.evaluate_logs['eval_step']  = 0
+        self.evaluate_logs['eval_example']  = 0
         
-        logs['eval_loss'] = 0
-        logs['nb_eval_steps']  = 0
-        logs['nb_eval_examples']  = 0
+        self.evaluate_logs['labels'] = []
+        self.evaluate_logs['logits'] = []
+        self.evaluate_logs['input_lengths'] = []
         
-        logs['labels'] = []
-        logs['logits'] = []
-        logs['input_lengths'] = []
-        
-        logs['numerate'] = 0
-        logs['denominator'] = 0
-        
-        return logs  
-        
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
+        self.evaluate_logs['numerate'] = 0
+        self.evaluate_logs['denominator'] = 0
+                
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
         
         with torch.no_grad():
             numerate, denominator = conlleval.global_pointer_f1_score(labels.cpu(), logits.cpu())   
-            logs['numerate'] += numerate
-            logs['denominator'] += denominator
+            self.evaluate_logs['numerate'] += numerate
+            self.evaluate_logs['denominator'] += denominator
             
-        logs['nb_eval_examples'] +=  len(labels)
-        logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item()
+        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_step']  += 1
+        self.evaluate_logs['eval_loss'] += loss.item()
         
-        return logs
-        
-    def _on_evaluate_end(
+    def _on_evaluate_epoch_end(
         self, 
         validation_data,
-        logs,
         epoch=1,
         is_evaluate_print=True,
         id2cat=None,
@@ -304,10 +289,10 @@ class GlobalPointerNERTask(TokenClassificationTask):
             id2cat = self.id2cat
 
         if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(logs['eval_loss'] / logs['nb_eval_steps'], 
-                                                                                              logs['numerate'], 
-                                                                                              logs['denominator'],
-                                                                                              2*logs['numerate']/logs['denominator'])) 
+            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'], 
+                                                                                              self.evaluate_logs['numerate'], 
+                                                                                              self.evaluate_logs['denominator'],
+                                                                                              2*self.evaluate_logs['numerate']/self.evaluate_logs['denominator'])) 
 
 
 class SpanNERTask(TokenClassificationTask):
@@ -349,7 +334,6 @@ class SpanNERTask(TokenClassificationTask):
         inputs, 
         labels, 
         logits, 
-        logs=None,
         verbose=True,
         **kwargs
     ):
@@ -372,12 +356,12 @@ class SpanNERTask(TokenClassificationTask):
         
         loss = start_loss + end_loss
                 
-        if logs:
-            self._compute_loss_record(inputs, labels, logits, loss, logs, verbose, **kwargs)
+        if self.logs:
+            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
                 
         return loss
     
-    def _on_evaluate_epoch_begin(self, logs, **kwargs):
+    def _on_evaluate_epoch_begin(self, **kwargs):
         
         self.metric = SpanMetrics(self.id2cat)
 
@@ -385,9 +369,9 @@ class SpanNERTask(TokenClassificationTask):
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
         
-        self._on_epoch_begin_record(logs, **kwargs)
+        self._on_epoch_begin_record(**kwargs)
 
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, logs, **kwargs):
+    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
         
         length = inputs['attention_mask'].cpu().numpy().sum() - 2
         
@@ -408,16 +392,13 @@ class SpanNERTask(TokenClassificationTask):
                     
         self.metric.update(true_subject=labels[0], pred_subject=S)
             
-        logs['nb_eval_examples'] +=  len(labels)
-        logs['nb_eval_steps']  += 1
-        logs['eval_loss'] += loss.item()
+        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_step']  += 1
+        self.evaluate_logs['eval_loss'] += loss.item()
         
-        return logs
-
-    def _on_evaluate_end(
+    def _on_evaluate_epoch_end(
         self, 
         validation_data,
-        logs,
         epoch=1,
         is_evaluate_print=True,
         id2cat=None,

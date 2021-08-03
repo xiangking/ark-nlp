@@ -29,7 +29,7 @@ class BiaffineBert(BertForTokenClassification):
         biaffine_hidden_size=128,
         lstm_dropout=0.4
     ):
-        super(BiaffineErnie, self).__init__(config)
+        super(BiaffineBert, self).__init__(config)
         
         self.num_labels = config.num_labels
         
