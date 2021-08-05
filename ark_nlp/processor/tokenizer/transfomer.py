@@ -253,7 +253,7 @@ class SpanTokenizer(TransfomerTokenizer):
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
     """  
-    def __init__(self, vocab, max_seq_len, split_token=' ', additional_special_token='[Blank]'):
+    def __init__(self, vocab, max_seq_len, split_token=' ', additional_special_token='[blank]'):
         super(SpanTokenizer, self).__init__(vocab, max_seq_len)
         self.split_token = split_token
         self.additional_special_token = self.split_token

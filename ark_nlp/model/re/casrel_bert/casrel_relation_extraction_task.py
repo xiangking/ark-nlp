@@ -263,7 +263,6 @@ class CasRelRETask(Task):
         **kwargs
     ):
         return inputs['label_ids']
-        # return inputs['label_ids'].to(self.device)
 
     def fit(
         self, 
@@ -287,7 +286,7 @@ class CasRelRETask(Task):
 
             while inputs is not None:
 
-                self._on_step_begin(epoch, step, inputs, **kwargs)
+                self._on_step_begin(**kwargs)
 
                 labels = self._get_module_label_on_train(inputs, **kwargs)
                 inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
@@ -298,7 +297,6 @@ class CasRelRETask(Task):
                 # 计算损失
                 loss = self._compute_loss(inputs, labels, logits, **kwargs)
 
-                # loss backword
                 loss = self._on_backward(inputs, labels, logits, loss, **kwargs)
 
                 # optimize
@@ -384,8 +382,10 @@ class CasRelRETask(Task):
                 for sub_head in sub_heads:
                     sub_tail = sub_tails[sub_tails >= sub_head]
                     if len(sub_tail) > 0:
+                        
                         sub_tail = sub_tail[0]
                         subject = ''.join([token_mapping[index_] if index_ < len(token_mapping) else '' for index_ in range(sub_head-1, sub_tail)])
+
                         if subject == '':
                             continue
                         subjects.append((subject, sub_head, sub_tail))
@@ -413,6 +413,7 @@ class CasRelRETask(Task):
                                 if obj_head <= obj_tail and rel_head == rel_tail:
                                     rel = self.id2cat[int(rel_head)]
                                     obj = ''.join([token_mapping[index_] if index_ < len(token_mapping) else '' for index_ in range(obj_head-1, obj_tail)])
+
                                     triple_list.append((sub, rel, obj))
                                     break
                     triple_set = set()
