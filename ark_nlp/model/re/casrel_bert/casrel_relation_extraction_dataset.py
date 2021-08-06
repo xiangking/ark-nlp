@@ -23,18 +23,10 @@ from torch.utils.data import Dataset
 from ark_nlp.dataset.base._dataset import BaseDataset
 
 
-def find_head_idx(source, target):
-    target_len = len(target)
-    for i in range(len(source)):
-        if source[i: i + target_len] == target or source[i: i + target_len] == ['##' + target[0]] + target[1:]:
-            return i
-    return -1
-
-
 class CasRelREDataset(BaseDataset):
         
     def _get_categories(self):
-        return sorted(list(set([triple_[1] for data_ in self.dataset for triple_ in data_['label']])))
+        return sorted(list(set([triple_[3] for data_ in self.dataset for triple_ in data_['label']])))
     
     def _convert_to_dataset(self, data_df):
         
@@ -74,7 +66,11 @@ class CasRelREDataset(BaseDataset):
         
         tokens = self.tokenizer.tokenize(text)
         token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
+        index_token_mapping = self.tokenizer.get_token_mapping(text, tokens)
         
+        start_mapping = {j[0]: i for i, j in enumerate(index_token_mapping) if j}
+        end_mapping = {j[-1]: i for i, j in enumerate(index_token_mapping) if j}
+
         if not self.is_train:
             token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
             text_len = len(token_ids)
@@ -88,16 +84,23 @@ class CasRelREDataset(BaseDataset):
         else:
             s2ro_map = {}
             for triple in ins_json_data['label']:
-                triple = (self.tokenizer.tokenize(triple[0]), triple[1], self.tokenizer.tokenize(triple[2]))
+                sub_head_idx = triple[1]
+                sub_end_idx = triple[2]
+                obj_head_idx = triple[5]
+                obj_end_idx = triple[6]
                 
-                sub_head_idx = find_head_idx(tokens, triple[0])
-                obj_head_idx = find_head_idx(tokens, triple[2])
-
-                if sub_head_idx != -1 and obj_head_idx != -1:
-                    sub = (sub_head_idx+1, sub_head_idx + len(triple[0]))
+                triple = (self.tokenizer.tokenize(triple[0]), triple[3], self.tokenizer.tokenize(triple[4]))
+                
+                if sub_head_idx in start_mapping and obj_head_idx in start_mapping and sub_end_idx in end_mapping and obj_end_idx in end_mapping:
+                    sub_head_idx = start_mapping[sub_head_idx]
+                    obj_head_idx = start_mapping[obj_head_idx]
+                                        
+                    sub = (sub_head_idx+1, end_mapping[sub_end_idx]+1)
+                    
                     if sub not in s2ro_map:
                         s2ro_map[sub] = []
-                    s2ro_map[sub].append((obj_head_idx+1, obj_head_idx + len(triple[2]), self.cat2id[triple[1]]))
+                    
+                    s2ro_map[sub].append((obj_head_idx+1, end_mapping[obj_end_idx]+1, self.cat2id[triple[1]]))
 
             if s2ro_map:
                 token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)

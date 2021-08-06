@@ -15,6 +15,7 @@ import json
 import torch
 import random
 import codecs
+import warnings
 import numpy as np
 import pandas as pd
 
@@ -32,6 +33,25 @@ def find_head_idx(source, target):
 
 
 class CasRelREDataset(BaseDataset):
+
+    def __init__(
+        self, 
+        data, 
+        categories=None, 
+        is_retain_dataset=False,
+        is_train=True,
+        is_test=False
+    ):
+
+        super(CasRelREDataset, self).__init__(
+            data, 
+            categories, 
+            is_retain_dataset,
+            is_train,
+            is_test
+        )
+
+        warnings.warn("The CasRelREDataset is deprecated, please use other CasRelREDataset ( from ark_nlp.model.re.casrel_bert.casrel_relation_extraction_dataset import CasRelREDataset )", DeprecationWarning)
         
     def _get_categories(self):
         return sorted(list(set([triple_[1] for data_ in self.dataset for triple_ in data_['label']])))

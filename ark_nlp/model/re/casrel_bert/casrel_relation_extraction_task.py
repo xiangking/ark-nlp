@@ -33,8 +33,9 @@ from ark_nlp.factory.task import Task
 def to_tup(triple_list):
     ret = []
     for triple in triple_list:
-        ret.append(tuple(triple))
+        ret.append(tuple([triple[0], triple[3], triple[4]]))
     return ret
+
 
 class DataPreFetcher(object):
     def __init__(self, loader, device):
@@ -61,11 +62,11 @@ class DataPreFetcher(object):
         return data
 
 
-class CasRelRETask(Task):
+class CasrelRETask(Task):
 
     def __init__(self, *args, **kwargs):
 
-        super(CasRelRETask, self).__init__(*args, **kwargs)
+        super(CasrelRETask, self).__init__(*args, **kwargs)
 
     def casrel_collate_fn(self, batch):
         batch = list(filter(lambda x: x is not None, batch))

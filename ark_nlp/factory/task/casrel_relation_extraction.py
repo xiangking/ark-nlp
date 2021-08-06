@@ -12,6 +12,7 @@ Status: Active
 
 import tqdm
 import torch
+import warnings
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
@@ -66,6 +67,8 @@ class CasrelRETask(Task):
     def __init__(self, *args, **kwargs):
 
         super(CasrelRETask, self).__init__(*args, **kwargs)
+
+        warnings.warn("The CasrelRETask is deprecated, please use other CasrelRETask ( from ark_nlp.model.re.casrel_bert.casrel_relation_extraction_task import CasRelRETask )", DeprecationWarning)
 
     def casrel_collate_fn(self, batch):
         batch = list(filter(lambda x: x is not None, batch))
