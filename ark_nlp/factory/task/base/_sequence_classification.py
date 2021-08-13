@@ -47,18 +47,18 @@ class SequenceClassificationTask(Task):
         lr, 
         params, 
         shuffle,
-        inputs_cols=None,
+        train_to_device_cols=None,
         **kwargs
     ):
         
         if self.class_num == None:
             self.class_num = train_data.class_num  
         
-        if inputs_cols == None:
-            self.inputs_cols = train_data.dataset_cols
+        if train_to_device_cols == None:
+            self.train_to_device_cols = train_data.to_device_cols
         else:
-            self.inputs_cols = inputs_cols
-            
+            self.train_to_device_cols = train_to_device_cols
+
         train_generator = DataLoader(train_data, batch_size=batch_size, shuffle=True, collate_fn=self._collate_fn)
         self.train_generator_lenth = len(train_generator)
             
@@ -89,7 +89,6 @@ class SequenceClassificationTask(Task):
 
         self.logs['epoch_loss'] = 0
         self.logs['epoch_evaluation'] = 0
-        self.logs['epoch_example'] = 0
         self.logs['epoch_step'] = 0
                 
     def _on_step_begin(
@@ -114,33 +113,24 @@ class SequenceClassificationTask(Task):
     def _compute_loss(
         self, 
         inputs, 
-        labels, 
         logits, 
         verbose=True,
         **kwargs
     ):  
-        loss = self.loss_function(logits, labels)  
+        loss = self.loss_function(logits, inputs['label_ids'])  
         
-        if self.logs:
-            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)                
+        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)      
+                  
         return loss
     
     def _compute_loss_record(
         self,
         inputs, 
-        labels, 
         logits, 
         loss, 
         verbose,
         **kwargs
     ):         
-
-        self.logs['epoch_example'] += len(labels)
-        
-        if verbose:
-            with torch.no_grad():
-                _, preds = torch.max(logits, 1)
-                self.logs['epoch_evaluation'] += torch.sum(preds == labels).item() / len(labels)
                 
         self.logs['epoch_loss'] += loss.item() 
         self.logs['epoch_step'] += 1
@@ -149,7 +139,6 @@ class SequenceClassificationTask(Task):
     def _on_backward(
         self, 
         inputs, 
-        labels, 
         logits, 
         loss, 
         gradient_accumulation_steps=1,
@@ -204,11 +193,10 @@ class SequenceClassificationTask(Task):
     ):
 
         if verbose and (step + 1) % show_step == 0:
-            print('[{}/{}],train loss is:{:.6f},train evaluation is:{:.6f}'.format(
+            print('[{}/{}],train loss is:{:.6f}'.format(
                 step, 
                 self.train_generator_lenth,
-                self.logs['epoch_loss'] / self.logs['epoch_step'],
-                self.logs['epoch_evaluation'] / self.logs['epoch_step']))
+                self.logs['epoch_loss'] / self.logs['epoch_step']))
             
         self._on_step_end_record(**kwargs)
             
@@ -220,18 +208,22 @@ class SequenceClassificationTask(Task):
     ):
 
         if verbose:
-            print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
+            print('epoch:[{}],train loss is:{:.6f} \n'.format(
                 epoch,
-                self.logs['epoch_loss'] / self.logs['epoch_step'],
-                self.logs['epoch_evaluation'] / self.logs['epoch_step']))  
+                self.logs['epoch_loss'] / self.logs['epoch_step']))  
             
     def _on_evaluate_begin(
         self, 
         validation_data, 
         batch_size, 
         shuffle, 
+        evaluate_to_device_cols=None,
         **kwargs
     ):
+        if evaluate_to_device_cols == None:
+            self.evaluate_to_device_cols = validation_data.to_device_cols
+        else:
+            self.evaluate_to_device_cols = evaluate_to_device_cols
         
         generator = DataLoader(validation_data, batch_size=batch_size, shuffle=False, collate_fn=self._collate_fn)
         
@@ -257,11 +249,18 @@ class SequenceClassificationTask(Task):
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
         
-        self._on_epoch_begin_record(**kwargs)
+        self._on_evaluate_epoch_begin_record(**kwargs)
                     
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
-        
-        _, preds = torch.max(logits, 1)
+    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+
+        with torch.no_grad():
+            # compute loss
+            loss = self._compute_loss(inputs, logits, **kwargs)
+            
+            labels = inputs['label_ids'].cpu()
+            logits = logits.cpu()
+            
+            _, preds = torch.max(logits, 1)
                 
         self.evaluate_logs['labels'].append(labels)
         self.evaluate_logs['logits'].append(logits)
@@ -279,8 +278,8 @@ class SequenceClassificationTask(Task):
         **kwargs
     ):
         
-        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).cpu()
-        preds_ = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1).cpu()
+        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0)
+        preds_ = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1)
 
         f1_score = sklearn_metrics.f1_score(labels_, preds_, average='macro')
 
@@ -319,33 +318,23 @@ class SequenceClassificationTask(Task):
     def _get_module_inputs_on_train(
         self,
         inputs,
-        labels,
         **kwargs
     ):
-        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+        for col in self.train_to_device_cols:
+            inputs[col] = inputs[col].to(self.device) 
 
-    def _get_module_label_on_train(
-        self,
-        inputs,
-        **kwargs
-    ):
-        return inputs['label_ids'].to(self.device)
+        return inputs
 
     def _get_module_inputs_on_eval(
         self,
         inputs,
-        labels,
         **kwargs
     ):
-        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
+        for col in self.evaluate_to_device_cols:
+            inputs[col] = inputs[col].to(self.device) 
 
-    def _get_module_label_on_eval(
-        self,
-        inputs,
-        **kwargs
-    ):
-        return inputs['label_ids'].to(self.device)
-
+        return inputs
+    
     def fit(
         self, 
         train_data=None, 
@@ -370,17 +359,16 @@ class SequenceClassificationTask(Task):
                 
                 self._on_step_begin(epoch, step, inputs, **kwargs)
                                 
-                labels = self._get_module_label_on_train(inputs, **kwargs)
-                inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
+                inputs = self._get_module_inputs_on_train(inputs, **kwargs)
                                 
                 # forward
                 logits = self.module(**inputs)
 
                 # 计算损失
-                loss = self._compute_loss(inputs, labels, logits, **kwargs)
+                loss = self._compute_loss(inputs, logits, **kwargs)
                                                 
                 # loss backword
-                loss = self._on_backward(inputs, labels, logits, loss, **kwargs)
+                loss = self._on_backward(inputs, logits, loss, **kwargs)
                 
                 # optimize
                 step = self._on_optimize(step, **kwargs)
@@ -412,16 +400,12 @@ class SequenceClassificationTask(Task):
 
             for step, inputs in enumerate(generator):
                 
-                labels = self._get_module_label_on_eval(inputs, **kwargs)
-                inputs = self._get_module_inputs_on_eval(inputs, labels, **kwargs)
+                inputs = self._get_module_inputs_on_eval(inputs, **kwargs)
                 
                 # forward
                 logits = self.module(**inputs)
                 
-                # compute loss
-                loss = self._compute_loss(inputs, labels, logits, **kwargs)
-                
-                self._on_evaluate_step_end(inputs, labels, logits, loss, **kwargs)
+                self._on_evaluate_step_end(inputs, logits, **kwargs)
             
             self._on_evaluate_epoch_end(validation_data, **kwargs)
                 

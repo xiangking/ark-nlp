@@ -145,6 +145,10 @@ class BaseDataset(Dataset):
         return list(self.dataset[0].keys())
     
     @property
+    def to_device_cols(self):
+        return list(self.dataset[0].keys())
+    
+    @property
     def sample_num(self):
         return len(self.dataset)
     

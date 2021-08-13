@@ -74,7 +74,6 @@ class TextLevelGCNTask(SequenceClassificationTask):
     def _on_backward(
         self, 
         inputs, 
-        labels, 
         logits, 
         loss, 
         verbose=True,

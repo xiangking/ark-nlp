@@ -62,11 +62,11 @@ class DataPreFetcher(object):
         return data
 
 
-class CasrelRETask(Task):
+class CasRelRETask(Task):
 
     def __init__(self, *args, **kwargs):
 
-        super(CasrelRETask, self).__init__(*args, **kwargs)
+        super(CasRelRETask, self).__init__(*args, **kwargs)
 
     def casrel_collate_fn(self, batch):
         batch = list(filter(lambda x: x is not None, batch))
@@ -169,7 +169,6 @@ class CasrelRETask(Task):
     def _compute_loss(
         self, 
         inputs, 
-        labels, 
         logits, 
         verbose=True,
         **kwargs
@@ -178,28 +177,24 @@ class CasrelRETask(Task):
         loss = self.loss_function(logits, inputs)
 
         if self.logs:
-            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
+            self._compute_loss_record(inputs, inputs['label_ids'], logits, loss, verbose, **kwargs)
 
         return loss
 
     def _compute_loss_record(
         self,
         inputs, 
-        labels, 
         logits, 
         loss, 
         verbose,
         **kwargs
     ):
-        self.logs['epoch_example'] += len(labels)
-
         self.logs['epoch_loss'] += loss.item()
         self.logs['epoch_step'] += 1
 
     def _on_backward(
         self, 
         inputs, 
-        labels, 
         logits, 
         loss, 
         **kwargs
@@ -253,17 +248,9 @@ class CasrelRETask(Task):
     def _get_module_inputs_on_train(
         self,
         inputs,
-        labels,
         **kwargs
     ):
         return inputs
-
-    def _get_module_label_on_train(
-        self,
-        inputs,
-        **kwargs
-    ):
-        return inputs['label_ids']
 
     def fit(
         self, 
@@ -289,16 +276,15 @@ class CasrelRETask(Task):
 
                 self._on_step_begin(**kwargs)
 
-                labels = self._get_module_label_on_train(inputs, **kwargs)
-                inputs = self._get_module_inputs_on_train(inputs, labels, **kwargs)
+                inputs = self._get_module_inputs_on_train(inputs, **kwargs)
 
                 # forward
                 logits = self.module(**inputs)
 
                 # 计算损失
-                loss = self._compute_loss(inputs, labels, logits, **kwargs)
+                loss = self._compute_loss(inputs, logits, **kwargs)
 
-                loss = self._on_backward(inputs, labels, logits, loss, **kwargs)
+                loss = self._on_backward(inputs, logits, loss, **kwargs)
 
                 # optimize
                 step = self._on_optimize(step, **kwargs)

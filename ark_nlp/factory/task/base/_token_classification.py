@@ -42,7 +42,6 @@ class TokenClassificationTask(SequenceClassificationTask):
     def _compute_loss(
         self, 
         inputs, 
-        labels, 
         logits, 
         verbose=True,
         **kwargs
@@ -51,20 +50,18 @@ class TokenClassificationTask(SequenceClassificationTask):
         active_loss = inputs['attention_mask'].view(-1) == 1
         active_logits = logits.view(-1, self.class_num)
         active_labels = torch.where(active_loss, 
-                                    labels.view(-1), 
-                                    torch.tensor(self.loss_function.ignore_index).type_as(labels)
+                                    inputs['label_ids'].view(-1), 
+                                    torch.tensor(self.loss_function.ignore_index).type_as(inputs['label_ids'])
                                    )
         loss = self.loss_function(active_logits, active_labels)
         
-        if self.logs:
-            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
+        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
     
     def _compute_loss_record(
         self,
         inputs, 
-        labels, 
         logits, 
         loss, 
         verbose,
@@ -111,13 +108,17 @@ class TokenClassificationTask(SequenceClassificationTask):
         self.evaluate_logs['logits'] = []
         self.evaluate_logs['input_lengths'] = []
                             
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
+    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+
+        with torch.no_grad():
+            # compute loss
+            loss = self._compute_loss(inputs, logits, **kwargs)
         
-        self.evaluate_logs['labels'].append(labels.cpu())
+        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
         self.evaluate_logs['logits'].append(logits.cpu())
         self.evaluate_logs['input_lengths'].append(inputs['input_lengths'].cpu())
             
-        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
         self.evaluate_logs['eval_step']  += 1
         self.evaluate_logs['eval_loss'] += loss.item()
             

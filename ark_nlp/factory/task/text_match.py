@@ -35,3 +35,51 @@ class TMTask(SequenceClassificationTask):
     def __init__(self, *args, **kwargs):
         
         super(TMTask, self).__init__(*args, **kwargs)
+
+    def _compute_loss_record(
+        self,
+        inputs, 
+        logits, 
+        loss, 
+        verbose,
+        **kwargs
+    ):         
+        
+        if verbose:
+            with torch.no_grad():
+                _, preds = torch.max(logits, 1)
+                self.logs['epoch_evaluation'] += torch.sum(preds == inputs['label_ids']).item() / len(inputs['label_ids'])
+                
+        self.logs['epoch_loss'] += loss.item() 
+        self.logs['epoch_step'] += 1
+        self.logs['global_step'] += 1
+    
+    def _on_step_end(
+        self, 
+        step,
+        verbose=True,
+        show_step=100,
+        **kwargs
+    ):
+
+        if verbose and (step + 1) % show_step == 0:
+            print('[{}/{}],train loss is:{:.6f},train evaluation is:{:.6f}'.format(
+                step, 
+                self.train_generator_lenth,
+                self.logs['epoch_loss'] / self.logs['epoch_step'],
+                self.logs['epoch_evaluation'] / self.logs['epoch_step']))
+            
+        self._on_step_end_record(**kwargs)
+            
+    def _on_epoch_end(
+        self, 
+        epoch,
+        verbose=True,
+        **kwargs
+    ):
+
+        if verbose:
+            print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
+                epoch,
+                self.logs['epoch_loss'] / self.logs['epoch_step'],
+                self.logs['epoch_evaluation'] / self.logs['epoch_step']))  

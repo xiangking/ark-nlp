@@ -91,28 +91,30 @@ class CRFNERTask(TokenClassificationTask):
     def _compute_loss(
         self, 
         inputs, 
-        labels, 
         logits, 
         verbose=True,
         **kwargs
     ):      
-        loss = -1 * self.module.crf(emissions = logits, tags=labels, mask=inputs['attention_mask'])
+        loss = -1 * self.module.crf(emissions = logits, tags=inputs['label_ids'], mask=inputs['attention_mask'])
         
-        if self.logs:
-            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
+        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
 
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
+    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+
+        with torch.no_grad():
+            # compute loss
+            loss = self._compute_loss(inputs, logits, **kwargs)
+            
+            tags = self.module.crf.decode(logits, inputs['attention_mask'])
+            tags  = tags.squeeze(0)
         
-        tags = self.module.crf.decode(logits, inputs['attention_mask'])
-        tags  = tags.squeeze(0)
-        
-        self.logs['labels'].append(labels.cpu())
+        self.logs['labels'].append(inputs['label_ids'].cpu())
         self.logs['logits'].append(tags.cpu())
         self.logs['input_lengths'].append(inputs['input_lengths'].cpu())
             
-        self.logs['eval_example'] +=  len(labels)
+        self.logs['eval_example'] +=  len(inputs['label_ids'])
         self.logs['eval_step']  += 1
         self.logs['eval_loss'] += loss.item() 
                 
@@ -162,13 +164,12 @@ class BiaffineNERTask(TokenClassificationTask):
     def _compute_loss(
         self, 
         inputs, 
-        labels, 
         logits, 
         verbose=True,
         **kwargs
     ):      
         
-        span_label = labels.view(size=(-1,))
+        span_label = inputs['label_ids'].view(size=(-1,))
         span_logits = logits.view(size=(-1, self.class_num))
         
         span_loss = self.loss_function(span_logits, span_label)
@@ -179,18 +180,22 @@ class BiaffineNERTask(TokenClassificationTask):
         loss = torch.sum(span_loss) / inputs['span_mask'].size()[0]
         
         if self.logs:
-            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
+            self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
         
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
-        
-        logits = torch.nn.functional.softmax(logits, dim=-1)
+    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+
+        with torch.no_grad():
+            # compute loss
+            loss = self._compute_loss(inputs, logits, **kwargs)
+            
+            logits = torch.nn.functional.softmax(logits, dim=-1)
                 
-        self.evaluate_logs['labels'].append(labels.cpu())
+        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
         self.evaluate_logs['logits'].append(logits.cpu())
             
-        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
         self.evaluate_logs['eval_step']  += 1
         self.evaluate_logs['eval_loss'] += loss.item()
         
@@ -229,22 +234,20 @@ class GlobalPointerNERTask(TokenClassificationTask):
     def _compute_loss(
         self, 
         inputs, 
-        labels, 
         logits, 
         verbose=True,
         **kwargs
     ):      
-        loss = self.loss_function(logits, labels)
+        loss = self.loss_function(logits, inputs['label_ids'])
         
         if self.logs:
-            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
+            self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
 
     def _compute_loss_record(
         self,
         inputs, 
-        labels, 
         logits, 
         loss, 
         verbose,
@@ -266,14 +269,18 @@ class GlobalPointerNERTask(TokenClassificationTask):
         self.evaluate_logs['numerate'] = 0
         self.evaluate_logs['denominator'] = 0
                 
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
+    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
         
         with torch.no_grad():
-            numerate, denominator = conlleval.global_pointer_f1_score(labels.cpu(), logits.cpu())   
+
+            # compute loss
+            loss = self._compute_loss(inputs, logits, **kwargs)
+
+            numerate, denominator = conlleval.global_pointer_f1_score(inputs['label_ids'].cpu(), logits.cpu())   
             self.evaluate_logs['numerate'] += numerate
             self.evaluate_logs['denominator'] += denominator
             
-        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_example'] +=  len(inputs['label_ids'])
         self.evaluate_logs['eval_step']  += 1
         self.evaluate_logs['eval_loss'] += loss.item()
         
@@ -297,42 +304,9 @@ class GlobalPointerNERTask(TokenClassificationTask):
 
 class SpanNERTask(TokenClassificationTask):
     
-    def _get_module_inputs_on_train(
-        self,
-        inputs,
-        labels,
-        **kwargs
-    ):
-        self.inputs_cols = [col for col in self.inputs_cols if col != 'label_ids']
-        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
-    
-    def _get_module_inputs_on_eval(
-        self,
-        inputs,
-        labels,
-        **kwargs
-    ):
-        self.inputs_cols = [col for col in self.inputs_cols if col != 'label_ids']
-        return {col: inputs[col].to(self.device) for col in self.inputs_cols}
-    
-    def _get_module_label_on_train(
-        self,
-        inputs,
-        **kwargs
-    ):
-        return inputs['label_ids']
-        
-    def _get_module_label_on_eval(
-        self,
-        inputs,
-        **kwargs
-    ):
-        return inputs['label_ids']
-    
     def _compute_loss(
         self, 
         inputs, 
-        labels, 
         logits, 
         verbose=True,
         **kwargs
@@ -357,7 +331,7 @@ class SpanNERTask(TokenClassificationTask):
         loss = start_loss + end_loss
                 
         if self.logs:
-            self._compute_loss_record(inputs, labels, logits, loss, verbose, **kwargs)
+            self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
     
@@ -371,7 +345,11 @@ class SpanNERTask(TokenClassificationTask):
         
         self._on_epoch_begin_record(**kwargs)
 
-    def _on_evaluate_step_end(self, inputs, labels, logits, loss, **kwargs):
+    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+
+        with torch.no_grad():
+            # compute loss
+            loss = self._compute_loss(inputs, logits, **kwargs)
         
         length = inputs['attention_mask'].cpu().numpy().sum() - 2
         
@@ -390,9 +368,9 @@ class SpanNERTask(TokenClassificationTask):
                     S.append((s_l, i, i + j))
                     break
                     
-        self.metric.update(true_subject=labels[0], pred_subject=S)
+        self.metric.update(true_subject=inputs['label_ids'][0], pred_subject=S)
             
-        self.evaluate_logs['eval_example'] +=  len(labels)
+        self.evaluate_logs['eval_example'] +=  len(inputs['label_ids'])
         self.evaluate_logs['eval_step']  += 1
         self.evaluate_logs['eval_loss'] += loss.item()
         

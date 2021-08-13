@@ -70,3 +70,9 @@ class SpanNERDataset(BIOTokenClassificationDataset):
             })
             
         return features
+
+    @property
+    def to_device_cols(self):
+        _cols = list(self.dataset[0].keys())
+        _cols.remove('label_ids')
+        return _cols
