@@ -176,11 +176,15 @@ class CasRelRETask(Task):
 
         loss = self.loss_function(logits, inputs)
 
+        if self.logs:
+            self._compute_loss_record(inputs, inputs['label_ids'], logits, loss, verbose, **kwargs)
+
         return loss
 
     def _compute_loss_record(
         self,
-        inputs, 
+        inputs,
+        lables,
         logits, 
         loss, 
         verbose,
