@@ -62,7 +62,7 @@ pip install --upgrade ark-nlp
 | BERT     |      |
 | ERNIE1.0 |      |
 | NEZHA    |      |
-| ROFORMER |      |
+| Roformer |      |
 
 ### 文本分类 (Text Classification)
 | 模型             | 简介                                          |
@@ -83,9 +83,9 @@ pip install --upgrade ark-nlp
 | 模型       | 简介                       |
 | :--------- | -------------------------- |
 | CRF BERT |  |
-| Biaffine Bert |  |
-| Span Bert |  |
-| Global Pointer Bert |  |
+| Biaffine BERT |  |
+| Span BERT |  |
+| Global Pointer BERT |  |
 
 ### 关系抽取 (Relation Extraction)
 
