@@ -54,9 +54,7 @@ class TokenClassificationTask(SequenceClassificationTask):
                                     torch.tensor(self.loss_function.ignore_index).type_as(inputs['label_ids'])
                                    )
         loss = self.loss_function(active_logits, active_labels)
-        
-        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
-                
+                        
         return loss
     
     def _compute_loss_record(
@@ -73,6 +71,9 @@ class TokenClassificationTask(SequenceClassificationTask):
     def _on_step_end(
         self, 
         step,
+        inputs, 
+        logits,
+        loss,
         verbose=True,
         print_step=100,
         **kwargs
@@ -112,7 +113,7 @@ class TokenClassificationTask(SequenceClassificationTask):
 
         with torch.no_grad():
             # compute loss
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self._get_evaluate_loss(inputs, logits, **kwargs)
         
         self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
         self.evaluate_logs['logits'].append(logits.cpu())

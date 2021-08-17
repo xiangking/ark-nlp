@@ -109,6 +109,20 @@ class SequenceClassificationTask(Task):
         **kwargs
     ):
         pass
+
+    def _get_train_loss(
+        self, 
+        inputs, 
+        logits, 
+        verbose=True,
+        **kwargs
+    ):  
+        # 计算损失
+        loss = self._compute_loss(inputs, logits, **kwargs)
+
+        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs) 
+
+        return loss
             
     def _compute_loss(
         self, 
@@ -118,9 +132,7 @@ class SequenceClassificationTask(Task):
         **kwargs
     ):  
         loss = self.loss_function(logits, inputs['label_ids'])  
-        
-        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)      
-                  
+                          
         return loss
     
     def _compute_loss_record(
@@ -187,6 +199,9 @@ class SequenceClassificationTask(Task):
     def _on_step_end(
         self, 
         step,
+        inputs, 
+        logits,
+        loss,
         verbose=True,
         show_step=100,
         **kwargs
@@ -250,12 +265,24 @@ class SequenceClassificationTask(Task):
             self.ema.copy_to(self.module.parameters())
         
         self._on_evaluate_epoch_begin_record(**kwargs)
+
+    def _get_evaluate_loss(
+        self, 
+        inputs, 
+        logits, 
+        verbose=True,
+        **kwargs
+    ):  
+        # 计算损失
+        loss = self._compute_loss(inputs, logits, **kwargs)
+
+        return loss
                     
     def _on_evaluate_step_end(self, inputs, logits, **kwargs):
 
         with torch.no_grad():
             # compute loss
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self._get_evaluate_loss(inputs, logits, **kwargs)
             
             labels = inputs['label_ids'].cpu()
             logits = logits.cpu()
@@ -365,7 +392,7 @@ class SequenceClassificationTask(Task):
                 logits = self.module(**inputs)
 
                 # 计算损失
-                loss = self._compute_loss(inputs, logits, **kwargs)
+                loss = self._get_train_loss(inputs, logits, **kwargs)
                                                 
                 # loss backword
                 loss = self._on_backward(inputs, logits, loss, **kwargs)
@@ -374,7 +401,7 @@ class SequenceClassificationTask(Task):
                 step = self._on_optimize(step, **kwargs)
                 
                 # setp evaluate
-                self._on_step_end(step, **kwargs)
+                self._on_step_end(step, inputs, logits, loss, **kwargs)
             
             self._on_epoch_end(epoch, **kwargs)
             

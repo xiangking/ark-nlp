@@ -96,8 +96,6 @@ class CRFNERTask(TokenClassificationTask):
         **kwargs
     ):      
         loss = -1 * self.module.crf(emissions = logits, tags=inputs['label_ids'], mask=inputs['attention_mask'])
-        
-        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
 
@@ -105,7 +103,7 @@ class CRFNERTask(TokenClassificationTask):
 
         with torch.no_grad():
             # compute loss
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self._get_evaluate_loss(inputs, logits, **kwargs)
             
             tags = self.module.crf.decode(logits, inputs['attention_mask'])
             tags  = tags.squeeze(0)
@@ -178,9 +176,6 @@ class BiaffineNERTask(TokenClassificationTask):
         
         span_loss *= span_mask
         loss = torch.sum(span_loss) / inputs['span_mask'].size()[0]
-        
-        if self.logs:
-            self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
         
@@ -188,7 +183,7 @@ class BiaffineNERTask(TokenClassificationTask):
 
         with torch.no_grad():
             # compute loss
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self._get_evaluate_loss(inputs, logits, **kwargs)
             
             logits = torch.nn.functional.softmax(logits, dim=-1)
                 
@@ -239,9 +234,6 @@ class GlobalPointerNERTask(TokenClassificationTask):
         **kwargs
     ):      
         loss = self.loss_function(logits, inputs['label_ids'])
-        
-        if self.logs:
-            self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
                 
         return loss
 
@@ -274,7 +266,7 @@ class GlobalPointerNERTask(TokenClassificationTask):
         with torch.no_grad():
 
             # compute loss
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self._get_evaluate_loss(inputs, logits, **kwargs)
 
             numerate, denominator = conlleval.global_pointer_f1_score(inputs['label_ids'].cpu(), logits.cpu())   
             self.evaluate_logs['numerate'] += numerate
@@ -330,9 +322,6 @@ class SpanNERTask(TokenClassificationTask):
         
         loss = start_loss + end_loss
                 
-        if self.logs:
-            self._compute_loss_record(inputs, logits, loss, verbose, **kwargs)
-                
         return loss
     
     def _on_evaluate_epoch_begin(self, **kwargs):
@@ -349,7 +338,7 @@ class SpanNERTask(TokenClassificationTask):
 
         with torch.no_grad():
             # compute loss
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self._get_evaluate_loss(inputs, logits, **kwargs)
         
         length = inputs['attention_mask'].cpu().numpy().sum() - 2
         
