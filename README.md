@@ -67,15 +67,15 @@ pip install --upgrade ark-nlp
 ### 文本分类 (Text Classification)
 | 模型             | 简介                                          |
 | :--------------- | --------------------------------------------- |
-| RNN/CNN/GRU/LSTM | 经典的RNN, CNN, GRU, LSTM等经典文本分类结构。 |
-| BERT/ERNIE       | 常用的预训练模型分类。                        |
+| RNN/CNN/GRU/LSTM | 经典的RNN, CNN, GRU, LSTM等经典文本分类结构 |
+| BERT/ERNIE       | 常用的预训练模型分类                        |
 
 
 ### 文本匹配 (Text Matching)
 
 | 模型       | 简介                       |
 | :--------- | -------------------------- |
-| BERT/ERNIE | 常用的预训练模型匹配分类。 |
+| BERT/ERNIE | 常用的预训练模型匹配分类 |
 
 ### 命名实体识别 (Named Entity Recognition)
 
