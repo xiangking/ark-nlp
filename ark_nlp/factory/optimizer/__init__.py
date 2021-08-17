@@ -80,7 +80,7 @@ def get_default_optimizer(module, module_name='bert', **kwargs):
     if module_name == 'bert':
         return get_default_bert_optimizer(module, **kwargs)
     elif module_name == 'crf_bert':
-        return get_default_bert_crf_optimizer(module, **kwargs)
+        return get_default_crf_bert_optimizer(module, **kwargs)
     else:
         raise ValueError("The default optimizer does not exist") 
 

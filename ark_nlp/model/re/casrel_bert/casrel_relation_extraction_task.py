@@ -165,6 +165,20 @@ class CasRelRETask(Task):
         self.logs['epoch_loss'] = 0
         self.logs['epoch_example'] = 0
         self.logs['epoch_step'] = 0
+        
+    def _get_train_loss(
+        self, 
+        inputs, 
+        logits, 
+        verbose=True,
+        **kwargs
+    ):  
+        # 计算损失
+        loss = self._compute_loss(inputs, logits, **kwargs)
+
+        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs) 
+
+        return loss
 
     def _compute_loss(
         self, 
@@ -180,7 +194,7 @@ class CasRelRETask(Task):
 
     def _compute_loss_record(
         self,
-        inputs, 
+        inputs,
         logits, 
         loss, 
         verbose,
@@ -279,7 +293,7 @@ class CasRelRETask(Task):
                 logits = self.module(**inputs)
 
                 # 计算损失
-                loss = self._compute_loss(inputs, logits, **kwargs)
+                loss = self._get_train_loss(inputs, logits, **kwargs)
 
                 loss = self._on_backward(inputs, logits, loss, **kwargs)
 
