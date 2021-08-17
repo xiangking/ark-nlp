@@ -14,7 +14,7 @@ ark-nlp主要是收集和复现学术与工作中常用的NLP模型
 
 
 
-### pip安装
+## pip安装
 
 ```
 pip install --upgrade ark-nlp
@@ -71,8 +71,7 @@ pip install --upgrade ark-nlp
 | BERT/ERNIE       | 常用的预训练模型分类。                        |
 
 
-
-#### 文本匹配 (Text Matching)
+### 文本匹配 (Text Matching)
 
 | 模型       | 简介                       |
 | :--------- | -------------------------- |
