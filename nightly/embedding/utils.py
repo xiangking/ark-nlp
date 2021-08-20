@@ -18,7 +18,14 @@ from gensim.models import KeyedVectors
 def l2_norm(vector):
     return (1.0 / np.linalg.norm(vector, ord=2)) * vector
 
-def load_sub_pretrain_embedding(data_path, vocab, embed_size, is_norm=True, miss_token='the'):
+
+def load_sub_pretrain_embedding(
+    data_path, 
+    vocab, 
+    embed_size, 
+    is_norm=True, 
+    miss_token='the'
+):
     model = KeyedVectors.load_word2vec_format(data_path)
 
     embedding_matrix = np.zeros([len(vocab.token2id), embed_size])

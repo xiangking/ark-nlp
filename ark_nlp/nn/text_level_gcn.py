@@ -11,24 +11,6 @@ import torch.nn.functional as F
 from torch import nn
 
 
-def gcn_msg(edge):
-    return {'m': edge.src['h'], 'w': edge.data['w']}
-
-
-def gcn_reduce(node):
-    w = node.mailbox['w']
-
-    new_hidden = torch.mul(w, node.mailbox['m'])
-
-    new_hidden,_ = torch.max(new_hidden, 1)
-
-    # node_eta = torch.sigmoid(node.data['eta'])
-    # node_eta = F.leaky_relu(node.data['eta'])
-    # new_hidden = node_eta * node.data['h'] + (1 - node_eta) * new_hidden
-
-    return {'h': new_hidden}
-
-
 class TextLevelGCN(torch.nn.Module):
     def __init__(
         self,
