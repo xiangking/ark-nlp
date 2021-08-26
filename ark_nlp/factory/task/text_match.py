@@ -57,6 +57,9 @@ class TMTask(SequenceClassificationTask):
     def _on_step_end(
         self, 
         step,
+        inputs, 
+        logits,
+        loss,         
         verbose=True,
         show_step=100,
         **kwargs

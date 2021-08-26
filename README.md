@@ -144,3 +144,10 @@ pip install --upgrade ark-nlp
   
   tc_predictor_instance.predict_one_sample(待预测文本)
   ```
+
+## PS
+
+  ```
+  本项目用于收集和复现学术与工作中常用的NLP模型，整合成方便调用的形式，所以参考借鉴了网上很多开源实现，如有不当的地方，还请联系批评指教。
+  在此，感谢大佬们的开源实现。
+  ```

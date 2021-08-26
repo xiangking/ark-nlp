@@ -9,6 +9,7 @@
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
+
 import numpy as np
 
 
@@ -65,9 +66,7 @@ class TextLevelGCNGraph(object):
 
         for index_ in range(vocab.vocab_size):
             for jndex_ in range(vocab.vocab_size):
-                pmi_matrix[index_, jndex_] = np.log(
-                    pair_count_matrix[index_, jndex_] / (word_count[index_] * word_count[jndex_]) 
-                )
+                pmi_matrix[index_, jndex_] = np.log(pair_count_matrix[index_, jndex_] + 1e-8) - np.log(word_count[index_] * word_count[jndex_] + 1e-8)
 
         pmi_matrix = np.nan_to_num(pmi_matrix)
         pmi_matrix = np.maximum(pmi_matrix, 0.0)

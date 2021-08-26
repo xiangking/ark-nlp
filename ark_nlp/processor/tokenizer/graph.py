@@ -46,7 +46,7 @@ class TextLevelGCNTokenizer(BaseTokenizer):
         node_ids = list(set(sequence))
         local_token2id = dict(zip(node_ids, range(len(node_ids))))
 
-        sub_graph = dgl.DGLGraph()
+        sub_graph = dgl.graph([])
 
         # 节点信息
         sub_graph.add_nodes(len(node_ids))
