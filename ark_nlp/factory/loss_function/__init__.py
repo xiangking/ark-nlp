@@ -3,6 +3,7 @@ from .casrel_loss import CasrelLoss
 from .focal_loss import FocalLoss
 from .label_smoothing_ce_loss import LabelSmoothingCrossEntropy
 from .global_pointer_ce_loss import GlobalPointerCrossEntropy
+from .r_drop_cross_entropy_loss import RDropCrossEntropyLoss
 
 
 all_losses_dict = dict(binarycrossentropy=BCEWithLogitsLoss,
