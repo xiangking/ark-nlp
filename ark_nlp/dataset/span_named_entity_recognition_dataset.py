@@ -16,10 +16,10 @@ import numpy as np
 import pandas as pd
 
 from torch.utils.data import Dataset
-from ark_nlp.dataset import BIOTokenClassificationDataset
+from ark_nlp.dataset import TokenClassificationDataset
 
 
-class SpanNERDataset(BIOTokenClassificationDataset):
+class SpanNERDataset(TokenClassificationDataset):
 
     def _get_categories(self):
         categories = sorted(list(set([label_['type'] 

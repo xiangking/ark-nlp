@@ -5,8 +5,7 @@ from ark_nlp.dataset.base._sentence_classification_dataset import SentenceClassi
 from ark_nlp.dataset.base._sentence_classification_dataset import PairSentenceClassificationDataset
 from ark_nlp.dataset.base._sentence_classification_dataset import PairSentenceClassificationDataset as PSCDataset
 
-from ark_nlp.dataset.base._token_classification_dataset import BIOTokenClassificationDataset
-from ark_nlp.dataset.base._token_classification_dataset import BIOTokenClassificationDataset as BIOTCDataset
+from ark_nlp.dataset.base._token_classification_dataset import TokenClassificationDataset
 
 from ark_nlp.dataset.casrel_relation_extraction_dataset import CasRelREDataset
 from ark_nlp.dataset.text_classification_dataset import TCDataset
