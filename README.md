@@ -111,15 +111,21 @@ pip install --upgrade ark-nlp
   from ark_nlp.model.tc.bert import Tokenizer
   
   # 加载数据集
+  # train_data_df的columns必选包含"text"和"label"
+  # text列为文本，label列为分类标签
   tc_train_dataset = Dataset(train_data_df)
   tc_dev_dataset = Dataset(dev_data_df)
   
   # 加载分词器
   tokenizer = Tokenizer(vocab='nghuyong/ernie-1.0', max_seq_len=30)
   
+  # 文本切分、ID化
+  tc_train_dataset.convert_to_ids(tokenizer)
+  tc_dev_dataset.convert_to_ids(tokenizer)
+  
   # 加载预训练模型
-  config = BertConfig.from_pretrained('nghuyong/ernie-1.0', 
-                                       num_labels=len(tc_train_dataset.cat2id))
+  config = BertConfig.from_pretrained('nghuyong/ernie-1.0',
+                                     num_labels=len(tc_train_dataset.cat2id))
   dl_module = Bert.from_pretrained('nghuyong/ernie-1.0', 
                                    config=config)
   
@@ -144,6 +150,244 @@ pip install --upgrade ark-nlp
   
   tc_predictor_instance.predict_one_sample(待预测文本)
   ```
+
+
+
+* 文本匹配
+
+  ```python
+  import torch
+  import pandas as pd
+  
+  from ark_nlp.model.tm.bert import Bert
+  from ark_nlp.model.tm.bert import BertConfig
+  from ark_nlp.model.tm.bert import Dataset
+  from ark_nlp.model.tm.bert import Task
+  from ark_nlp.model.tm.bert import get_default_model_optimizer
+  from ark_nlp.model.tm.bert import Tokenizer
+  
+  # 加载数据集
+  # train_data_df的columns必选包含"text_a"、"text_b"和"label"
+  # text_a和text_b列为文本，label列为匹配标签
+  tm_train_dataset = Dataset(train_data_df)
+  tm_dev_dataset = Dataset(dev_data_df)
+  
+  # 加载分词器
+  tokenizer = Tokenizer(vocab='nghuyong/ernie-1.0', max_seq_len=30)
+  
+  # 文本切分、ID化
+  tm_train_dataset.convert_to_ids(tokenizer)
+  tm_dev_dataset.convert_to_ids(tokenizer)
+  
+  # 加载预训练模型
+  config = BertConfig.from_pretrained('nghuyong/ernie-1.0', 
+                                     num_labels=len(tm_train_dataset.cat2id))
+  dl_module = Bert.from_pretrained('nghuyong/ernie-1.0', 
+                                   config=config)
+  
+  # 任务构建
+  num_epoches = 10
+  batch_size = 32
+  optimizer = get_default_model_optimizer(dl_module)
+  model = Task(dl_module, optimizer, 'ce', cuda_device=0)
+  
+  # 训练
+  model.fit(tm_train_dataset, 
+            tm_dev_dataset,
+            lr=2e-5,
+            epochs=5, 
+            batch_size=batch_size
+           )
+  
+  # 推断
+  from ark_nlp.model.tm.bert import Predictor
+  
+  tm_predictor_instance = Predictor(model.module, tokenizer, tm_train_dataset.cat2id)
+  
+  tm_predictor_instance.predict_one_sample([待预测文本A, 待预测文本B])
+  ```
+
+
+
+* 命名实体
+
+  ```python
+  import torch
+  import pandas as pd
+  
+  from ark_nlp.model.ner.crf_bert import CRFBert
+  from ark_nlp.model.ner.crf_bert import CRFBertConfig
+  from ark_nlp.model.ner.crf_bert import Dataset
+  from ark_nlp.model.ner.crf_bert import Task
+  from ark_nlp.model.ner.crf_bert import get_default_model_optimizer
+  from ark_nlp.model.ner.crf_bert import Tokenizer
+  
+  # 加载数据集
+  # train_data_df的columns必选包含"text"和"label"
+  # text列为文本
+  # label列为列表形式，列表中每个元素是如下组织的字典
+  # {'start_idx': 实体首字符在文本的位置, 'end_idx': 实体尾字符在文本的位置, 'type': 实体类型标签, 'entity': 实体}
+  ner_train_dataset = Dataset(train_data_df)
+  ner_dev_dataset = Dataset(dev_data_df)
+  
+  # 加载分词器
+  tokenizer = Tokenizer(vocab='nghuyong/ernie-1.0', max_seq_len=30)
+  
+  # 文本切分、ID化
+  ner_train_dataset.convert_to_ids(tokenizer)
+  ner_dev_dataset.convert_to_ids(tokenizer)
+  
+  # 加载预训练模型
+  config = CRFBertConfig.from_pretrained('nghuyong/ernie-1.0', 
+                                    num_labels=len(ner_train_dataset.cat2id))
+  dl_module = CRFBert.from_pretrained('nghuyong/ernie-1.0', 
+                                      config=config)
+  
+  # 任务构建
+  num_epoches = 10
+  batch_size = 32
+  optimizer = get_default_model_optimizer(dl_module)
+  model = Task(dl_module, optimizer, 'ce', cuda_device=0)
+  
+  # 训练
+  model.fit(ner_train_dataset, 
+            ner_dev_dataset,
+            lr=2e-5,
+            epochs=5, 
+            batch_size=batch_size
+           )
+  
+  # 推断
+  from ark_nlp.model.ner.crf_bert import Predictor
+  
+  ner_predictor_instance = Predictor(model.module, tokenizer, ner_train_dataset.cat2id)
+  
+  ner_predictor_instance.predict_one_sample(待抽取文本)
+  ```
+
+
+
+* Casrel关系抽取
+
+  ```python
+  import torch
+  import pandas as pd
+  
+  from ark_nlp.model.re.casrel_bert import CasRelBert
+  from ark_nlp.model.re.casrel_bert import CasRelBertConfig
+  from ark_nlp.model.re.casrel_bert import Dataset
+  from ark_nlp.model.re.casrel_bert import Task
+  from ark_nlp.model.re.casrel_bert import get_default_model_optimizer
+  from ark_nlp.model.re.casrel_bert import Tokenizer
+  from ark_nlp.factory.loss_function import CasrelLoss
+  
+  # 加载数据集
+  # train_data_df的columns必选包含"text"和"label"
+  # text列为文本
+  # label列为列表形式，列表中每个元素是如下组织的字典
+  # [头实体, 头实体首字符在文本的位置, 头实体尾字符在文本的位置, 关系类型, 尾实体, 尾实体首字符在文本的位置, 尾实体尾字符在文本的位置]
+  re_train_dataset = Dataset(train_data_df)
+  re_dev_dataset = Dataset(dev_data_df,
+                           categories = re_train_dataset.categories,
+                           is_train=False)
+  
+  # 加载分词器
+  tokenizer = Tokenizer(vocab='nghuyong/ernie-1.0', max_seq_len=100)
+  
+  # 文本切分、ID化
+  # 注意：casrel的代码这部分其实并没有进行切分、ID化，仅是将分词器赋予dataset对象
+  re_train_dataset.convert_to_ids(tokenizer)
+  re_dev_dataset.convert_to_ids(tokenizer)
+  
+  # 加载预训练模型
+  config = CasRelBertConfig.from_pretrained('nghuyong/ernie-1.0',
+                                            num_labels=len(re_train_dataset.cat2id))
+  dl_module = CasRelBert.from_pretrained('nghuyong/ernie-1.0', 
+                                         config=config)
+  
+  # 任务构建
+  num_epoches = 40
+  batch_size = 16
+  optimizer = get_default_model_optimizer(dl_module)
+  model = Task(dl_module, optimizer, CasrelLoss(), cuda_device=0)
+  
+  # 训练
+  model.fit(re_train_dataset, 
+            re_dev_dataset,
+            lr=2e-5,
+            epochs=5, 
+            batch_size=batch_size
+           )
+  
+  # 推断
+  from ark_nlp.model.re.casrel_bert import Predictor
+  
+  casrel_re_predictor_instance = Predictor(model.module, tokenizer, re_train_dataset.cat2id)
+  
+  casrel_re_predictor_instance.predict_one_sample(待抽取文本)
+  ```
+
+
+
+* PRGC关系抽取
+
+  ```python
+  import torch
+  import pandas as pd
+  
+  from ark_nlp.model.re.prgc_bert import PRGCBert
+  from ark_nlp.model.re.prgc_bert import PRGCBertConfig
+  from ark_nlp.model.re.prgc_bert import Dataset
+  from ark_nlp.model.re.prgc_bert import Task
+  from ark_nlp.model.re.prgc_bert import get_default_model_optimizer
+  from ark_nlp.model.re.prgc_bert import Tokenizer
+  
+  # 加载数据集
+  # train_data_df的columns必选包含"text"和"label"
+  # text列为文本
+  # label列为列表形式，列表中每个元素是如下组织的字典
+  # [头实体, 头实体首字符在文本的位置, 头实体尾字符在文本的位置, 关系类型, 尾实体, 尾实体首字符在文本的位置, 尾实体尾字符在文本的位置]
+  re_train_dataset = Dataset(train_df, is_retain_dataset=True)
+  re_dev_dataset = Dataset(dev_df,
+                           categories = re_train_dataset.categories,
+                           is_train=False)
+  
+  # 加载分词器
+  tokenizer = Tokenizer(vocab='nghuyong/ernie-1.0', max_seq_len=100)
+  
+  # 文本切分、ID化
+  re_train_dataset.convert_to_ids(tokenizer)
+  re_dev_dataset.convert_to_ids(tokenizer)
+  
+  # 加载预训练模型
+  config = PRGCBertConfig.from_pretrained('nghuyong/ernie-1.0',
+                                            num_labels=len(re_train_dataset.cat2id))
+  dl_module = PRGCBert.from_pretrained('nghuyong/ernie-1.0', 
+                                         config=config)
+  
+  # 任务构建
+  num_epoches = 40
+  batch_size = 16
+  optimizer = get_default_model_optimizer(dl_module)
+  model = Task(dl_module, optimizer, None, cuda_device=0)
+  
+  # 训练
+  model.fit(re_train_dataset, 
+            re_dev_dataset,
+            lr=2e-5,
+            epochs=5, 
+            batch_size=batch_size
+           )
+  
+  # 推断
+  from ark_nlp.model.re.prgc_bert import Predictor
+  
+  prgc_re_predictor_instance = Predictor(model.module, tokenizer, re_train_dataset.cat2id)
+  
+  prgc_re_predictor_instance.predict_one_sample(待抽取文本)
+  ```
+
+
 
 ## PS
 
