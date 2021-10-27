@@ -10,34 +10,14 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import re
-import tqdm
 import torch
 import collections
-import numpy as np
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import sklearn.metrics as sklearn_metrics
 
-from tqdm import tqdm
-from torch.optim import lr_scheduler
-from torch.autograd import Variable
-from torch.autograd import grad
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
 from torch._six import string_classes
-
 from ark_nlp.factory.utils import conlleval
-from ark_nlp.factory.loss_function import get_loss
-from ark_nlp.factory.optimizer import get_optimizer
-from ark_nlp.factory.metric import topk_accuracy
-from ark_nlp.factory.task.base._task import Task
-from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
-
-from ark_nlp.factory.utils import conlleval
-from ark_nlp.factory.metric import BiaffineSpanMetrics
 from ark_nlp.factory.metric import SpanMetrics
+from ark_nlp.factory.metric import BiaffineSpanMetrics
+from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
 class BIONERTask(TokenClassificationTask):

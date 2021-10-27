@@ -12,7 +12,6 @@ Status: Active
 
 import json
 import copy
-import torch
 import codecs
 import pandas as pd
 
@@ -23,14 +22,14 @@ from pandas.core.frame import DataFrame
 
 class BaseDataset(Dataset):
     def __init__(
-        self, 
-        data, 
-        categories=None, 
+        self,
+        data,
+        categories=None,
         is_retain_dataset=False,
         is_train=True,
         is_test=False
     ):
-        
+
         self.is_test = is_test
         self.is_train = is_train
 
@@ -44,8 +43,8 @@ class BaseDataset(Dataset):
             self.dataset = self._convert_to_dataset(data)
         else:
             self.dataset = self._load_dataset(data)
-        
-        if categories == None:
+
+        if categories is None:
             self.categories = self._get_categories()
         else:
             self.categories = categories
@@ -53,7 +52,7 @@ class BaseDataset(Dataset):
         self.cat2id = dict(zip(self.categories, range(len(self.categories))))
         self.id2cat = dict(zip(range(len(self.categories)), self.categories))
         
-        self.class_num = len(self.cat2id) 
+        self.class_num = len(self.cat2id)
         
         self.is_retain_dataset = is_retain_dataset
                 
