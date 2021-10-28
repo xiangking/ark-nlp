@@ -80,7 +80,7 @@ class Task(object):
     def _train_collate_fn(self, batch):
         return default_collate(batch)
 
-    def _dev_collate_fn(self, batch):
+    def _evaluate_collate_fn(self, batch):
         return default_collate(batch)
 
     def _prepare_train_begin(self, **kwargs):

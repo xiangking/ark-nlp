@@ -3,31 +3,18 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import tqdm
 import torch
 import numpy as np
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import sklearn.metrics as sklearn_metrics
 
-from tqdm import tqdm
-from torch.optim import lr_scheduler
-from torch.autograd import Variable
-from torch.autograd import grad
 from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
-
-from ark_nlp.factory.loss_function import get_loss
-from ark_nlp.factory.optimizer import get_optimizer
-from ark_nlp.factory.task import Task
+from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 
 def to_tup(triple_list):
@@ -62,11 +49,13 @@ class DataPreFetcher(object):
         return data
 
 
-class CasRelRETask(Task):
+class CasRelRETask(SequenceClassificationTask):
 
-    def __init__(self, *args, **kwargs):
+    def _train_collate_fn(self, batch):
+        return self.casrel_collate_fn(batch)
 
-        super(CasRelRETask, self).__init__(*args, **kwargs)
+    def _evaluate_collate_fn(self, batch):
+        return self.casrel_collate_fn(batch)
 
     def casrel_collate_fn(self, batch):
         batch = list(filter(lambda x: x is not None, batch))
@@ -103,205 +92,62 @@ class CasRelRETask(Task):
                 'obj_tails': batch_obj_tails,
                 'label_ids': triples,
                 'tokens': tokens,
-                'token_mapping': token_mapping
-               }
-
-    def _on_train_begin(
-        self, 
-        train_data, 
-        validation_data, 
-        batch_size,
-        lr, 
-        params, 
-        shuffle,
-        num_workers=1,
-        inputs_cols=None,
-        **kwargs
-    ):
-        self.id2cat = train_data.id2cat
-
-        if self.class_num == None:
-            self.class_num = train_data.class_num  
-
-        if inputs_cols == None:
-            self.inputs_cols = train_data.dataset_cols
-
-        train_generator = DataLoader(dataset=train_data,
-                                     batch_size=batch_size,
-                                     shuffle=True,
-                                     pin_memory=True,
-                                     num_workers=num_workers,
-                                     collate_fn=self.casrel_collate_fn)  
-
-        self.train_generator_lenth = len(train_generator)
-
-        self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
-        self.optimizer.zero_grad()
-
-        self.module.train()
-
-        self._on_train_begin_record(**kwargs)
-
-        return train_generator
-
-    def _on_train_begin_record(self, **kwargs):
-
-        self.logs['tr_loss'] = 0
-        self.logs['logging_loss'] = 0
-
-    def _on_epoch_begin(self, train_generator, **kwargs):
-
-        train_data_prefetcher = DataPreFetcher(train_generator, self.module.device)
-        inputs = train_data_prefetcher.next()
-
-        self.module.train()
-
-        self._on_epoch_begin_record(**kwargs)
-
-        return train_data_prefetcher, inputs
-
-    def _on_epoch_begin_record(self, **kwargs):
-
-        self.logs['epoch_loss'] = 0
-        self.logs['epoch_example'] = 0
-        self.logs['epoch_step'] = 0
-        
-    def _get_train_loss(
-        self, 
-        inputs, 
-        logits, 
-        verbose=True,
-        **kwargs
-    ):  
-        # 计算损失
-        loss = self._compute_loss(inputs, logits, **kwargs)
-
-        self._compute_loss_record(inputs, logits, loss, verbose, **kwargs) 
-
-        return loss
-
-    def _compute_loss(
-        self, 
-        inputs, 
-        logits, 
-        verbose=True,
-        **kwargs
-    ):  
-
-        loss = self.loss_function(logits, inputs)
-
-        return loss
-
-    def _compute_loss_record(
-        self,
-        inputs,
-        logits, 
-        loss, 
-        verbose,
-        **kwargs
-    ):
-        self.logs['epoch_loss'] += loss.item()
-        self.logs['epoch_step'] += 1
-
-    def _on_backward(
-        self, 
-        inputs, 
-        logits, 
-        loss, 
-        **kwargs
-    ):
-
-        loss.backward()
-
-        self._on_backward_record(**kwargs)
-
-        return loss
-
-    def _on_optimize(self, step, **kwargs):
-        self.optimizer.step()  # 更新权值
-        if self.scheduler:
-            self.scheduler.step()  # 更新学习率
-
-        self.optimizer.zero_grad()  # 清空梯度
-
-        self._on_optimize_record(**kwargs)
-
-        return step
-
-    def _on_step_end(
-        self, 
-        step,
-        verbose=True,
-        print_step=100,
-        **kwargs
-    ):
-        if verbose and (step + 1) % print_step == 0:
-            print('[{}/{}],train loss is:{:.6f}'.format(
-                step, 
-                self.train_generator_lenth,
-                self.logs['epoch_loss'] / self.logs['epoch_step']))
-
-        self._on_step_end_record(**kwargs)
-
-    def _on_epoch_end(
-        self, 
-        epoch,
-        verbose=True,
-        **kwargs
-    ):
-        if verbose:
-            print('epoch:[{}],train loss is:{:.6f} \n'.format(
-                epoch,
-                self.logs['epoch_loss'] / self.logs['epoch_step']))  
-
-        self._on_epoch_end_record(**kwargs)
-
-    def _get_module_inputs_on_train(
-        self,
-        inputs,
-        **kwargs
-    ):
-        return inputs
+                'token_mapping': token_mapping}
 
     def fit(
-        self, 
-        train_data=None, 
-        validation_data=None, 
+        self,
+        train_data=None,
+        validation_data=None,
         lr=False,
         params=None,
         batch_size=32,
         epochs=1,
+        gradient_accumulation_steps=1,
         **kwargs
     ):
         self.logs = dict()
 
-        train_generator = self._on_train_begin(train_data, validation_data, batch_size, lr, params, shuffle=True, **kwargs)
+        train_generator = self._on_train_begin(
+            train_data,
+            validation_data,
+            batch_size,
+            lr,
+            params,
+            shuffle=True,
+            **kwargs
+        )
 
         for epoch in range(epochs):
 
-            train_data_prefetcher, inputs = self._on_epoch_begin(train_generator, **kwargs)
+            train_data_prefetcher, inputs = self._on_epoch_begin(
+                train_generator,
+                **kwargs
+            )
 
             step = 0
 
             while inputs is not None:
 
-                self._on_step_begin(**kwargs)
+                self._on_step_begin(epoch, step, inputs, **kwargs)
 
                 inputs = self._get_module_inputs_on_train(inputs, **kwargs)
 
                 # forward
-                logits = self.module(**inputs)
+                outputs = self.module(**inputs)
 
                 # 计算损失
-                loss = self._get_train_loss(inputs, logits, **kwargs)
+                logits, loss = self._get_train_loss(inputs, outputs, **kwargs)
 
-                loss = self._on_backward(inputs, logits, loss, **kwargs)
+                loss = self._on_backward(inputs, outputs, logits, loss, **kwargs)
 
                 # optimize
-                step = self._on_optimize(step, **kwargs)
+                if (step + 1) % gradient_accumulation_steps == 0:
+
+                    # optimize
+                    self._on_optimize(inputs, outputs, logits, loss, **kwargs)
 
                 # setp evaluate
-                self._on_step_end(step, **kwargs)
+                self._on_step_end(step, inputs, outputs, logits, loss, **kwargs)
 
                 step += 1
 
@@ -312,51 +158,70 @@ class CasRelRETask(Task):
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
 
-    def _on_evaluate_begin(
-        self, 
-        validation_data, 
-        batch_size, 
-        shuffle, 
-        num_workers=1,
+    def _on_epoch_begin(self, train_generator, **kwargs):
+
+        train_data_prefetcher = DataPreFetcher(
+            train_generator,
+            self.module.device
+        )
+        inputs = train_data_prefetcher.next()
+
+        self.module.train()
+
+        self._on_epoch_begin_record(**kwargs)
+
+        return train_data_prefetcher, inputs
+
+    def _get_module_inputs_on_train(
+        self,
+        inputs,
+        **kwargs
+    ):
+        return inputs
+
+    def _get_train_loss(
+        self,
+        inputs,
+        outputs,
+        **kwargs
+    ):
+        # 计算损失
+        loss = self._compute_loss(inputs, outputs, **kwargs)
+
+        self._compute_loss_record(**kwargs)
+
+        return outputs, loss
+
+    def _compute_loss(
+        self,
+        inputs,
+        logits,
+        verbose=True,
         **kwargs
     ):
 
-        test_data_loader = DataLoader(dataset=validation_data,
-                                      batch_size=batch_size,
-                                      shuffle=False,
-                                      pin_memory=True,
-                                      num_workers=1,
-                                      collate_fn=self.casrel_collate_fn)  
+        loss = self.loss_function(logits, inputs)
 
-        self.module.eval()
-
-        self._on_evaluate_begin_record(**kwargs)
-
-        return test_data_loader
-
-    def _on_evaluate_begin_record(self, **kwargs):
-
-        self.evaluate_logs['correct_num'] = 0
-        self.evaluate_logs['predict_num'] = 0
-        self.evaluate_logs['gold_num'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_example'] = 0
+        return loss
 
     def evaluate(
-        self, 
-        validation_data, 
-        evaluate_batch_size=1, 
-        return_pred=False, 
+        self,
+        validation_data,
+        evaluate_batch_size=1,
         h_bar=0.5,
         t_bar=0.5,
         **kwargs
     ):
         self.evaluate_logs = dict()
 
-        generator = self._on_evaluate_begin(validation_data, evaluate_batch_size, shuffle=False, **kwargs)
+        evaluate_generator = self._on_evaluate_begin(
+            validation_data,
+            evaluate_batch_size,
+            shuffle=False,
+            **kwargs
+        )
 
-        test_data_prefetcher = DataPreFetcher(generator, self.module.device)
+        test_data_prefetcher = DataPreFetcher(evaluate_generator, self.module.device)
         inputs = test_data_prefetcher.next()
         correct_num, predict_num, gold_num = 0, 0, 0
         step_ = 0
@@ -367,7 +232,6 @@ class CasRelRETask(Task):
                 step_ += 1
 
                 token_ids = inputs['input_ids']
-                tokens = inputs['tokens'][0]
                 token_mapping = inputs['token_mapping'][0]
                 mask = inputs['attention_mask']
 
@@ -380,7 +244,7 @@ class CasRelRETask(Task):
                 for sub_head in sub_heads:
                     sub_tail = sub_tails[sub_tails >= sub_head]
                     if len(sub_tail) > 0:
-                        
+
                         sub_tail = sub_tail[0]
                         subject = ''.join([token_mapping[index_] if index_ < len(token_mapping) else '' for index_ in range(sub_head-1, sub_tail)])
 
@@ -399,9 +263,11 @@ class CasRelRETask(Task):
                     sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
                     sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
 
-                    pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(sub_head_mapping, 
-                                                                                          sub_tail_mapping, 
-                                                                                          repeated_encoded_text)
+                    pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(
+                        sub_head_mapping,
+                        sub_tail_mapping,
+                        repeated_encoded_text
+                    )
                     for subject_idx, subject in enumerate(subjects):
                         sub = subject[0]
 
@@ -447,3 +313,35 @@ class CasRelRETask(Task):
         print("precision: {}, recall: {}, f1_score: {}".format(precision, recall, f1_score))
 
         return precision, recall, f1_score
+
+    def _on_evaluate_begin(
+        self,
+        validation_data,
+        batch_size,
+        shuffle,
+        num_workers=1,
+        **kwargs
+    ):
+
+        evaluate_generator = DataLoader(
+            validation_data,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            collate_fn=self._evaluate_collate_fn
+        )
+
+        self.module.eval()
+
+        self._on_evaluate_begin_record(**kwargs)
+
+        return evaluate_generator
+
+    def _on_evaluate_begin_record(self, **kwargs):
+
+        self.evaluate_logs['correct_num'] = 0
+        self.evaluate_logs['predict_num'] = 0
+        self.evaluate_logs['gold_num'] = 0
+        self.evaluate_logs['eval_step'] = 0
+        self.evaluate_logs['eval_loss'] = 0
+        self.evaluate_logs['eval_example'] = 0

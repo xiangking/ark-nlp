@@ -94,6 +94,7 @@ class SequenceClassificationTask(Task):
         lr,
         params,
         shuffle,
+        num_workers=1,
         train_to_device_cols=None,
         **kwargs
     ):
@@ -116,6 +117,7 @@ class SequenceClassificationTask(Task):
             train_data,
             batch_size=batch_size,
             shuffle=True,
+            num_workers=num_workers,
             collate_fn=self._train_collate_fn
         )
         self.train_generator_lenth = len(train_generator)
@@ -162,7 +164,10 @@ class SequenceClassificationTask(Task):
         **kwargs
     ):
         for col in self.train_to_device_cols:
-            inputs[col] = inputs[col].to(self.device)
+            if type(inputs[col]) is torch.Tensor:
+                inputs[col] = inputs[col].to(self.device)
+            else:
+                warnings.warn(f"The {col} is not Tensor.\n")
 
         return inputs
 
@@ -336,6 +341,7 @@ class SequenceClassificationTask(Task):
         validation_data,
         batch_size,
         shuffle,
+        num_workers=1,
         evaluate_to_device_cols=None,
         **kwargs
     ):
@@ -344,18 +350,19 @@ class SequenceClassificationTask(Task):
         else:
             self.evaluate_to_device_cols = evaluate_to_device_cols
 
-        generator = DataLoader(
+        evaluate_generator = DataLoader(
             validation_data,
             batch_size=batch_size,
-            shuffle=False,
-            collate_fn=self._dev_collate_fn
+            shuffle=shuffle,
+            num_workers=num_workers,
+            collate_fn=self._evaluate_collate_fn
         )
 
         self.module.eval()
 
         self._on_evaluate_begin_record(**kwargs)
 
-        return generator
+        return evaluate_generator
 
     def _on_evaluate_begin_record(self, **kwargs):
 
@@ -377,7 +384,10 @@ class SequenceClassificationTask(Task):
         **kwargs
     ):
         for col in self.evaluate_to_device_cols:
-            inputs[col] = inputs[col].to(self.device)
+            if type(inputs[col]) is torch.Tensor:
+                inputs[col] = inputs[col].to(self.device)
+            else:
+                warnings.warn(f"The {col} is not Tensor.\n")
 
         return inputs
 

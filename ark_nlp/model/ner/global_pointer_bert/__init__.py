@@ -10,8 +10,8 @@ from ark_nlp.model.ner.global_pointer_bert.global_pointer_bert import GlobalPoin
 from ark_nlp.factory.optimizer import get_default_bert_optimizer as get_default_model_optimizer
 from ark_nlp.factory.optimizer import get_default_bert_optimizer as get_default_global_pointer_bert_optimizer
 
-from ark_nlp.factory.task import GlobalPointerNERTask as Task
-from ark_nlp.factory.task import GlobalPointerNERTask as GlobalPointerBertNERTask
+from ark_nlp.model.ner.global_pointer_bert.global_pointer_bert_named_entity_recognition import GlobalPointerNERTask as Task
+from ark_nlp.model.ner.global_pointer_bert.global_pointer_bert_named_entity_recognition import GlobalPointerNERTask as GlobalPointerBertNERTask
 
 from ark_nlp.factory.predictor import GlobalPointerNERPredictor as Predictor
 from ark_nlp.factory.predictor import GlobalPointerNERPredictor as GlobalPointerBertNERPredictor

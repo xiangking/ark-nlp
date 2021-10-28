@@ -1,10 +1,7 @@
-import time
 import torch
-import math
 import torch.nn.functional as F
 from torch import nn
 from transformers import BertModel
-from transformers import BertPreTrainedModel
 from ark_nlp.nn.base.bert import BertForTokenClassification
 from ark_nlp.nn.layer.pooler_block import PoolerStartLogits
 from ark_nlp.nn.layer.pooler_block import PoolerEndLogits
@@ -69,4 +66,4 @@ class SpanBert(BertForTokenClassification):
         
         end_logits = self.end_fc(sequence_output, label_logits)
         
-        return start_logits, end_logits
+        return (start_logits, end_logits)

@@ -43,3 +43,13 @@ class TokenClassificationTask(SequenceClassificationTask):
         loss = self.loss_function(active_logits, active_labels)
 
         return loss
+
+    def _on_evaluate_begin_record(self, **kwargs):
+
+        self.evaluate_logs['eval_loss'] = 0
+        self.evaluate_logs['eval_step'] = 0
+        self.evaluate_logs['eval_example'] = 0
+
+        self.evaluate_logs['labels'] = []
+        self.evaluate_logs['logits'] = []
+        self.evaluate_logs['input_lengths'] = []

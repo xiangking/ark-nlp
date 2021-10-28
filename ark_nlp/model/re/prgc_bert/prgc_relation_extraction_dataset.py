@@ -127,8 +127,6 @@ class PRGCREDataset(BaseDataset):
                         corres_tag[sub_head_idx+1][obj_head_idx+1] = 1
                         rel_entities[self.cat2id[triple[3]]].add((sub_head_idx, end_mapping[sub_end_idx], obj_head_idx, end_mapping[obj_end_idx]))  
 
-                sub_feats = []
-
                 for rel, en_ll in rel_entities.items():
                     # init
                     tags_sub = self.tokenizer.max_seq_len * [self.sublabel2id['O']]
@@ -159,7 +157,7 @@ class PRGCREDataset(BaseDataset):
                     features.append(feature)
 
         return features  
-    
+
     @property
     def to_device_cols(self):
         if self.is_train:
