@@ -10,16 +10,10 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import copy
-import torch
-import pandas as pd
-
-from functools import lru_cache
-from torch.utils.data import Dataset
-from ark_nlp.dataset import PairSentenceClassificationDataset
+from ark_nlp.dataset import PairMergeSentenceClassificationDataset
 
 
-class TMDataset(PairSentenceClassificationDataset):
+class TMDataset(PairMergeSentenceClassificationDataset):
     def __init__(self, *args, **kwargs):
-        
+
         super(TMDataset, self).__init__(*args, **kwargs)

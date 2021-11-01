@@ -3,24 +3,20 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import copy
-import torch
-import pandas as pd
 import numpy as np
 
-from torch.utils.data import Dataset
 from ark_nlp.dataset import TokenClassificationDataset
 
 
 class BIONERDataset(TokenClassificationDataset):
-        
+
     def _get_categories(self):
 
         categories = []
@@ -59,7 +55,7 @@ class BIONERDataset(TokenClassificationDataset):
             }
 
             if not self.is_test:
-                label_ids =  len(input_ids) * [self.cat2id['O']]
+                label_ids = len(input_ids) * [self.cat2id['O']]
 
                 for info_ in row_['label']:
                     if info_['start_idx'] in start_mapping and info_['end_idx'] in end_mapping:
@@ -72,7 +68,6 @@ class BIONERDataset(TokenClassificationDataset):
 
                         label_ids[start_idx+2:end_idx+2] = [self.cat2id['I-' + info_['type']]] * (end_idx - start_idx)
                 feature['label_ids'] = np.array(label_ids)
-
 
             features.append(feature)
 

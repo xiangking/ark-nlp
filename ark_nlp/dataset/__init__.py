@@ -2,8 +2,10 @@ from ark_nlp.dataset.base._dataset import *
 
 from ark_nlp.dataset.base._sentence_classification_dataset import SentenceClassificationDataset
 from ark_nlp.dataset.base._sentence_classification_dataset import SentenceClassificationDataset as SCDataset
-from ark_nlp.dataset.base._sentence_classification_dataset import PairSentenceClassificationDataset
-from ark_nlp.dataset.base._sentence_classification_dataset import PairSentenceClassificationDataset as PSCDataset
+from ark_nlp.dataset.base._sentence_classification_dataset import PairMergeSentenceClassificationDataset
+from ark_nlp.dataset.base._sentence_classification_dataset import PairMergeSentenceClassificationDataset as PMSCDataset
+from ark_nlp.dataset.base._sentence_classification_dataset import TwinTowersSentenceClassificationDataset
+from ark_nlp.dataset.base._sentence_classification_dataset import TwinTowersSentenceClassificationDataset as TTSCDataset
 
 from ark_nlp.dataset.base._token_classification_dataset import TokenClassificationDataset
 
