@@ -75,7 +75,7 @@ class RoFormerConfig(PretrainedConfig):
         Attributes:
             pretrained_config_archive_map (Dict[str, str]):
                 A dictionary containing all the available pre-trained checkpoints.
-    """
+    """  # noqa: ignore flake8"
 
     pretrained_config_archive_map = ROFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP
     model_type = "roformer"

@@ -10,31 +10,22 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.autograd import Variable, grad
-from torch.utils.data import DataLoader, Dataset
-import torch.nn.functional as F
 
-import tqdm
-from tqdm import tqdm
-import sklearn.metrics as sklearn_metrics
+from torch.utils.data import DataLoader
 
 
 class TCPredictor(object):
     def __init__(
-        self, 
-        module, 
-        tokernizer, 
+        self,
+        module,
+        tokernizer,
         cat2id
     ):
 
         self.module = module
         self.module.task = 'SequenceLevel'
-        
+
         self.cat2id = cat2id
         self.tokenizer = tokernizer
         self.device = list(self.module.parameters())[0].device
@@ -44,21 +35,21 @@ class TCPredictor(object):
             self.id2cat[idx_] = cat_
 
     def _convert_to_transfomer_ids(
-        self, 
+        self,
         text
     ):
         input_ids = self.tokenizer.sequence_to_ids(text)  
         input_ids, input_mask, segment_ids = input_ids
 
         features = {
-                'input_ids': input_ids, 
-                'attention_mask': input_mask, 
+                'input_ids': input_ids,
+                'attention_mask': input_mask,
                 'token_type_ids': segment_ids
             }
         return features
 
     def _convert_to_vanilla_ids(
-        self, 
+        self,
         text
     ):
         tokens = vanilla_tokenizer.tokenize(text)

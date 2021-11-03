@@ -1,4 +1,15 @@
-from torch.optim import *
+from torch.optim import (
+    Adadelta,
+    Adagrad,
+    Adam,
+    SparseAdam,
+    Adamax,
+    ASGD,
+    LBFGS,
+    RMSprop,
+    Rprop,
+    SGD
+)
 from torch.optim import Optimizer
 from transformers import AdamW
 
@@ -14,16 +25,17 @@ all_optimizers_dict = dict(
     rmsprop=RMSprop,
     rprop=Rprop,
     sgd=SGD,
-    adamw=AdamW)
+    adamw=AdamW
+)
 
 
 def get_optimizer(optimizer, module, lr=False, params=None):
-    
+
     if params is None:
         params_ = (p for p in module.parameters() if p.requires_grad)
     else:
         params_ = params
-    
+
     if isinstance(optimizer, str):
         optimizer = all_optimizers_dict[optimizer](params_)
     elif type(optimizer).__name__ == 'type' and issubclass(optimizer, Optimizer):
@@ -32,47 +44,13 @@ def get_optimizer(optimizer, module, lr=False, params=None):
         if params is not None:
             optimizer.param_groups = params
     else:
-        raise ValueError("The optimizer type does not exist") 
+        raise ValueError("The optimizer type does not exist")
 
     if lr is not False:
         for param_groups_ in optimizer.param_groups:
             param_groups_['lr'] = lr
-        
+
     return optimizer
-
-
-# def get_optimizer(optimizer, module, lr=False, params=None):
-    
-#     if isinstance(optimizer, str):
-#         optimizer = optimizer.lower()
-#         if params is None:
-#             params = (p for p in module.parameters() if p.requires_grad)
-#             optimizer.param_groups = params
-
-#         if lr is not False:
-#             for param_groups_ in optimizer.param_groups:
-#                 param_groups_['lr'] = lr
-
-#         return all_optimizers_dict[optimizer](params, lr)
-    
-#     elif type(optimizer).__name__ == 'type' and issubclass(optimizer, Optimizer):
-#         if params is None:
-#             params = (p for p in module.parameters() if p.requires_grad)
-#         return optimizer(params, lr if lr is not None else 1e-3)
-    
-#     elif isinstance(optimizer, Optimizer):
-#         if params is not None:
-#             optimizer.param_groups = params
-
-#         if lr is not None:
-#             for param_groups_ in optimizer.param_groups:
-#                 param_groups_['lr'] = lr
-
-#         return optimizer
-    
-#     else:
-#         raise ValueError("The optimizer type does not exist") 
-
 
 def get_default_optimizer(module, module_name='bert', **kwargs):
     module_name = module_name.lower()
@@ -82,7 +60,7 @@ def get_default_optimizer(module, module_name='bert', **kwargs):
     elif module_name == 'crf_bert':
         return get_default_crf_bert_optimizer(module, **kwargs)
     else:
-        raise ValueError("The default optimizer does not exist") 
+        raise ValueError("The default optimizer does not exist")
 
 
 def get_default_bert_optimizer(
@@ -139,4 +117,3 @@ def get_default_crf_bert_optimizer(
                       correct_bias=correct_bias)
 
     return optimizer
-    

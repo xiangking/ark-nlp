@@ -2,7 +2,7 @@ from transformers import get_linear_schedule_with_warmup
 
 
 def get_default_linear_schedule_with_warmup(
-    optimizer, 
+    optimizer,
     t_total,
     warmup_ratio: float = 0.06,
 ):

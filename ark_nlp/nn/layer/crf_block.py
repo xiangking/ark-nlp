@@ -1,10 +1,12 @@
 """
 From: https://github.com/lonePatient/BERT-NER-Pytorch/blob/master/models/layers/crf.py
-"""
+"""  # noqa: ignore flake8"
 
 import torch
 import torch.nn as nn
+
 from typing import List, Optional
+
 
 class CRF(nn.Module):
     """Conditional random field.
@@ -27,9 +29,14 @@ class CRF(nn.Module):
        labeling sequence data". *Proc. 18th International Conf. on Machine
        Learning*. Morgan Kaufmann. pp. 282–289.
     .. _Viterbi algorithm: https://en.wikipedia.org/wiki/Viterbi_algorithm
-    """
+    """  # noqa: ignore flake8"
 
-    def __init__(self, num_tags: int, batch_first: bool = False) -> None:
+    def __init__(
+        self,
+        num_tags: int,
+        batch_first: bool = False
+    ) -> None:
+
         if num_tags <= 0:
             raise ValueError(f'invalid number of tags: {num_tags}')
         super().__init__()

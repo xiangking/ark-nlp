@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class PoolerStartLogits(nn.Module):
@@ -12,7 +11,7 @@ class PoolerStartLogits(nn.Module):
         x = self.dense(hidden_states)
         return x
 
-    
+
 class PoolerEndLogits(nn.Module):
     def __init__(self, hidden_size, num_classes):
         super(PoolerEndLogits, self).__init__()

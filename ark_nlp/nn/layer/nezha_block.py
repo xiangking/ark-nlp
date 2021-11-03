@@ -1,4 +1,13 @@
 """
+# Copyright Xiang Wang, Inc. All Rights Reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+
+Author: Xiang Wang, xiangking1995@163.com
+Status: Active
 From: https://github.com/lonePatient/NeZha_Chinese_PyTorch
 """
 
@@ -8,10 +17,8 @@ import logging
 import torch
 
 from torch import nn
-from torch.nn import CrossEntropyLoss, MSELoss
 
 from ark_nlp.nn.configuration.configuration_nezha import NeZhaConfig
-from transformers.file_utils import add_start_docstrings
 from transformers.modeling_utils import PreTrainedModel, prune_linear_layer
 try:
     from transformers.modeling_bert import (

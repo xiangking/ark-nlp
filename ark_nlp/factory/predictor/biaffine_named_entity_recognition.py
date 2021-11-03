@@ -3,7 +3,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
@@ -13,27 +13,15 @@ Status: Active
 import tqdm
 import torch
 import numpy as np
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import sklearn.metrics as sklearn_metrics
-
-from tqdm import tqdm
-from torch.optim import lr_scheduler
-from torch.autograd import Variable, grad
-from torch.utils.data import DataLoader, Dataset
 
 
 class BiaffineNERPredictor(object):
     def __init__(
-        self, 
-        module, 
-        tokernizer, 
-        cat2id,
-        markup='bio'
+        self,
+        module,
+        tokernizer,
+        cat2id
     ):
-        self.markup = markup
-
         self.module = module
         self.module.task = 'TokenLevel'
 
@@ -46,7 +34,7 @@ class BiaffineNERPredictor(object):
             self.id2cat[idx_] = cat_
 
     def _convert_to_transfomer_ids(
-        self, 
+        self,
         text
     ):
         tokens = self.tokenizer.tokenize(text)
@@ -54,23 +42,23 @@ class BiaffineNERPredictor(object):
 
         input_ids = self.tokenizer.sequence_to_ids(tokens)              
         input_ids, input_mask, segment_ids = input_ids
-        
+
         zero = [0 for i in range(self.tokenizer.max_seq_len)]
-        span_mask=[input_mask for i in range(sum(input_mask))]
+        span_mask = [input_mask for i in range(sum(input_mask))]
         span_mask.extend([zero for i in range(sum(input_mask), self.tokenizer.max_seq_len)])
         span_mask = np.array(span_mask)
 
         features = {
-            'input_ids': input_ids, 
-            'attention_mask': input_mask, 
-            'token_type_ids': segment_ids, 
+            'input_ids': input_ids,
+            'attention_mask': input_mask,
+            'token_type_ids': segment_ids,
             'span_mask': span_mask
-        }     
-        
+        }
+
         return features, token_mapping
 
     def _get_input_ids(
-        self, 
+        self,
         text
     ):
         if self.tokenizer.tokenizer_type == 'vanilla':
@@ -80,7 +68,7 @@ class BiaffineNERPredictor(object):
         elif self.tokenizer.tokenizer_type == 'customized':
             features = self._convert_to_customized_ids(text)
         else:
-            raise ValueError("The tokenizer type does not exist") 
+            raise ValueError("The tokenizer type does not exist")
 
     def _get_module_one_sample_inputs(
         self, 

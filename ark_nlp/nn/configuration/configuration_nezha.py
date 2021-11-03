@@ -3,6 +3,7 @@ from transformers import PretrainedConfig
 
 NEZHA_PRETRAINED_CONFIG_ARCHIVE_MAP = {}
 
+
 class NeZhaConfig(PretrainedConfig):
     r"""
         This is the configuration class to store the configuration of an :class:`~transformers.AlbertModel`.
@@ -74,7 +75,7 @@ class NeZhaConfig(PretrainedConfig):
         Attributes:
             pretrained_config_archive_map (Dict[str, str]):
                 A dictionary containing all the available pre-trained checkpoints.
-    """
+    """  # noqa: ignore flake8"
 
     pretrained_config_archive_map = NEZHA_PRETRAINED_CONFIG_ARCHIVE_MAP
     model_type = "nezha"
@@ -122,5 +123,5 @@ class NeZhaConfig(PretrainedConfig):
         self.type_vocab_size = type_vocab_size
         self.initializer_range = initializer_range
         self.layer_norm_eps = layer_norm_eps
-        self.use_relative_position=use_relative_position
+        self.use_relative_position = use_relative_position
         self.classifier_dropout_prob = classifier_dropout_prob
