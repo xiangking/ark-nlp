@@ -3,34 +3,22 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import tqdm
 import torch
 import numpy as np
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import sklearn.metrics as sklearn_metrics
-
-from tqdm import tqdm
-from torch.autograd import grad
-from torch.autograd import Variable
-from torch.optim import lr_scheduler
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 
 
 class GlobalPointerNERPredictor(object):
     def __init__(
-        self, 
-        module, 
-        tokernizer, 
+        self,
+        module,
+        tokernizer,
         cat2id
     ):
         self.module = module
@@ -43,34 +31,34 @@ class GlobalPointerNERPredictor(object):
         self.id2cat = {}
         for cat_, idx_ in self.cat2id.items():
             self.id2cat[idx_] = cat_
-    
+
     def _convert_to_transfomer_ids(
         self,
         text
     ):
-        
+
         tokens = self.tokenizer.tokenize(text)
         token_mapping = self.tokenizer.get_token_mapping(text, tokens)
-        
-        input_ids = self.tokenizer.sequence_to_ids(tokens)              
+
+        input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
         zero = [0 for i in range(self.tokenizer.max_seq_len)]
-        span_mask=[input_mask for i in range(sum(input_mask))]
+        span_mask = [input_mask for i in range(sum(input_mask))]
         span_mask.extend([zero for i in range(sum(input_mask), self.tokenizer.max_seq_len)])
         span_mask = np.array(span_mask)
 
         features = {
-            'input_ids': input_ids, 
-            'attention_mask': input_mask, 
-            'token_type_ids': segment_ids, 
+            'input_ids': input_ids,
+            'attention_mask': input_mask,
+            'token_type_ids': segment_ids,
             'span_mask': span_mask
-        }   
-        
+        }
+
         return features, token_mapping
 
     def _get_input_ids(
-        self, 
+        self,
         text
     ):
         if self.tokenizer.tokenizer_type == 'vanilla':
@@ -78,43 +66,43 @@ class GlobalPointerNERPredictor(object):
         elif self.tokenizer.tokenizer_type == 'transfomer':
             return self._convert_to_transfomer_ids(text)
         elif self.tokenizer.tokenizer_type == 'customized':
-            features = self._convert_to_customized_ids(text)
+            return self._convert_to_customized_ids(text)
         else:
-            raise ValueError("The tokenizer type does not exist") 
+            raise ValueError("The tokenizer type does not exist")
 
     def _get_module_one_sample_inputs(
-        self, 
+        self,
         features
     ):
         return {col: torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device) for col in features}
-    
+
     def predict_one_sample(
-        self, 
-        text='', 
+        self,
+        text='',
         return_label_name=True,
         return_proba=False,
         threshold=0
     ):
         features, token_mapping = self._get_input_ids(text)
         self.module.eval()
-        
+
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            scores =  self.module(**inputs)[0].cpu() 
+            scores = self.module(**inputs)[0].cpu()
 
         scores[:, [0, -1]] -= np.inf
         scores[:, :, [0, -1]] -= np.inf
-        
+
         entities = []
-        for l, start, end in zip(*np.where(scores > threshold)):
+        for category, start, end in zip(*np.where(scores > threshold)):
             if end-1 > token_mapping[-1][-1]:
                 break
             if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
                 entitie_ = {
-                    "start_idx":token_mapping[start-1][0],
-                    "end_idx":token_mapping[end-1][-1],
-                    "entity":text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
-                    "type": self.id2cat[l]
+                    "start_idx": token_mapping[start-1][0],
+                    "end_idx": token_mapping[end-1][-1],
+                    "entity": text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
+                    "type": self.id2cat[category]
                 }
 
                 if entitie_['entity'] == '':
@@ -122,4 +110,4 @@ class GlobalPointerNERPredictor(object):
 
                 entities.append(entitie_)
 
-        return entities      
+        return entities

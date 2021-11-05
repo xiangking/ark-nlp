@@ -10,7 +10,6 @@ Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import tqdm
 import torch
 import numpy as np
 
@@ -38,9 +37,9 @@ class BiaffineNERPredictor(object):
         text
     ):
         tokens = self.tokenizer.tokenize(text)
-        token_mapping = self.tokenizer.get_token_mapping(text, tokens)        
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
-        input_ids = self.tokenizer.sequence_to_ids(tokens)              
+        input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
         zero = [0 for i in range(self.tokenizer.max_seq_len)]
@@ -66,30 +65,28 @@ class BiaffineNERPredictor(object):
         elif self.tokenizer.tokenizer_type == 'transfomer':
             return self._convert_to_transfomer_ids(text)
         elif self.tokenizer.tokenizer_type == 'customized':
-            features = self._convert_to_customized_ids(text)
+            return self._convert_to_customized_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist")
 
     def _get_module_one_sample_inputs(
-        self, 
+        self,
         features
     ):
         return {col: torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device) for col in features}
-    
+
     def predict_one_sample(
-        self, 
-        text='', 
-        return_label_name=True,
-        return_proba=False
+        self,
+        text=''
     ):
 
         features, token_mapping = self._get_input_ids(text)
         self.module.eval()
-        
+
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            scores = torch.argmax(self.module(**inputs), dim=-1)[0].to(torch.device('cpu')).numpy().tolist()    
-            
+            scores = torch.argmax(self.module(**inputs), dim=-1)[0].to(torch.device('cpu')).numpy().tolist()
+
         entities = []
         for start in range(len(scores)):
             for end in range(start, len(scores[start])):
@@ -98,15 +95,15 @@ class BiaffineNERPredictor(object):
                         break
                     if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
                         entitie_ = {
-                            "start_idx":token_mapping[start-1][0],
-                            "end_idx":token_mapping[end-1][-1],
-                            "entity":text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
+                            "start_idx": token_mapping[start-1][0],
+                            "end_idx": token_mapping[end-1][-1],
+                            "entity": text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
                             "type": self.id2cat[scores[start][end]]
-                        }      
-                        
+                        }
+
                         if entitie_['entity'] == '':
                             continue
 
                         entities.append(entitie_)
-                    
+
         return entities

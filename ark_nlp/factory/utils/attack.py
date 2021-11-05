@@ -11,7 +11,7 @@ class FGM(object):
     :param model (torch.nn.Module) : 训练的模型
 
     Examples::
-    
+
         >>> # 初始化
         >>> fgm = FGM(model)
         >>> for batch_input, batch_label in data:
@@ -27,29 +27,36 @@ class FGM(object):
         >>>     optimizer.step()
         >>>     model.zero_grad()
 
-    Reference: 
+    Reference:
         [1]  https://zhuanlan.zhihu.com/p/91269728
     """
     def __init__(self, model):
         self.model = model
         self.backup = {}
-    
-    def attack(self,epsilon=1.,emb_name='word_embeddings'):
+
+    def attack(
+        self,
+        epsilon=1.,
+        emb_name='word_embeddings'
+    ):
         for name, param in self.model.named_parameters():
             if param.requires_grad and emb_name in name:
-                self.backup[name]=param.data.clone()
-                norm=torch.norm(param.grad)
-                if norm !=0 and not torch.isnan(norm):
+                self.backup[name] = param.data.clone()
+                norm = torch.norm(param.grad)
+                if norm != 0 and not torch.isnan(norm):
                     r_at = epsilon * param.grad / norm
                     param.data.add_(r_at)
-    
-    def restore(self, emb_name='word_embeddings'):
+
+    def restore(
+        self,
+        emb_name='word_embeddings'
+    ):
         for name, param in self.model.named_parameters():
             if param.requires_grad and emb_name in name:
                 assert name in self.backup
-                param.data=self.backup[name]
-        self.backup={}
-            
+                param.data = self.backup[name]
+        self.backup = {}
+
 
 class PGD(object):
     """
@@ -58,7 +65,7 @@ class PGD(object):
     :param model (torch.nn.Module) : 训练的模型
 
     Examples::
-    
+
         >>> pgd = PGD(model)
         >>> K = 3
         >>> for batch_input, batch_label in data:
@@ -80,7 +87,7 @@ class PGD(object):
         >>>     optimizer.step()
         >>>     model.zero_grad()
 
-    Reference: 
+    Reference:
         [1]  https://zhuanlan.zhihu.com/p/91269728
     """
     def __init__(self, model):
@@ -88,7 +95,13 @@ class PGD(object):
         self.emb_backup = {}
         self.grad_backup = {}
 
-    def attack(self, epsilon=1., alpha=0.3, emb_name='emb.', is_first_attack=False):
+    def attack(
+        self,
+        epsilon=1.,
+        alpha=0.3,
+        emb_name='emb.',
+        is_first_attack=False
+    ):
         # emb_name这个参数要换成你模型中embedding的参数名
         for name, param in self.model.named_parameters():
             if param.requires_grad and emb_name in name:
@@ -103,7 +116,7 @@ class PGD(object):
     def restore(self, emb_name='emb.'):
         # emb_name这个参数要换成你模型中embedding的参数名
         for name, param in self.model.named_parameters():
-            if param.requires_grad and emb_name in name: 
+            if param.requires_grad and emb_name in name:
                 assert name in self.emb_backup
                 param.data = self.emb_backup[name]
         self.emb_backup = {}
