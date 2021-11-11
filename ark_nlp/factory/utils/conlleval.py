@@ -112,18 +112,23 @@ def get_entity_bio(seq, id2label):
     return chunks
 
 
-def get_entities(seq,id2label,markup='bios'):
+def get_entities(
+    seq,
+    id2label,
+    markup='bios'
+):
     '''
     :param seq:
     :param id2label:
     :param markup:
     :return:
     '''
-    assert markup in ['bio','bios']
-    if markup =='bio':
-        return get_entity_bio(seq,id2label)
+    assert markup in ['bio', 'bios']
+    if markup == 'bio':
+        return get_entity_bio(seq, id2label)
     else:
-        return get_entity_bios(seq,id2label)
+        return get_entity_bios(seq, id2label)
+
 
 def bert_extract_item(start_logits, end_logits):
     S = []
@@ -277,8 +282,7 @@ def evaluate(iterable, options=None):
                                        last_guessed_type, guessed_type)
 
         if in_correct:
-            if (end_correct and end_guessed and
-                last_guessed_type == last_correct_type):
+            if (end_correct and end_guessed and last_guessed_type == last_correct_type):
                 in_correct = False
                 counts.correct_chunk += 1
                 counts.t_correct_chunk[last_correct_type] += 1
@@ -372,16 +376,13 @@ def report_notprint(counts, out=None):
     c = counts
     final_report = []
     line = []
-    line.append('processed %d tokens with %d phrases; ' %
-              (c.token_counter, c.found_correct))
-    line.append('found: %d phrases; correct: %d.\n' %
-              (c.found_guessed, c.correct_chunk))
+    line.append('processed %d tokens with %d phrases; ' % (c.token_counter, c.found_correct))
+    line.append('found: %d phrases; correct: %d.\n' % (c.found_guessed, c.correct_chunk))
     final_report.append("".join(line))
 
     if c.token_counter > 0:
         line = []
-        line.append('accuracy: %6.2f%%; ' %
-                  (100.*c.correct_tags/c.token_counter))
+        line.append('accuracy: %6.2f%%; ' % (100.*c.correct_tags/c.token_counter))
         line.append('precision: %6.2f%%; ' % (100.*overall.prec))
         line.append('recall: %6.2f%%; ' % (100.*overall.rec))
         line.append('FB1: %6.2f\n' % (100.*overall.fscore))
@@ -400,22 +401,32 @@ def report_notprint(counts, out=None):
 def end_of_chunk(prev_tag, tag, prev_type, type_):
     chunk_end = False
 
-    if prev_tag == 'E': chunk_end = True
-    if prev_tag == 'S': chunk_end = True
+    if prev_tag == 'E':
+        chunk_end = True
+    if prev_tag == 'S':
+        chunk_end = True
 
-    if prev_tag == 'B' and tag == 'B': chunk_end = True
-    if prev_tag == 'B' and tag == 'S': chunk_end = True
-    if prev_tag == 'B' and tag == 'O': chunk_end = True
-    if prev_tag == 'I' and tag == 'B': chunk_end = True
-    if prev_tag == 'I' and tag == 'S': chunk_end = True
-    if prev_tag == 'I' and tag == 'O': chunk_end = True
+    if prev_tag == 'B' and tag == 'B':
+        chunk_end = True
+    if prev_tag == 'B' and tag == 'S':
+        chunk_end = True
+    if prev_tag == 'B' and tag == 'O':
+        chunk_end = True
+    if prev_tag == 'I' and tag == 'B':
+        chunk_end = True
+    if prev_tag == 'I' and tag == 'S':
+        chunk_end = True
+    if prev_tag == 'I' and tag == 'O':
+        chunk_end = True
 
     if prev_tag != 'O' and prev_tag != '.' and prev_type != type_:
         chunk_end = True
 
     # these chunks are assumed to have length 1
-    if prev_tag == ']': chunk_end = True
-    if prev_tag == '[': chunk_end = True
+    if prev_tag == ']':
+        chunk_end = True
+    if prev_tag == '[':
+        chunk_end = True
 
     return chunk_end
 
@@ -423,21 +434,31 @@ def end_of_chunk(prev_tag, tag, prev_type, type_):
 def start_of_chunk(prev_tag, tag, prev_type, type_):
     chunk_start = False
 
-    if tag == 'B': chunk_start = True
-    if tag == 'S': chunk_start = True
+    if tag == 'B':
+        chunk_start = True
+    if tag == 'S':
+        chunk_start = True
 
-    if prev_tag == 'E' and tag == 'E': chunk_start = True
-    if prev_tag == 'E' and tag == 'I': chunk_start = True
-    if prev_tag == 'S' and tag == 'E': chunk_start = True
-    if prev_tag == 'S' and tag == 'I': chunk_start = True
-    if prev_tag == 'O' and tag == 'E': chunk_start = True
-    if prev_tag == 'O' and tag == 'I': chunk_start = True
+    if prev_tag == 'E' and tag == 'E':
+        chunk_start = True
+    if prev_tag == 'E' and tag == 'I':
+        chunk_start = True
+    if prev_tag == 'S' and tag == 'E':
+        chunk_start = True
+    if prev_tag == 'S' and tag == 'I':
+        chunk_start = True
+    if prev_tag == 'O' and tag == 'E':
+        chunk_start = True
+    if prev_tag == 'O' and tag == 'I':
+        chunk_start = True
 
     if tag != 'O' and tag != '.' and prev_type != type_:
         chunk_start = True
 
-    if tag == '[': chunk_start = True
-    if tag == ']': chunk_start = True
+    if tag == '[':
+        chunk_start = True
+    if tag == ']':
+        chunk_start = True
 
     return chunk_start
 
@@ -458,6 +479,6 @@ def main(argv):
             counts = evaluate(f, args)
     report(counts)
 
-    
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

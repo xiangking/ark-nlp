@@ -16,7 +16,7 @@ class EMA(object):
         >>> # Train for a few epochs
         >>> for _ in range(epochs):
         >>>     # 训练过程中，更新完参数后，同步update shadow weights
-        >>>     optimizer.step() 
+        >>>     optimizer.step()
         >>>     ema.update(module.parameters())
         >>> # eval前，进行ema的权重替换；eval之后，恢复原来模型的参数
         >>> ema.store(module.parameters())
@@ -24,14 +24,14 @@ class EMA(object):
         >>> # evaluate
         >>> ema.restore(module.parameters())
 
-    Reference: 
+    Reference:
         [1]  https://github.com/fadel/pytorch_ema
 
     """
     def __init__(
-        self, 
-        parameters, 
-        decay, 
+        self,
+        parameters,
+        decay,
         use_num_updates=True
     ):
         if decay < 0.0 or decay > 1.0:
@@ -64,7 +64,7 @@ class EMA(object):
     def copy_to(self, parameters):
         """
         Copy current parameters into given collection of parameters.
-        Args: 
+        Args:
           parameters: Iterable of `torch.nn.Parameter`; the parameters to be
             updated with the stored moving averages.
         """
@@ -75,7 +75,7 @@ class EMA(object):
     def store(self, parameters):
         """
         Save the current parameters for restoring later.
-        Args: 
+        Args:
           parameters: Iterable of `torch.nn.Parameter`; the parameters to be
             temporarily stored.
         """
@@ -90,7 +90,7 @@ class EMA(object):
         original optimization process. Store the parameters before the
         `copy_to` method. After validation (or model saving), use this to
         restore the former parameters.
-        Args: 
+        Args:
           parameters: Iterable of `torch.nn.Parameter`; the parameters to be
             updated with the stored parameters.
         """

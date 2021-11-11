@@ -1,17 +1,9 @@
-import time
 import torch
-import math
-import torch.nn.functional as F
 
 from torch import nn
 from transformers import BertModel
 from transformers import BertPreTrainedModel
 from collections import Counter
-
-import torch
-import torch.nn as nn
-
-from transformers import BertPreTrainedModel, BertModel
 
 
 class MultiNonLinearClassifier(nn.Module):
@@ -54,10 +46,10 @@ class SequenceLabelForSO(nn.Module):
 
 class PRGCBert(BertPreTrainedModel):
     def __init__(
-        self, 
-        config, 
+        self,
+        config,
         seq_tag_size=3,
-        drop_prob=0.3,  
+        drop_prob=0.3,
         emb_fusion='concat',
         corres_mode=None,
         biaffine_hidden_size=128,
@@ -70,26 +62,55 @@ class PRGCBert(BertPreTrainedModel):
         # pretrain model
         self.bert = BertModel(config)
         # sequence tagging
-        self.sequence_tagging_sub = MultiNonLinearClassifier(config.hidden_size * 2, self.seq_tag_size, drop_prob)
-        self.sequence_tagging_obj = MultiNonLinearClassifier(config.hidden_size * 2, self.seq_tag_size, drop_prob)
-        self.sequence_tagging_sum = SequenceLabelForSO(config.hidden_size, self.seq_tag_size, drop_prob)
-        
+        self.sequence_tagging_sub = MultiNonLinearClassifier(
+            config.hidden_size * 2,
+            self.seq_tag_size, drop_prob
+        )
+        self.sequence_tagging_obj = MultiNonLinearClassifier(
+            config.hidden_size * 2,
+            self.seq_tag_size,
+            drop_prob
+        )
+        self.sequence_tagging_sum = SequenceLabelForSO(
+            config.hidden_size,
+            self.seq_tag_size,
+            drop_prob
+        )
+
         # relation judgement
-        self.rel_judgement = MultiNonLinearClassifier(config.hidden_size, self.rel_num, drop_prob)
+        self.rel_judgement = MultiNonLinearClassifier(
+            config.hidden_size,
+            self.rel_num,
+            drop_prob
+        )
         self.rel_embedding = nn.Embedding(self.rel_num, config.hidden_size)
-        
+
         self.corres_mode = corres_mode
         if self.corres_mode == 'biaffine':
-            self.U = torch.nn.Parameter(torch.randn(biaffine_hidden_size, 1, biaffine_hidden_size))
-            self.start_encoder = torch.nn.Sequential(torch.nn.Linear(in_features=config.hidden_size, 
-                                                                     out_features=biaffine_hidden_size),
-                                                     torch.nn.ReLU())
-            self.end_encoder = torch.nn.Sequential(torch.nn.Linear(in_features=config.hidden_size, 
-                                                                   out_features=biaffine_hidden_size),
-                                                   torch.nn.ReLU())   
+            self.U = torch.nn.Parameter(
+                torch.randn(
+                    biaffine_hidden_size,
+                    1,
+                    biaffine_hidden_size
+                )
+            )
+            self.start_encoder = torch.nn.Sequential(
+                torch.nn.Linear(in_features=config.hidden_size,
+                                out_features=biaffine_hidden_size),
+                torch.nn.ReLU()
+            )
+            self.end_encoder = torch.nn.Sequential(
+                torch.nn.Linear(in_features=config.hidden_size,
+                                out_features=biaffine_hidden_size),
+                torch.nn.ReLU()
+            )
         else:
             # global correspondence
-            self.global_corres = MultiNonLinearClassifier(config.hidden_size * 2, 1, drop_prob)
+            self.global_corres = MultiNonLinearClassifier(
+                config.hidden_size * 2,
+                1,
+                drop_prob
+            )
 
         self.init_weights()
 
@@ -126,7 +147,7 @@ class PRGCBert(BertPreTrainedModel):
             attention_mask=attention_mask,
             output_hidden_states=True
         )  # sequence_output, pooled_output, (hidden_states), (attentions)
-        
+
         sequence_output = outputs[0]
         bs, seq_len, h = sequence_output.size()
 
@@ -134,13 +155,13 @@ class PRGCBert(BertPreTrainedModel):
         h_k_avg = self.masked_avgpool(sequence_output, attention_mask)
         # (bs, rel_num)
         rel_pred = self.rel_judgement(h_k_avg)
-        
+
         if self.corres_mode == 'biaffine':
-            sub_extend = self.start_encoder(sequence_output) 
-            obj_extend = self.end_encoder(sequence_output) 
-            
+            sub_extend = self.start_encoder(sequence_output)
+            obj_extend = self.end_encoder(sequence_output)
+
             corres_pred = torch.einsum('bxi,ioj,byj->bxyo', sub_extend, self.U, obj_extend).squeeze(-1)
-        else:        
+        else:
             sub_extend = sequence_output.unsqueeze(2).expand(-1, -1, seq_len, -1)  # (bs, s, s, h)
             obj_extend = sequence_output.unsqueeze(1).expand(-1, seq_len, -1, -1)  # (bs, s, s, h)
             # batch x seq_len x seq_len x 2*hidden
@@ -190,22 +211,21 @@ class PRGCBert(BertPreTrainedModel):
 
         # relation embedding vector fusion
         rel_emb = rel_emb.unsqueeze(1).expand(-1, seq_len, h)
-        
+
         if self.emb_fusion == 'concat':
             # (bs/sum(x_i), seq_len, 2*h)
             decode_input = torch.cat([sequence_output, rel_emb], dim=-1)
             # (bs/sum(x_i), seq_len, tag_size)
             output_sub = self.sequence_tagging_sub(decode_input)
             output_obj = self.sequence_tagging_obj(decode_input)
-            
+
         elif self.emb_fusion == 'sum':
             # (bs/sum(x_i), seq_len, h)
             decode_input = sequence_output + rel_emb
             # (bs/sum(x_i), seq_len, tag_size)
             output_sub, output_obj = self.sequence_tagging_sum(decode_input)
-            
+
         if xi is None:
             return output_sub, output_obj, corres_pred, rel_pred
         else:
-                
             return output_sub, output_obj, corres_pred, pred_rels, xi

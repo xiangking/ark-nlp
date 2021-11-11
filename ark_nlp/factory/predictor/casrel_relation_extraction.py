@@ -3,34 +3,22 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import tqdm
 import torch
 import numpy as np
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import sklearn.metrics as sklearn_metrics
-
-from tqdm import tqdm
-from torch.autograd import grad
-from torch.autograd import Variable
-from torch.optim import lr_scheduler
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 
 
 class CasrelREPredictor(object):
     def __init__(
-        self, 
-        module, 
-        tokernizer, 
+        self,
+        module,
+        tokernizer,
         cat2id
     ):
         self.module = module
@@ -45,46 +33,52 @@ class CasrelREPredictor(object):
             self.id2cat[idx_] = cat_
 
     def _convert_to_transfomer_ids(
-        self, 
+        self,
         text
     ):
         tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len]
-        token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
+        token_mapping = self.tokenizer.get_token_mapping(
+            text,
+            tokens,
+            is_mapping_index=False
+        )
 
         input_ids, input_mask, segment_ids = self.tokenizer.sequence_to_ids(tokens)
 
-        features = {'input_ids': input_ids,
-                    'attention_mask': input_mask,
-                    'token_mapping': token_mapping
-                   }
+        features = {
+            'input_ids': input_ids,
+            'attention_mask': input_mask,
+            'token_mapping': token_mapping
+        }
+
         return features
 
     def _get_input_ids(
-        self, 
+        self,
         text
     ):
         if self.tokenizer.tokenizer_type == 'transfomer':
             return self._convert_to_transfomer_ids(text)
         else:
-            raise ValueError("The tokenizer type does not exist") 
+            raise ValueError("The tokenizer type does not exist")
 
     def _get_module_one_sample_inputs(
-        self, 
+        self,
         features
     ):
         inputs = {}
         for col in features:
             if isinstance(features[col], np.ndarray):
-                inputs[col] = torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device) 
+                inputs[col] = torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device)
             else:
                 inputs[col] = features[col]
 
         return inputs
 
     def predict_one_sample(
-        self, 
+        self,
         text='',
-        h_bar=0.5, 
+        h_bar=0.5,
         t_bar=0.5
     ):
 
@@ -119,9 +113,11 @@ class CasrelREPredictor(object):
                 sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
                 sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
 
-                pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(sub_head_mapping, 
-                                                                                       sub_tail_mapping, 
-                                                                                       repeated_encoded_text)  
+                pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(
+                    sub_head_mapping,
+                    sub_tail_mapping,
+                    repeated_encoded_text
+                )
 
                 for subject_idx, subject in enumerate(subjects):
                     sub = subject[0]

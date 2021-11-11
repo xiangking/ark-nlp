@@ -3,31 +3,27 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import time
 import torch
-import math
-import torch.nn.functional as F
 
 from torch import nn
 from torch import Tensor
-from transformers import BertModel, BertPreTrainedModel
-from torch.nn import CrossEntropyLoss
+from transformers import BertPreTrainedModel
 
-from ark_nlp.nn import BasicModule
-from ark_nlp.nn.layer.roformer_block import *
-
-
-@add_start_docstrings(
-    "The bare RoFormer Model transformer outputting raw hidden-states without any specific head on top.",
-    ROFORMER_START_DOCSTRING,
+from ark_nlp.nn.layer.roformer_block import (
+    RoFormerPreTrainedModel,
+    RoFormerEmbeddings,
+    RoFormerEncoder,
+    RoFormerPooler
 )
+
+
 class RoFormerModel(RoFormerPreTrainedModel):
     """
     The model can behave as an encoder (with only self-attention) as well
@@ -186,39 +182,43 @@ class RoFormerModel(RoFormerPreTrainedModel):
         return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
 
 
-class RoFormer(BertPreTrainedModel):
+class RoFormer(RoFormerPreTrainedModel):
     """
     原始的RoFormer模型
 
-    :param config: (obejct) 模型的配置对象
-    :param bert_trained: (bool) bert参数是否可训练，默认可训练
-
-    :returns: 
+    Args:
+        config:
+            模型的配置对象
+        encoder_trained (:obj:`bool`, optional, defaults to True):
+            bert参数是否可训练，默认可训练
+        pooling (:obj:`str`, optional, defaults to "cls"):
+            bert输出的池化方式，默认为"cls"，
+            可选有["cls", "cls_with_fc", "first_last_avg", "last_avg", "last_2_avg"]
 
     Reference:
         [1] https://github.com/ZhuiyiTechnology/roformer
         [2] https://github.com/JunnYu/RoFormer_pytorch
+    """  # noqa: ignore flake8"
 
-    """ 
     def __init__(
-        self, 
-        config, 
+        self,
+        config,
         encoder_trained=True,
-        pooling='cls'
+        pooling='cls_with_fc'
     ):
         super(RoFormer, self).__init__(config)
-        
-        self.roformer = RoFormerModel(config)
+
+        self.bert = RoFormerModel(config)
         self.pooling = pooling
 
-        for param in self.roformer.parameters():
-            param.requires_grad = encoder_trained 
-            
+        for param in self.bert.parameters():
+            param.requires_grad = encoder_trained
+
         self.num_labels = config.num_labels
 
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, self.num_labels)
-        
+
         self.init_weights()
 
     def mask_pooling(self, x: Tensor, attention_mask=None):
@@ -227,6 +227,10 @@ class RoFormer(BertPreTrainedModel):
         return torch.sum(x * attention_mask.unsqueeze(2), dim=1) / torch.sum(attention_mask, dim=1, keepdim=True)
 
     def sequence_pooling(self, sequence_feature, attention_mask):
+
+        if self.pooling == 'cls_with_fc':
+            return sequence_feature.pooler_output
+        sequence_feature = sequence_feature.hidden_states
         if self.pooling == 'first_last_avg':
             sequence_feature = sequence_feature[-1] + sequence_feature[1]
         elif self.pooling == 'last_avg':
@@ -241,31 +245,32 @@ class RoFormer(BertPreTrainedModel):
         return self.mask_pooling(sequence_feature, attention_mask)
 
     def get_encoder_feature(self, encoder_output, attention_mask):
-        if self.task == 'SequenceClassification':
+        if self.task == 'SequenceLevel':
             return self.sequence_pooling(encoder_output, attention_mask)
-        elif self.task == 'TokenClassification':
+        elif self.task == 'TokenLevel':
             return encoder_output[-1]
         else:
             return encoder_output[-1][:, 0, :]
 
     def forward(
-        self, 
+        self,
         input_ids=None,
         attention_mask=None,
         token_type_ids=None,
         **kwargs
     ):
-        outputs = self.roformer(input_ids,
-                            attention_mask=attention_mask,
-                            token_type_ids=token_type_ids,
-                            return_dict=True, 
-                            output_hidden_states=True
-                           ).hidden_states
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            return_dict=True,
+            output_hidden_states=True
+        )
 
         encoder_feature = self.get_encoder_feature(outputs, attention_mask)
 
-        sequence_output = self.dropout(sequence_output)
-        out = self.classifier(sequence_output)
+        encoder_feature = self.dropout(encoder_feature)
+        out = self.classifier(encoder_feature)
 
         return out
 
@@ -274,15 +279,14 @@ class RoFormerForSequenceClassification(RoFormerPreTrainedModel):
     """
     基于RoFormer的文本分类模型
 
-    :param config: (obejct) 模型的配置对象
-
-    :returns: 
+    Args:
+        config:
+            模型的配置对象
 
     Reference:
         [1] https://github.com/ZhuiyiTechnology/roformer
         [2] https://github.com/JunnYu/RoFormer_pytorch
-
-    """ 
+    """
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels

@@ -3,19 +3,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
-# http://www.apache.org/licenses/LICENSE-2.0
-
-Author: Xiang Wang, xiangking1995@163.com
-Status: Active
-"""
-
-"""
-# Copyright Xiang Wang, Inc. All Rights Reserved
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
@@ -23,34 +11,27 @@ Status: Active
 """
 
 import unicodedata
-import abc
-import torch
-import random
-import transformers 
+import transformers
 import numpy as np
 
-from typing import Any
-from typing import Dict
 from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 from copy import deepcopy
-from transformers import AutoTokenizer
-from torch.utils.data import Dataset
 from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
 class TransfomerTokenizer(BaseTokenizer):
-    """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+    def __init__(
+        self,
+        vocab,
+        max_seq_len
+    ):
+        """
+        Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
 
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
-
-    """
-    def __init__(self, vocab, max_seq_len):
-
+        Args:
+            vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+            max_seq_len (:obj:`int`): 预设的文本最大长度
+        """
         if isinstance(vocab, str):
             # TODO: 改成由自定义的字典所决定
             vocab = transformers.AutoTokenizer.from_pretrained(vocab)
@@ -82,8 +63,7 @@ class TransfomerTokenizer(BaseTokenizer):
             return token
 
     def get_token_mapping(self, text, tokens, is_mapping_index=True):
-        """给出原始的text和tokenize后的tokens的映射关系
-        """
+        """给出原始的text和tokenize后的tokens的映射关系"""
         raw_text = deepcopy(text)
         text = text.lower()
 
@@ -108,7 +88,8 @@ class TransfomerTokenizer(BaseTokenizer):
                     token_mapping.append(raw_text[offset:offset+1])
                 offset = offset + 1
             elif self._is_special(token):
-                token_mapping.append([]) # 如果是[CLS]或者是[SEP]之类的词，则没有对应的映射
+                # 如果是[CLS]或者是[SEP]之类的词，则没有对应的映射
+                token_mapping.append([])
             else:
                 token = self.recover_bert_token(token)
                 start = text[offset:].index(token) + offset
@@ -205,42 +186,44 @@ class TransfomerTokenizer(BaseTokenizer):
 
 class SentenceTokenizer(TransfomerTokenizer):
     """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+    Transfomer文本编码器，用于单句子进行分词、ID化、填充等操作
 
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
-
-    """  
+    Args:
+        vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 预设的文本最大长度
+    """
     def sequence_to_ids(self, sequence, **kwargs):
-    	return self.sentence_to_ids(sequence, **kwargs)
+        return self.sentence_to_ids(sequence, **kwargs)
 
 
 class PairTokenizer(TransfomerTokenizer):
     """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+    Transfomer文本编码器，用于句子对拼接进行分词、ID化、填充等操作
 
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
+    Args:
+        vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 预设的文本最大长度
 
-    """  
+    """
     def sequence_to_ids(self, sequence_a, sequence_b, **kwargs):
-    	return self.pair_to_ids(sequence_a, sequence_b, **kwargs)
+        return self.pair_to_ids(sequence_a, sequence_b, **kwargs)
 
 
 class TokenTokenizer(TransfomerTokenizer):
     """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+    Transfomer文本编码器，用于按字符进行分词、ID化、填充等操作
 
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
+    Args:
+        vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 预设的文本最大长度
 
-    """  
+    """
     def tokenize(self, text, **kwargs):
         tokens = []
         text = ' '.join([token_ for token_ in text])
         tokens = self.vocab.tokenize(text)
         return tokens
-    
+
     def sequence_to_ids(self, sequence, **kwargs):
         return self.sentence_to_ids(sequence, **kwargs)
 
@@ -252,8 +235,14 @@ class SpanTokenizer(TransfomerTokenizer):
     :param max_seq_len: (int) 预设的文本最大长度
     :param tokenizer: (object) 编码器，用于实现文本分词和ID化
 
-    """  
-    def __init__(self, vocab, max_seq_len, split_token=' ', additional_special_token='[blank]'):
+    """
+    def __init__(
+        self,
+        vocab,
+        max_seq_len,
+        split_token=' ',
+        additional_special_token='[blank]'
+    ):
         super(SpanTokenizer, self).__init__(vocab, max_seq_len)
         self.split_token = split_token
         self.additional_special_token = self.split_token
@@ -268,6 +257,6 @@ class SpanTokenizer(TransfomerTokenizer):
             tokens += self.vocab.tokenize(span_)
             tokens += [self.additional_special_token]
         return tokens[:-1]
-    
+
     def sequence_to_ids(self, sequence, **kwargs):
         return self.sentence_to_ids(sequence, **kwargs)

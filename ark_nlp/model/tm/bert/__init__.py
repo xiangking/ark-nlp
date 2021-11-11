@@ -1,5 +1,5 @@
-from ark_nlp.dataset import PairSentenceClassificationDataset as Dataset
-from ark_nlp.dataset import PairSentenceClassificationDataset as BertTCDataset
+from ark_nlp.dataset import PairMergeSentenceClassificationDataset as Dataset
+from ark_nlp.dataset import PairMergeSentenceClassificationDataset as BertTCDataset
 
 from ark_nlp.processor.tokenizer.transfomer import PairTokenizer as Tokenizer
 from ark_nlp.processor.tokenizer.transfomer import PairTokenizer as BertTMTokenizer
