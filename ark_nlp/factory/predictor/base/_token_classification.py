@@ -17,11 +17,11 @@ from ark_nlp.factory.utils.conlleval import get_entities
 from ark_nlp.factory.predictor.base._sequence_classification import SequenceClassificationPredictor
 
 
-class TokenClassificationTask(SequenceClassificationPredictor):
+class TokenClassificationPredictor(SequenceClassificationPredictor):
 
     def __init__(self, *args, **kwargs):
 
-        super(SequenceClassificationPredictor, self).__init__(*args, **kwargs)
+        super(TokenClassificationPredictor, self).__init__(*args, **kwargs)
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
 

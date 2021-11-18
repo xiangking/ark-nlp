@@ -11,6 +11,7 @@ from ark_nlp.nn import BertConfig as UnsupSimCSEConfig
 from ark_nlp.nn import BertConfig as ModuleConfig
 
 from ark_nlp.model.tm.unsupervised_simcse.unsupervised_simcse import SimCSE
+from ark_nlp.model.tm.unsupervised_simcse.unsupervised_simcse import SimCSE as Module
 from ark_nlp.model.tm.unsupervised_simcse.unsupervised_simcse import SimCSE as UnsupSimCSE
 
 from ark_nlp.factory.optimizer import get_default_bert_optimizer as get_default_model_optimizer

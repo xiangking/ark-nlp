@@ -9,7 +9,6 @@ from ark_nlp.dataset.base._sentence_classification_dataset import TwinTowersSent
 
 from ark_nlp.dataset.base._token_classification_dataset import TokenClassificationDataset
 
-from ark_nlp.dataset.casrel_relation_extraction_dataset import CasRelREDataset
 from ark_nlp.dataset.text_classification_dataset import TCDataset
 from ark_nlp.dataset.text_match_dataset import TMDataset
 from ark_nlp.dataset.bio_named_entity_recognition_dataset import BIONERDataset

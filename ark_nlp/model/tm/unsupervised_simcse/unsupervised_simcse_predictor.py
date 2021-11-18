@@ -19,6 +19,20 @@ from ark_nlp.factory.predictor import SequenceClassificationPredictor
 class UnsupervisedSimCSEPredictor(SequenceClassificationPredictor):
     """UnsupervisedSimCSE的预测器"""
 
+    def _get_input_ids(
+        self,
+        text_a,
+        text_b
+    ):
+        if self.tokenizer.tokenizer_type == 'vanilla':
+            return self._convert_to_vanilla_ids(text_a, text_b)
+        elif self.tokenizer.tokenizer_type == 'transfomer':
+            return self._convert_to_transfomer_ids(text_a, text_b)
+        elif self.tokenizer.tokenizer_type == 'customized':
+            return self._convert_to_customized_ids(text_a, text_b)
+        else:
+            raise ValueError("The tokenizer type does not exist")
+
     def _convert_to_transfomer_ids(
         self,
         text_a,
@@ -62,7 +76,7 @@ class UnsupervisedSimCSEPredictor(SequenceClassificationPredictor):
         _proba = logits[0]
 
         if threshold is not None:
-            _pred = self._threshold(_proba)
+            _pred = self._threshold(_proba, threshold)
 
         if return_label_name:
             _pred = self.id2cat[_pred]
