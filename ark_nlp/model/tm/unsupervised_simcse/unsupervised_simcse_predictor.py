@@ -74,18 +74,18 @@ class UnsupervisedSimCSEPredictor(SequenceClassificationPredictor):
             logits = self.module.cosine_sim(**inputs).cpu().numpy()
 
         _proba = logits[0]
-
+        
         if threshold is not None:
             _pred = self._threshold(_proba, threshold)
 
-        if return_label_name:
+        if return_label_name and threshold is not None:
             _pred = self.id2cat[_pred]
 
         if threshold is not None:
             if return_proba:
                 return [_pred, _proba]
-        else:
-            return _pred
+            else:
+                return _pred
 
         return _proba
 
