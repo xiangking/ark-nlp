@@ -233,7 +233,7 @@ class PRGCRETask(SequenceClassificationTask):
         validation_data,
         batch_size,
         shuffle,
-        num_workers=1,
+        num_workers=0,
         evaluate_to_device_cols=None,
         **kwargs
     ):

@@ -110,7 +110,7 @@ class TransfomerTokenizer(BaseTokenizer):
 
     def sentence_to_ids(self, sequence, return_sequence_length=False):
         if type(sequence) == str:
-            sequence = self.tokenize(sequence) 
+            sequence = self.tokenize(sequence)
 
         if return_sequence_length:
             sequence_length = len(sequence)
@@ -119,8 +119,8 @@ class TransfomerTokenizer(BaseTokenizer):
         if len(sequence) > self.max_seq_len - 2:
             sequence = sequence[0:(self.max_seq_len - 2)]
         # 分别在首尾拼接特殊符号
-        sequence = ['[CLS]'] + sequence + ['[SEP]'] 
-        segment_ids = [0] * len(sequence) 
+        sequence = ['[CLS]'] + sequence + ['[SEP]']
+        segment_ids = [0] * len(sequence)
         # ID化
         sequence = self.vocab.convert_tokens_to_ids(sequence)
 
@@ -147,7 +147,7 @@ class TransfomerTokenizer(BaseTokenizer):
             sequence_a = self.tokenize(sequence_a)
 
         if type(sequence_b) == str:
-            sequence_b = self.tokenize(sequence_b) 
+            sequence_b = self.tokenize(sequence_b)
 
         if return_sequence_length:
             sequence_length = (len(sequence_a), len(sequence_b))

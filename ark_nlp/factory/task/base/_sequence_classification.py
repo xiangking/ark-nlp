@@ -94,7 +94,7 @@ class SequenceClassificationTask(Task):
         lr,
         params,
         shuffle,
-        num_workers=1,
+        num_workers=0,
         train_to_device_cols=None,
         **kwargs
     ):
@@ -341,7 +341,7 @@ class SequenceClassificationTask(Task):
         validation_data,
         batch_size,
         shuffle,
-        num_workers=1,
+        num_workers=0,
         evaluate_to_device_cols=None,
         **kwargs
     ):
