@@ -125,10 +125,12 @@ setup(
     zip_safe=False,
     install_requires=[
     "torch >= 1.0.0",
-    "tqdm >= 4.56.0",
+    "tqdm >= 4.27.0",
     "jieba >= 0.42.1",
     "transformers >= 3.0.0",
     "zhon >= 1.1.5",
+    "scipy",
+    "scikit-learn"
     ],
 )
 

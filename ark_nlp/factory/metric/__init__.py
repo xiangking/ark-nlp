@@ -4,16 +4,28 @@ from torch import nn
 from collections import Counter
 
 
-def topk_accuracy(logits, labels, k, *, ignore_index=-100, reduction='mean'):
+def topk_accuracy(
+    logits,
+    labels,
+    k,
+    ignore_index=-100,
+    reduction='mean'
+):
     """
     计算 TopK Accuracy
-    
-    :param logits: (Tensor) 模型预测的概率值
-    :param labels: (Tensor) 真实的标签值
-    :param k: (Int) Top K
-    
-    :returns:  
+
+    Args:
+        logits (:obj:`torch.FloatTensor`): 模型预测的概率值
+        labels (:obj:`torch.LongTensor`): 真实的标签值
+        k (:obj:`int`): Top K
+        ignore_index (:obj:`int`, optional, defaults to -100):
+        reduction (:obj:`str`, optional, defaults to "mean"): acc汇聚方式
+
+    :Returns:
+        TopK Accuracy
+
     """
+
     topk_pred = logits.topk(k, dim=1)[1]
     weights = (labels != ignore_index).float()
     num_labels = weights.sum()
@@ -34,31 +46,31 @@ class BiaffineSpanMetrics(nn.Module):
 
     def forward(self, logits, labels):
         logits = torch.argmax(logits, dim=-1)
-        batch_size, seq_len,hidden = labels.shape
-        logits = logits.view(batch_size, seq_len,hidden)
+        batch_size, seq_len, hidden = labels.shape
+        logits = logits.view(batch_size, seq_len, hidden)
 
         logits = logits.view(size=(-1,)).float()
         labels = labels.view(size=(-1,)).float()
 
         ones = torch.ones_like(logits)
         zero = torch.zeros_like(logits)
-        y_pred = torch.where(logits<1, zero, ones)
+        y_pred = torch.where(logits < 1, zero, ones)
 
         ones = torch.ones_like(labels)
         zero = torch.zeros_like(labels)
-        y_true = torch.where(labels<1, zero, ones)
+        y_true = torch.where(labels < 1, zero, ones)
 
         corr = torch.eq(logits, labels).float()
-        corr = torch.mul(corr,y_true)
+        corr = torch.mul(corr, y_true)
         recall = torch.sum(corr) / (torch.sum(y_true) + 1e-8)
         precision = torch.sum(corr) / (torch.sum(y_pred) + 1e-8)
-        f1=2*recall*precision/(recall+precision+1e-8)
+        f1 = 2 * recall * precision / (recall + precision + 1e-8)
 
         return recall, precision, f1
 
 
 class SpanMetrics(object):
-    
+
     def __init__(self, id2label):
         self.id2label = id2label
         self.reset()

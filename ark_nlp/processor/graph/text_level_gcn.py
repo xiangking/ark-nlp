@@ -3,7 +3,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
@@ -15,15 +15,15 @@ import numpy as np
 
 class TextLevelGCNGraph(object):
     def __init__(
-        self, 
-        graph='ngram_unweighted', 
+        self,
+        graph='ngram_unweighted',
         window_size=5
     ):
         self.graph = graph
         self.window_size = window_size
-        
+
     def build_graph(
-        self, 
+        self,
         vocab,
         dataset
     ):
@@ -34,13 +34,13 @@ class TextLevelGCNGraph(object):
             self.edge_num, self.edges_matrix, self.edge_weight = self.build_pmi_ngram_graph(vocab, dataset, self.window_size)
         else:
             raise ValueError('没有该模式的构图')
-            
-    @staticmethod        
+
+    @staticmethod
     def build_pmi_ngram_graph(
-        vocab, 
+        vocab,
         dataset,
         window_size=20
-    ):        
+    ):
         pair_count_matrix = np.zeros((vocab.vocab_size, vocab.vocab_size), dtype=int)
         word_count = np.zeros(vocab.vocab_size, dtype=int)
 
@@ -88,8 +88,8 @@ class TextLevelGCNGraph(object):
         edge_num = count
 
         return edge_num, adj_matrix, edge_weight
-    
-    @staticmethod 
+
+    @staticmethod
     def build_ngram_unweighted_graph(
         vocab,
         dataset,
@@ -114,10 +114,10 @@ class TextLevelGCNGraph(object):
         edge_num = count
 
         return edge_num, adj_matrix
-    
+
     def get_sequence_graph(
-        self, 
-        sequence, 
+        self,
+        sequence,
         local_token2id
     ):
         local_edges = []

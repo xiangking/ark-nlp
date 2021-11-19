@@ -32,8 +32,8 @@ def attention_avg_pooling(sent1, sent2, mask1, mask2):
 
 class Wide_Conv(nn.Module):
     def __init__(
-        self, 
-        seq_len, 
+        self,
+        seq_len,
         embeds_size
     ):
         super(Wide_Conv, self).__init__()
@@ -43,20 +43,20 @@ class Wide_Conv(nn.Module):
         nn.init.xavier_normal_(self.W)
         self.conv = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=3, padding=[1, 1], stride=1)
         self.tanh = nn.Tanh()
-        
+
     def forward(
-        self, 
-        sent1, 
-        sent2, 
-        mask1, 
+        self,
+        sent1,
+        sent2,
+        mask1,
         mask2
     ):
 
         A = match_score(sent1, sent2, mask1, mask2)
-        
+
         attn_feature_map1 = A.matmul(self.W)
         attn_feature_map2 = A.transpose(1, 2).matmul(self.W)
-        
+
         x1 = torch.cat([sent1.unsqueeze(1), attn_feature_map1.unsqueeze(1)], 1)
         x2 = torch.cat([sent2.unsqueeze(1), attn_feature_map2.unsqueeze(1)], 1)
         o1, o2 = self.conv(x1).squeeze(1), self.conv(x2).squeeze(1)

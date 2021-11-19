@@ -3,26 +3,22 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import copy
 import torch
-import numpy as np
-import pandas as pd
 
-from torch.utils.data import Dataset
-from ark_nlp.dataset import BIOTokenClassificationDataset
+from ark_nlp.dataset import TokenClassificationDataset
 
 
-class SpanNERDataset(BIOTokenClassificationDataset):
+class SpanNERDataset(TokenClassificationDataset):
 
     def _get_categories(self):
-        categories = sorted(list(set([label_['type'] 
+        categories = sorted(list(set([label_['type']
                                       for data in self.dataset for label_ in data['label']])))
         if 'O' in categories:
             categories.remove('O')
@@ -46,7 +42,7 @@ class SpanNERDataset(BIOTokenClassificationDataset):
             start_label = torch.zeros((bert_tokenizer.max_seq_len))
 
             end_label = torch.zeros((bert_tokenizer.max_seq_len))
-            
+
             label_ = set()
             for info_ in row_['label']:
                 if info_['start_idx'] in start_mapping and info_['end_idx'] in end_mapping:
@@ -54,21 +50,21 @@ class SpanNERDataset(BIOTokenClassificationDataset):
                     end_idx = end_mapping[info_['end_idx']]
                     if start_idx > end_idx or info_['entity'] == '':
                         continue
-                        
+
                     start_label[start_idx+1] = self.cat2id[info_['type']]
                     end_label[end_idx+1] = self.cat2id[info_['type']]
-                    
+
                     label_.add((self.cat2id[info_['type']], start_idx, end_idx))
 
             features.append({
-                'input_ids': input_ids, 
-                'attention_mask': input_mask, 
-                'token_type_ids': segment_ids, 
+                'input_ids': input_ids,
+                'attention_mask': input_mask,
+                'token_type_ids': segment_ids,
                 'start_label_ids': start_label,
                 'end_label_ids': end_label,
                 'label_ids': list(label_)
             })
-            
+
         return features
 
     @property

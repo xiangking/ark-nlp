@@ -3,41 +3,42 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
 Status: Active
 """
 
-import abc
 import dgl
-import torch
-import random
-import numpy as np
 
-from torch.utils.data import Dataset
 from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
-    
+
 class TextLevelGCNTokenizer(BaseTokenizer):
-    """
-    文本编码器，用于对文本进行图编码
 
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
+    def __init__(
+        self,
+        vocab,
+        max_seq_len,
+        graph
+    ):
+        """
+        文本编码器，用于对文本进行图编码
 
-    Reference: 
-        [1] 
-    """  
-    def __init__(self, max_seq_len, vocab, graph):
+        Args:
+            vocab: 词典类对象，用于实现文本分词和ID化
+            max_seq_len (:obj:`int`): 预设的文本最大长度
+            graph: 图类对象，用于生成子图
+
+        """
         super(TextLevelGCNTokenizer, self).__init__(max_seq_len, vocab)
         self.graph = graph
         self.tokenizer_type = 'graph'
-        
+
     def sequence_to_graph(self, sequence):
         if type(sequence) == str:
-            sequence = self.tokenize(sequence) 
+            sequence = self.tokenize(sequence)
 
         sequence = self.vocab.convert_to_ids(sequence)
         if len(sequence) == 0:
