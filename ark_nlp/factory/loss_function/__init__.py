@@ -3,7 +3,7 @@ from torch.nn.modules.loss import (
     CrossEntropyLoss,
     SmoothL1Loss
 )
-from .casrel_loss import CasrelLoss
+from .casrel_loss import CasRelLoss
 from .focal_loss import FocalLoss
 from .label_smoothing_ce_loss import LabelSmoothingCrossEntropy
 from .global_pointer_ce_loss import GlobalPointerCrossEntropy
@@ -16,7 +16,7 @@ all_losses_dict = dict(
     crossentropy=CrossEntropyLoss,
     ce=CrossEntropyLoss,
     smoothl1=SmoothL1Loss,
-    casrel=CasrelLoss,
+    casrel=CasRelLoss,
     labelsmoothingcrossentropy=LabelSmoothingCrossEntropy,
     lsce=LabelSmoothingCrossEntropy,
     gpce=GlobalPointerCrossEntropy,

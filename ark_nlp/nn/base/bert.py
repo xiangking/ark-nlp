@@ -39,7 +39,7 @@ class Bert(BertPreTrainedModel):
         self,
         config,
         encoder_trained=True,
-        pooling='cls_with_fc'
+        pooling='cls_with_pooler'
     ):
         super(Bert, self).__init__(config)
 
@@ -61,27 +61,39 @@ class Bert(BertPreTrainedModel):
             return torch.mean(x, dim=1)
         return torch.sum(x * attention_mask.unsqueeze(2), dim=1) / torch.sum(attention_mask, dim=1, keepdim=True)
 
-    def sequence_pooling(self, sequence_feature, attention_mask):
+    def sequence_pooling(self, sequence_feature, attention_mask, pooling):
 
-        if self.pooling == 'cls_with_fc':
+        if pooling is None:
+            pooling = self.pooling
+
+        if pooling == 'cls_with_pooler':
             return sequence_feature.pooler_output
         sequence_feature = sequence_feature.hidden_states
-        if self.pooling == 'first_last_avg':
+        if pooling == 'first_last_avg':
             sequence_feature = sequence_feature[-1] + sequence_feature[1]
-        elif self.pooling == 'last_avg':
+        elif pooling == 'last_avg':
             sequence_feature = sequence_feature[-1]
-        elif self.pooling == 'last_2_avg':
+        elif pooling == 'last_2_avg':
             sequence_feature = sequence_feature[-1] + sequence_feature[-2]
-        elif self.pooling == 'cls':
+        elif pooling == 'cls':
             return sequence_feature[-1][:, 0, :]
         else:
-            raise Exception("unknown pooling {}".format(self.pooling))
+            raise Exception("unknown pooling {}".format(pooling))
 
         return self.mask_pooling(sequence_feature, attention_mask)
 
-    def get_encoder_feature(self, encoder_output, attention_mask):
+    def get_encoder_feature(
+        self,
+        encoder_output,
+        attention_mask,
+        pooling=None
+    ):
         if self.task == 'SequenceLevel':
-            return self.sequence_pooling(encoder_output, attention_mask)
+            return self.sequence_pooling(
+                encoder_output,
+                attention_mask,
+                pooling
+            )
         elif self.task == 'TokenLevel':
             return encoder_output[-1]
         else:
@@ -92,12 +104,14 @@ class Bert(BertPreTrainedModel):
         input_ids=None,
         attention_mask=None,
         token_type_ids=None,
+        position_ids=None,
         **kwargs
     ):
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
+            position_ids=position_ids,
             return_dict=True,
             output_hidden_states=True
         )
@@ -148,12 +162,14 @@ class BertForSequenceClassification(BertPreTrainedModel):
         input_ids=None,
         attention_mask=None,
         token_type_ids=None,
+        position_ids=None,
         **kwargs
     ):
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
-            token_type_ids=token_type_ids
+            token_type_ids=token_type_ids,
+            position_ids=position_ids
         )
 
         sequence_output = outputs[1]
@@ -202,12 +218,14 @@ class BertForTokenClassification(BertPreTrainedModel):
         input_ids=None,
         attention_mask=None,
         token_type_ids=None,
+        position_ids=None,
         **kwargs
     ):
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
-            token_type_ids=token_type_ids
+            token_type_ids=token_type_ids,
+            position_ids=position_ids
         )
 
         sequence_output = outputs[0]

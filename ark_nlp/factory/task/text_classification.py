@@ -62,6 +62,19 @@ class TCTask(SequenceClassificationTask):
 
         self._on_step_end_record(**kwargs)
 
+    def _on_epoch_end(
+        self,
+        epoch,
+        verbose=True,
+        **kwargs
+    ):
+
+        if verbose:
+            print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
+                epoch,
+                self.logs['epoch_loss'] / self.logs['epoch_step'],
+                self.logs['epoch_evaluation'] / self.logs['epoch_step']))
+
     def _on_evaluate_begin_record(self, **kwargs):
 
         self.evaluate_logs['eval_loss'] = 0
@@ -121,16 +134,3 @@ class TCTask(SequenceClassificationTask):
                 f1_score
                 )
             )
-
-    def _on_epoch_end(
-        self,
-        epoch,
-        verbose=True,
-        **kwargs
-    ):
-
-        if verbose:
-            print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
-                epoch,
-                self.logs['epoch_loss'] / self.logs['epoch_step'],
-                self.logs['epoch_evaluation'] / self.logs['epoch_step']))

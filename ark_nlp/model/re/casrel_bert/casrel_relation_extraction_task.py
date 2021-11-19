@@ -319,7 +319,7 @@ class CasRelRETask(SequenceClassificationTask):
         validation_data,
         batch_size,
         shuffle,
-        num_workers=1,
+        num_workers=0,
         **kwargs
     ):
 

@@ -5,7 +5,10 @@ from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as Tokenizer
 from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as GlobalPointerBertNERTokenizer
 
 from ark_nlp.nn import BertConfig as GlobalPointerBertConfig
+from ark_nlp.nn import BertConfig as ModuleConfig
+
 from ark_nlp.model.ner.global_pointer_bert.global_pointer_bert import GlobalPointerBert
+from ark_nlp.model.ner.global_pointer_bert.global_pointer_bert import GlobalPointerBert as Module
 
 from ark_nlp.factory.optimizer import get_default_bert_optimizer as get_default_model_optimizer
 from ark_nlp.factory.optimizer import get_default_bert_optimizer as get_default_global_pointer_bert_optimizer

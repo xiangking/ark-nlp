@@ -5,7 +5,7 @@ from transformers import BertModel
 from transformers import BertPreTrainedModel
 
 
-class CasrelBert(BertPreTrainedModel):
+class CasRelBert(BertPreTrainedModel):
     def __init__(
         self,
         config,
@@ -23,7 +23,7 @@ class CasrelBert(BertPreTrainedModel):
             [2] https://github.com/longlongman/CasRel-pytorch-reimplement
         """  # noqa: ignore flake8"
 
-        super(CasrelBert, self).__init__(config)
+        super(CasRelBert, self).__init__(config)
 
         self.bert = BertModel(config)
 
