@@ -100,6 +100,7 @@ class SequenceClassificationTask(Task):
     ):
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
+            self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
 
         # 在初始化时会有class_num参数，若在初始化时不指定，则在训练阶段从训练集获取信息
         if self.class_num is None:
