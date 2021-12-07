@@ -8,30 +8,31 @@ class FGM(object):
     """
     基于FGM算法的攻击机制
 
-    :param model (torch.nn.Module) : 训练的模型
+    Args:
+        module (:obj:`torch.nn.Module`): 模型
 
     Examples::
 
         >>> # 初始化
-        >>> fgm = FGM(model)
+        >>> fgm = FGM(module)
         >>> for batch_input, batch_label in data:
         >>>     # 正常训练
-        >>>     loss = model(batch_input, batch_label)
+        >>>     loss = module(batch_input, batch_label)
         >>>     loss.backward() # 反向传播，得到正常的grad
         >>>     # 对抗训练
         >>>     fgm.attack() # 在embedding上添加对抗扰动
-        >>>     loss_adv = model(batch_input, batch_label)
+        >>>     loss_adv = module(batch_input, batch_label)
         >>>     loss_adv.backward() # 反向传播，并在正常的grad基础上，累加对抗训练的梯度
         >>>     fgm.restore() # 恢复embedding参数
         >>>     # 梯度下降，更新参数
         >>>     optimizer.step()
-        >>>     model.zero_grad()
+        >>>     optimizer.zero_grad()
 
     Reference:
         [1]  https://zhuanlan.zhihu.com/p/91269728
     """
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, module):
+        self.module = module
         self.backup = {}
 
     def attack(
@@ -39,7 +40,7 @@ class FGM(object):
         epsilon=1.,
         emb_name='word_embeddings'
     ):
-        for name, param in self.model.named_parameters():
+        for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
                 self.backup[name] = param.data.clone()
                 norm = torch.norm(param.grad)
@@ -51,7 +52,7 @@ class FGM(object):
         self,
         emb_name='word_embeddings'
     ):
-        for name, param in self.model.named_parameters():
+        for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
                 assert name in self.backup
                 param.data = self.backup[name]
@@ -62,36 +63,37 @@ class PGD(object):
     """
     基于PGD算法的攻击机制
 
-    :param model (torch.nn.Module) : 训练的模型
+    Args:
+        module (:obj:`torch.nn.Module`): 模型
 
     Examples::
 
-        >>> pgd = PGD(model)
+        >>> pgd = PGD(module)
         >>> K = 3
         >>> for batch_input, batch_label in data:
         >>>     # 正常训练
-        >>>     loss = model(batch_input, batch_label)
+        >>>     loss = module(batch_input, batch_label)
         >>>     loss.backward() # 反向传播，得到正常的grad
         >>>     pgd.backup_grad()
         >>>     # 对抗训练
         >>>     for t in range(K):
         >>>         pgd.attack(is_first_attack=(t==0)) # 在embedding上添加对抗扰动, first attack时备份param.data
         >>>         if t != K-1:
-        >>>             model.zero_grad()
+        >>>             optimizer.zero_grad()
         >>>         else:
         >>>             pgd.restore_grad()
-        >>>         loss_adv = model(batch_input, batch_label)
+        >>>         loss_adv = module(batch_input, batch_label)
         >>>         loss_adv.backward() # 反向传播，并在正常的grad基础上，累加对抗训练的梯度
         >>>     pgd.restore() # 恢复embedding参数
         >>>     # 梯度下降，更新参数
         >>>     optimizer.step()
-        >>>     model.zero_grad()
+        >>>     optimizer.zero_grad()
 
     Reference:
         [1]  https://zhuanlan.zhihu.com/p/91269728
     """
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, module):
+        self.module = module
         self.emb_backup = {}
         self.grad_backup = {}
 
@@ -103,7 +105,7 @@ class PGD(object):
         is_first_attack=False
     ):
         # emb_name这个参数要换成你模型中embedding的参数名
-        for name, param in self.model.named_parameters():
+        for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
                 if is_first_attack:
                     self.emb_backup[name] = param.data.clone()
@@ -115,7 +117,7 @@ class PGD(object):
 
     def restore(self, emb_name='emb.'):
         # emb_name这个参数要换成你模型中embedding的参数名
-        for name, param in self.model.named_parameters():
+        for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
                 assert name in self.emb_backup
                 param.data = self.emb_backup[name]
@@ -128,11 +130,11 @@ class PGD(object):
         return self.emb_backup[param_name] + r
 
     def backup_grad(self):
-        for name, param in self.model.named_parameters():
+        for name, param in self.module.named_parameters():
             if param.requires_grad:
                 self.grad_backup[name] = param.grad.clone()
 
     def restore_grad(self):
-        for name, param in self.model.named_parameters():
+        for name, param in self.module.named_parameters():
             if param.requires_grad:
                 param.grad = self.grad_backup[name]

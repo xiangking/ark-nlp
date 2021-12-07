@@ -21,6 +21,18 @@ from pandas.core.frame import DataFrame
 
 
 class BaseDataset(Dataset):
+    """
+    Dataset基类
+
+    Args:
+        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
+        categories (:obj:`list`, optional, defaults to `None`): 数据类别
+        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
+        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
+        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
+        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         data,
@@ -68,8 +80,10 @@ class BaseDataset(Dataset):
         """
         加载数据集
 
-        :param data_path: (string) the data file to load
-        """
+        Args:
+            data_path (:obj:`string`): 数据地址
+        """  # noqa: ignore flake8"
+
         data_df = self._read_data(data_path)
 
         if self.is_retain_df:
@@ -90,10 +104,10 @@ class BaseDataset(Dataset):
         读取所需数据
 
         Args:
-            data_path (:obj:`str`): 数据所在路径
-            data_format (:obj:`str`, defaults to `None`): 数据存储格式
+            data_path (:obj:`string`): 数据地址
+            data_format (:obj:`string`, defaults to `None`): 数据存储格式
             skiprows (:obj:`int`, defaults to -1): 读取跳过指定行数，默认为不跳过
-        """
+        """  # noqa: ignore flake8"
 
         if data_format is not None:
             data_format = data_path.split('.')[-1]
@@ -123,7 +137,7 @@ class BaseDataset(Dataset):
         读取所需数据
 
         Args:
-            data_path (:obj:`str`): 数据所在路径
+            data_path (:obj:`string`): 数据所在路径
             skiprows (:obj:`int`, defaults to -1): 读取跳过指定行数，默认为不跳过
         """
         datasets = []
@@ -144,7 +158,8 @@ class BaseDataset(Dataset):
         """
         将文本转化成id的形式
 
-        :param tokenizer:
+        Args:
+            tokenizer: 编码器
         """
         if tokenizer.tokenizer_type == 'vanilla':
             features = self._convert_to_vanilla_ids(tokenizer)

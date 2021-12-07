@@ -18,7 +18,21 @@ from ark_nlp.factory.utils.ema import EMA
 
 
 class Task(object):
-    """所有Task类的基类，封装Task类通用的方法和属性"""
+    """
+    所有Task类的基类，封装Task类通用的方法和属性
+
+    Args:
+        module: 深度学习模型
+        optimizer: 训练模型使用的优化器名或者优化器对象
+        loss_function: 训练模型使用的损失函数名或损失函数对象
+        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
+        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
+        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
+        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
+        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        **kwargs (optional): 其他可选参数
+    """  # noqa: ignore flake8"
 
     def __init__(
         self,
@@ -33,22 +47,6 @@ class Task(object):
         ema_decay=None,
         **kwargs
     ):
-        """
-        初始化Task
-
-        Args:
-            module: 深度学习模型
-            optimizer: 训练模型使用的优化器名或者优化器对象
-            loss_function: 训练模型使用的损失函数名或损失函数对象
-            class_num (optional): 标签数目
-            scheduler (optional): scheduler对象
-            n_gpu (optional): GPU数目
-            device (optional): torch.device对象，当device为None时，会自动检测是否有GPU
-            cuda_device (optional): GPU编号，当device为None时，根据cuda_device设置device
-            ema_decay (optional): EMA的加权系数
-            **kwargs (optional): 其他可选参数
-        """
-
         self.fit_counter = 0
         self.module = module
         self.optimizer = optimizer
