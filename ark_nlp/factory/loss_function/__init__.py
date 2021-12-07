@@ -24,6 +24,13 @@ all_losses_dict = dict(
 
 
 def get_loss(_loss):
+    """
+    加载数据集
+
+    Args:
+        _loss (:obj:`string` or :obj:`torch module`): 损失函数名或损失函数对象
+    """  # noqa: ignore flake8"
+
     if isinstance(_loss, str):
         _loss = _loss.lower()
         _loss = _loss.replace('_', '')

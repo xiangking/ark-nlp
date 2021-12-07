@@ -15,6 +15,15 @@ import numpy as np
 
 
 class BiaffineNERPredictor(object):
+    """
+    Biaffine命名实体的预测器
+
+    Args:
+        module: 深度学习模型
+        tokernizer: 分词器
+        cat2id (:obj:`dict`): 标签映射
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         module,
@@ -79,6 +88,12 @@ class BiaffineNERPredictor(object):
         self,
         text=''
     ):
+        """
+        单样本预测
+
+        Args:
+            text (:obj:`string`): 输入文本
+        """  # noqa: ignore flake8"
 
         features, token_mapping = self._get_input_ids(text)
         self.module.eval()

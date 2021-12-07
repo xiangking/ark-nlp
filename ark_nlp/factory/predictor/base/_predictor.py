@@ -14,7 +14,14 @@ import torch
 
 
 class Predictor(object):
-    """所有Predictor类的基类，封装Predictor类通用的方法和属性"""
+    """
+    所有Predictor类的基类，封装Predictor类通用的方法和属性
+
+    Args:
+        module: 深度学习模型
+        tokernizer: 分词器
+        cat2id (:obj:`dict`): 标签映射
+    """  # noqa: ignore flake8"
 
     def __init__(
         self,
@@ -22,15 +29,6 @@ class Predictor(object):
         tokernizer,
         cat2id
     ):
-        """
-        初始化Predictor
-
-        Args:
-            module: 深度学习模型
-            tokernizer: 分词器
-            cat2id: 标签映射
-        """
-
         self.module = module
 
         self.cat2id = cat2id

@@ -6,9 +6,10 @@ class EMA(object):
     Maintains (exponential) moving average of a set of parameters.
     使用ema累积模型参数
 
-    :param parameters: 模型参数
-    :param decay: (float) 指数衰减率
-    :param use_num_updates: (bool) Whether to use number of updates when computing averages
+    Args:
+        parameters (:obj:`list`): 需要训练的模型参数
+        decay (:obj:`float`): 指数衰减率
+        use_num_updates (:obj:`bool`, optional, defaults to True): Whether to use number of updates when computing averages
 
     Examples::
 
@@ -26,8 +27,8 @@ class EMA(object):
 
     Reference:
         [1]  https://github.com/fadel/pytorch_ema
+    """  # noqa: ignore flake8"
 
-    """
     def __init__(
         self,
         parameters,

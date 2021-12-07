@@ -17,6 +17,15 @@ from ark_nlp.factory.utils.conlleval import get_entities
 
 
 class BIONERPredictor(object):
+    """
+    BIO模式的字符分类任务的预测器
+
+    Args:
+        module: 深度学习模型
+        tokernizer: 分词器
+        cat2id (:obj:`dict`): 标签映射
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         module,
@@ -88,6 +97,12 @@ class BIONERPredictor(object):
         self,
         text=''
     ):
+        """
+        单样本预测
+
+        Args:
+            text (:obj:`string`): 输入文本
+        """  # noqa: ignore flake8"
 
         features = self._get_input_ids(text)
         self.module.eval()
