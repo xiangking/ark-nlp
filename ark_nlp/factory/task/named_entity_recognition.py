@@ -19,6 +19,21 @@ from ark_nlp.factory.task.base._token_classification import TokenClassificationT
 
 
 class BIONERTask(TokenClassificationTask):
+    """
+    BIO序列分类任务的Task
+    
+    Args:
+        module: 深度学习模型
+        optimizer: 训练模型使用的优化器名或者优化器对象
+        loss_function: 训练模型使用的损失函数名或损失函数对象
+        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
+        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
+        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
+        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
+        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        **kwargs (optional): 其他可选参数
+    """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
 
@@ -84,6 +99,21 @@ class BIONERTask(TokenClassificationTask):
 
 
 class CRFNERTask(TokenClassificationTask):
+    """
+    +CRF命名实体模型的Task
+    
+    Args:
+        module: 深度学习模型
+        optimizer: 训练模型使用的优化器名或者优化器对象
+        loss_function: 训练模型使用的损失函数名或损失函数对象
+        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
+        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
+        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
+        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
+        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        **kwargs (optional): 其他可选参数
+    """  # noqa: ignore flake8"
 
     def _compute_loss(
         self,
@@ -164,6 +194,21 @@ class CRFNERTask(TokenClassificationTask):
 
 
 class BiaffineNERTask(TokenClassificationTask):
+    """
+    Biaffine命名实体模型的Task
+    
+    Args:
+        module: 深度学习模型
+        optimizer: 训练模型使用的优化器名或者优化器对象
+        loss_function: 训练模型使用的损失函数名或损失函数对象
+        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
+        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
+        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
+        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
+        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        **kwargs (optional): 其他可选参数
+    """  # noqa: ignore flake8"
 
     def _compute_loss(
         self,
@@ -229,6 +274,21 @@ class BiaffineNERTask(TokenClassificationTask):
 
 
 class GlobalPointerNERTask(TokenClassificationTask):
+    """
+    GlobalPointer命名实体模型的Task
+    
+    Args:
+        module: 深度学习模型
+        optimizer: 训练模型使用的优化器名或者优化器对象
+        loss_function: 训练模型使用的损失函数名或损失函数对象
+        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
+        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
+        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
+        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
+        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        **kwargs (optional): 其他可选参数
+    """  # noqa: ignore flake8"
 
     def _compute_loss(
         self,
@@ -294,6 +354,21 @@ class GlobalPointerNERTask(TokenClassificationTask):
 
 
 class SpanNERTask(TokenClassificationTask):
+    """
+    Span模式的命名实体模型的Task
+    
+    Args:
+        module: 深度学习模型
+        optimizer: 训练模型使用的优化器名或者优化器对象
+        loss_function: 训练模型使用的损失函数名或损失函数对象
+        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
+        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
+        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
+        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
+        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        **kwargs (optional): 其他可选参数
+    """  # noqa: ignore flake8"
 
     def _get_train_loss(
         self,

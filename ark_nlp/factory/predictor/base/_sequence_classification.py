@@ -17,7 +17,14 @@ from ark_nlp.factory.predictor.base._predictor import Predictor
 
 
 class SequenceClassificationPredictor(Predictor):
-    """序列分类任务的预测器"""
+    """
+    序列分类任务的预测器
+
+    Args:
+        module: 深度学习模型
+        tokernizer: 分词器
+        cat2id (:obj:`dict`): 标签映射
+    """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
         super(SequenceClassificationPredictor, self).__init__(*args, **kwargs)
@@ -31,6 +38,16 @@ class SequenceClassificationPredictor(Predictor):
         return_label_name=True,
         return_proba=False
     ):
+        """
+        单样本预测
+
+        Args:
+            text (:obj:`string`): 输入文本
+            topk (:obj:`int`, optional, defaults to 1): 返回TopK结果
+            return_label_name (:obj:`bool`, optional, defaults to True): 返回结果的标签ID转化成原始标签
+            return_proba (:obj:`bool`, optional, defaults to False): 返回结果是否带上预测的概率
+        """  # noqa: ignore flake8"
+
         if topk is None:
             topk = len(self.cat2id) if len(self.cat2id) > 2 else 1
 
@@ -69,6 +86,16 @@ class SequenceClassificationPredictor(Predictor):
         return_label_name=True,
         return_proba=False
     ):
+        """
+        batch样本预测
+
+        Args:
+            test_data (:obj:`ark_nlp dataset`): 输入batch文本
+            batch_size (:obj:`int`, optional, defaults to 16): batch大小
+            shuffle (:obj:`bool`, optional, defaults to False): 是否打扰数据集
+            return_proba (:obj:`bool`, optional, defaults to False): 返回结果是否带上预测的概率
+        """  # noqa: ignore flake8"
+
         self.inputs_cols = test_data.dataset_cols
 
         preds = []

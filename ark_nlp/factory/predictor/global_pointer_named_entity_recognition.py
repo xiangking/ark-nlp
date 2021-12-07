@@ -15,6 +15,15 @@ import numpy as np
 
 
 class GlobalPointerNERPredictor(object):
+    """
+    GlobalPointer命名实体识别的预测器
+
+    Args:
+        module: 深度学习模型
+        tokernizer: 分词器
+        cat2id (:obj:`dict`): 标签映射
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         module,
@@ -79,10 +88,16 @@ class GlobalPointerNERPredictor(object):
     def predict_one_sample(
         self,
         text='',
-        return_label_name=True,
-        return_proba=False,
         threshold=0
     ):
+        """
+        单样本预测
+
+        Args:
+            text (:obj:`string`): 输入文本
+            threshold (:obj:`float`, optional, defaults to 0): 预测的阈值
+        """  # noqa: ignore flake8"
+
         features, token_mapping = self._get_input_ids(text)
         self.module.eval()
 

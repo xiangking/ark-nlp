@@ -21,7 +21,21 @@ from ark_nlp.factory.task.base._task import Task
 
 
 class SequenceClassificationTask(Task):
-    """序列分类任务的基类"""
+    """
+    序列分类任务的基类
+    
+    Args:
+        module: 深度学习模型
+        optimizer: 训练模型使用的优化器名或者优化器对象
+        loss_function: 训练模型使用的损失函数名或损失函数对象
+        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
+        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
+        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
+        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
+        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        **kwargs (optional): 其他可选参数
+    """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
         super(SequenceClassificationTask, self).__init__(*args, **kwargs)
@@ -30,7 +44,7 @@ class SequenceClassificationTask(Task):
 
     def fit(
         self,
-        train_data=None,
+        train_data,
         validation_data=None,
         lr=False,
         params=None,
@@ -39,6 +53,20 @@ class SequenceClassificationTask(Task):
         gradient_accumulation_steps=1,
         **kwargs
     ):
+        """
+        训练方法
+        
+        Args:
+            train_data (:obj:`ark_nlp dataset`): 训练的batch文本
+            validation_data (:obj:`ark_nlp dataset`): 验证的batch文本
+            lr (:obj:`float` or :obj:`bool`, optional, defaults to False): 学习率
+            params (:obj:`str` or :obj:`torch.optim.Optimizer` or :obj:`list` or :obj:`None`, optional, defaults to None): 优化器，可能是名称、对象、参数列表
+            batch_size (:obj:`int`, optional, defaults to 32): batch大小
+            epochs (:obj:`int`, optional, defaults to 1): 训练轮数
+            gradient_accumulation_steps (:obj:`int`, optional, defaults to 1): 梯度累计数
+            **kwargs (optional): 其他可选参数
+        """  # noqa: ignore flake8"
+
         self.logs = dict()
 
         train_generator = self._on_train_begin(
@@ -311,6 +339,15 @@ class SequenceClassificationTask(Task):
         evaluate_batch_size=16,
         **kwargs
     ):
+        """
+        验证方法
+        
+        Args:
+            validation_data (:obj:`ark_nlp dataset`): 训练的batch文本
+            evaluate_batch_size (:obj:`int`, optional, defaults to 32): 验证阶段batch大小
+            **kwargs (optional): 其他可选参数
+        """  # noqa: ignore flake8"
+
         self.evaluate_logs = dict()
 
         evaluate_generator = self._on_evaluate_begin(

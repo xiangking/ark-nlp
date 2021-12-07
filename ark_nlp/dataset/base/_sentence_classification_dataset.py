@@ -14,6 +14,17 @@ from ark_nlp.dataset.base._dataset import BaseDataset
 
 
 class SentenceClassificationDataset(BaseDataset):
+    """
+    用于序列分类任务的Dataset
+
+    Args:
+        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
+        categories (:obj:`list`, optional, defaults to `None`): 数据类别
+        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
+        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
+        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
+        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+    """  # noqa: ignore flake8"
 
     def _get_categories(self):
         return sorted(list(set([data['label'] for data in self.dataset])))
@@ -78,6 +89,17 @@ class SentenceClassificationDataset(BaseDataset):
 
 
 class PairMergeSentenceClassificationDataset(BaseDataset):
+    """
+    用于句子对合并后进行序列分类任务的Dataset，例如BERT分类任务
+
+    Args:
+        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
+        categories (:obj:`list`, optional, defaults to `None`): 数据类别
+        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
+        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
+        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
+        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+    """  # noqa: ignore flake8"
 
     def _get_categories(self):
         return sorted(list(set([data['label'] for data in self.dataset])))
@@ -122,6 +144,17 @@ class PairMergeSentenceClassificationDataset(BaseDataset):
 
 
 class TwinTowersSentenceClassificationDataset(BaseDataset):
+    """
+    用于双塔序列分类任务的Dataset，即句子对不组合，分开输入模型
+
+    Args:
+        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
+        categories (:obj:`list`, optional, defaults to `None`): 数据类别
+        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
+        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
+        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
+        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+    """  # noqa: ignore flake8"
 
     def _get_categories(self):
         return sorted(list(set([data['label'] for data in self.dataset])))
