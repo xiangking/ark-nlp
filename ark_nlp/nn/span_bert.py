@@ -9,19 +9,21 @@ from ark_nlp.nn.layer.pooler_block import PoolerEndLogits
 
 
 class SpanBert(BertForTokenClassification):
+    """
+    基于span模式的BERT指针的命名实体模型
+
+    Args:
+        config: 
+            模型的配置对象
+        encoder_trained (:obj:`bool`, optional, defaults to True):
+            bert参数是否可训练，默认可训练
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         config,
         encoder_trained=True
     ):
-        """
-        初始化基于BERT指针的命名实体模型
-
-        Args:
-            config: 模型的配置对象
-            bert_trained (:obj:`bool`, optional): 预设的文本最大长度
-        """  # noqa: ignore flake8"
-
         super(SpanBert, self).__init__(config)
 
         self.num_labels = config.num_labels

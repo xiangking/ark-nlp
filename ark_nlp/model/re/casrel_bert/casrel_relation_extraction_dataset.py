@@ -3,7 +3,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at 
+# You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
 
 Author: Xiang Wang, xiangking1995@163.com
@@ -11,63 +11,69 @@ Status: Active
 """
 
 import copy
-import json
-import torch
 import random
-import codecs
 import numpy as np
-import pandas as pd
 
-from functools import lru_cache
-from torch.utils.data import Dataset
 from ark_nlp.dataset.base._dataset import BaseDataset
 
 
 class CasRelREDataset(BaseDataset):
-        
+    """
+    用于CasRel bert联合关系抽取任务的Dataset
+
+    Args:
+        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
+        categories (:obj:`list`, optional, defaults to `None`): 数据类别
+        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
+        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
+        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
+        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+    """  # noqa: ignore flake8"
+
     def _get_categories(self):
         return sorted(list(set([triple_[3] for data_ in self.dataset for triple_ in data_['label']])))
-    
+
     def _convert_to_dataset(self, data_df):
-        
+
         dataset = []
-        
+
         data_df['text'] = data_df['text'].apply(lambda x: x.strip())
         if not self.is_test:
             data_df['label'] = data_df['label'].apply(lambda x: eval(x))
-                        
+
         feature_names = list(data_df.columns)
         for index_, row_ in enumerate(data_df.itertuples()):
- 
-            dataset.append({feature_name_: getattr(row_, feature_name_) 
+
+            dataset.append({feature_name_: getattr(row_, feature_name_)
                              for feature_name_ in feature_names})
         return dataset
-    
+
     def convert_to_ids(self, tokenizer):
         """
         将文本转化成id的形式
-        
-        :param tokenizer:
-        
+
+        Args:
+            tokenizer: 编码器
+
         ToDo: 将__getitem__部分ID化代码迁移到这部分
-        
-        """
+        """  # noqa: ignore flake8"
+
         self.tokenizer = tokenizer
-            
+
         if self.is_retain_dataset:
             self.retain_dataset = copy.deepcopy(self.dataset)
-                    
+
     def __getitem__(self, idx):
         ins_json_data = self.dataset[idx]
         text = ins_json_data['text']
-        
+
         if len(text) > self.tokenizer.max_seq_len - 2:
             text = text[:self.tokenizer.max_seq_len - 2]
-        
+
         tokens = self.tokenizer.tokenize(text)
         token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
         index_token_mapping = self.tokenizer.get_token_mapping(text, tokens)
-        
+
         start_mapping = {j[0]: i for i, j in enumerate(index_token_mapping) if j}
         end_mapping = {j[-1]: i for i, j in enumerate(index_token_mapping) if j}
 
@@ -88,18 +94,18 @@ class CasRelREDataset(BaseDataset):
                 sub_end_idx = triple[2]
                 obj_head_idx = triple[5]
                 obj_end_idx = triple[6]
-                
+
                 triple = (self.tokenizer.tokenize(triple[0]), triple[3], self.tokenizer.tokenize(triple[4]))
-                
+
                 if sub_head_idx in start_mapping and obj_head_idx in start_mapping and sub_end_idx in end_mapping and obj_end_idx in end_mapping:
                     sub_head_idx = start_mapping[sub_head_idx]
                     obj_head_idx = start_mapping[obj_head_idx]
-                                        
+
                     sub = (sub_head_idx+1, end_mapping[sub_end_idx]+1)
-                    
+
                     if sub not in s2ro_map:
                         s2ro_map[sub] = []
-                    
+
                     s2ro_map[sub].append((obj_head_idx+1, end_mapping[obj_end_idx]+1, self.cat2id[triple[1]]))
 
             if s2ro_map:

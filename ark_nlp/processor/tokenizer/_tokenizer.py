@@ -15,6 +15,14 @@ import numpy as np
 
 
 class BaseTokenizer(object, metaclass=abc.ABCMeta):
+    """
+    文本编码器基类
+
+    Args:
+        vocab: 词典类对象，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 
+            预设的文本最大长度
+    """  # noqa: ignore flake8"
 
     def __init__(self, vocab, max_seq_len):
         self.vocab = vocab

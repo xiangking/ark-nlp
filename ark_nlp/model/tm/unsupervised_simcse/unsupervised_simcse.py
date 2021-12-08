@@ -19,6 +19,31 @@ from ark_nlp.nn import Bert
 
 
 class SimCSE(Bert):
+    """
+    无监督的SimCSE模型
+
+    Args:
+        config:
+            模型的配置对象
+        encoder_trained (:obj:`bool`, optional, defaults to True):
+            bert参数是否可训练，默认可训练
+        pooling (:obj:`str`, optional, defaults to "cls"):
+            bert输出的池化方式，默认为"cls_with_pooler"，
+            可选有["cls", "cls_with_pooler", "first_last_avg", "last_avg", "last_2_avg"]
+        dropout (:obj:`float` or :obj:`None`, optional, defaults to None):
+            dropout比例，默认为None，实际设置时会设置成0.1
+        margin (:obj:`float`, optional, defaults to 0.0):
+            相似矩阵对角线值
+        scale (:obj:`float`, optional, defaults to 20):
+            相似矩阵放大倍数
+        output_emb_size (:obj:`int`, optional, defaults to 0):
+            输出的矩阵的维度，默认为0，即不进行矩阵维度变换
+
+    Reference:
+        [1] SimCSE: Simple Contrastive Learning of Sentence Embeddings
+        [2] https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/text_matching/simcse 
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         config,

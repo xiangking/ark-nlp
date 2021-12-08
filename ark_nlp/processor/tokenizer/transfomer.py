@@ -20,18 +20,19 @@ from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
 class TransfomerTokenizer(BaseTokenizer):
+    """
+    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+
+    Args:
+        vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 预设的文本最大长度
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         vocab,
         max_seq_len
     ):
-        """
-        Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
-
-        Args:
-            vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
-            max_seq_len (:obj:`int`): 预设的文本最大长度
-        """
         if isinstance(vocab, str):
             # TODO: 改成由自定义的字典所决定
             vocab = transformers.AutoTokenizer.from_pretrained(vocab)
@@ -191,7 +192,8 @@ class SentenceTokenizer(TransfomerTokenizer):
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
         max_seq_len (:obj:`int`): 预设的文本最大长度
-    """
+    """  # noqa: ignore flake8"
+
     def sequence_to_ids(self, sequence, **kwargs):
         return self.sentence_to_ids(sequence, **kwargs)
 
@@ -203,8 +205,8 @@ class PairTokenizer(TransfomerTokenizer):
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
         max_seq_len (:obj:`int`): 预设的文本最大长度
+    """  # noqa: ignore flake8"
 
-    """
     def sequence_to_ids(self, sequence_a, sequence_b, **kwargs):
         return self.pair_to_ids(sequence_a, sequence_b, **kwargs)
 
@@ -216,8 +218,8 @@ class TokenTokenizer(TransfomerTokenizer):
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
         max_seq_len (:obj:`int`): 预设的文本最大长度
+    """  # noqa: ignore flake8"
 
-    """
     def tokenize(self, text, **kwargs):
         tokens = []
         text = ' '.join([token_ for token_ in text])
@@ -230,12 +232,18 @@ class TokenTokenizer(TransfomerTokenizer):
 
 class SpanTokenizer(TransfomerTokenizer):
     """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+    Transfomer文本编码器，用于对文本（基于分隔符分割维度）进行分词、ID化、填充等操作
 
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
+    Args:
+        vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 
+            预设的文本最大长度
+        split_token (:obj:`string`):
+            分隔符
+        additional_special_token (:obj:`list`):
+            额外添加的特殊字符
+    """  # noqa: ignore flake8"
 
-    """
     def __init__(
         self,
         vocab,

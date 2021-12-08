@@ -17,14 +17,17 @@ class VanillaTokenizer(BaseTokenizer):
     """
     文本编码器，用于对文本进行分词、ID化、填充等操作
 
-    :param max_seq_len: (int) 预设的文本最大长度
-    :param tokenizer: (object) 编码器，用于实现文本分词和ID化
+    Args:
+        vocab: 词典类对象，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 
+            预设的文本最大长度
 
     Reference:
         [1] https://github.com/dasiki/https-github.com-ami66-ChineseTextClassifier
-    """
-    def __init__(self, max_seq_len, vocab):
-        super(VanillaTokenizer, self).__init__(max_seq_len, vocab)
+    """  # noqa: ignore flake8"
+
+    def __init__(self, vocab, max_seq_len):
+        super(VanillaTokenizer, self).__init__(vocab, max_seq_len)
         self.tokenizer_type = 'vanilla'
 
     def sequence_to_ids(
