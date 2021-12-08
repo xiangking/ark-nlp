@@ -18,6 +18,17 @@ from ark_nlp.dataset.base._dataset import BaseDataset
 
 
 class PRGCREDataset(BaseDataset):
+    """
+    用于PRGC Bert联合关系抽取任务的Dataset
+
+    Args:
+        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
+        categories (:obj:`list`, optional, defaults to `None`): 数据类别
+        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
+        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
+        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
+        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+    """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
         super(PRGCREDataset, self).__init__(*args, **kwargs)
@@ -46,14 +57,6 @@ class PRGCREDataset(BaseDataset):
         return dataset
 
     def _convert_to_transfomer_ids(self, tokenizer):
-        """
-        将文本转化成id的形式
-
-        :param tokenizer:
-
-        ToDo: 将__getitem__部分ID化代码迁移到这部分
-
-        """
         self.tokenizer = tokenizer
 
         if self.is_retain_dataset:

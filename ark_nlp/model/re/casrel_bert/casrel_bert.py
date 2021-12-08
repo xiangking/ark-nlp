@@ -6,23 +6,23 @@ from transformers import BertPreTrainedModel
 
 
 class CasRelBert(BertPreTrainedModel):
+    """
+    基于BERT的Casrel模型
+
+    Args:
+        config: 模型的配置对象
+        bert_trained (:obj:`bool`, optional): 预设的文本最大长度
+
+    Reference:
+        [1] A Novel Cascade Binary Tagging Framework for Relational Triple Extraction
+        [2] https://github.com/longlongman/CasRel-pytorch-reimplement
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         config,
         encoder_trained=True
     ):
-        """
-        初始化基于BERT的Casrel模型
-
-        Args:
-            config: 模型的配置对象
-            bert_trained (:obj:`bool`, optional): 预设的文本最大长度
-
-        Reference:
-            [1] A Novel Cascade Binary Tagging Framework for Relational Triple Extraction
-            [2] https://github.com/longlongman/CasRel-pytorch-reimplement
-        """  # noqa: ignore flake8"
-
         super(CasRelBert, self).__init__(config)
 
         self.bert = BertModel(config)

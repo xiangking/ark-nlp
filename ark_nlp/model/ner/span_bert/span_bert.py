@@ -9,19 +9,19 @@ from ark_nlp.nn.layer.pooler_block import PoolerEndLogits
 
 
 class SpanDependenceBert(BertForTokenClassification):
+    """
+    基于BERT指针的命名实体模型(end指针依赖start指针的结果)
+
+    Args:
+        config: 模型的配置对象
+        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         config,
         encoder_trained=True
     ):
-        """
-        初始化基于BERT指针的命名实体模型(end指针依赖start指针的结果)
-
-        Args:
-            config: 模型的配置对象
-            bert_trained (:obj:`bool`, optional): 预设的文本最大长度
-        """  # noqa: ignore flake8"
-
         super(SpanDependenceBert, self).__init__(config)
 
         self.num_labels = config.num_labels
@@ -68,6 +68,14 @@ class SpanDependenceBert(BertForTokenClassification):
 
 
 class SpanIndependenceBert(BertForTokenClassification):
+    """
+    基于BERT指针的命名实体模型(start和end指针互相不影响)
+
+    Args:
+        config: 模型的配置对象
+        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         config,
@@ -76,14 +84,6 @@ class SpanIndependenceBert(BertForTokenClassification):
         mid_dropout_rate=0.1,
         **kwargs
     ):
-        """
-        初始化基于BERT指针的命名实体模型(start和end指针互相不影响)
-
-        Args:
-            config: 模型的配置对象
-            bert_trained (:obj:`bool`, optional): 预设的文本最大长度
-        """  # noqa: ignore flake8"
-
         super(SpanIndependenceBert, self).__init__(config)
 
         self.num_labels = config.num_labels

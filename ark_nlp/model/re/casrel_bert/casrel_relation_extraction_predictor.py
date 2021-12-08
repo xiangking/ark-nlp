@@ -15,6 +15,15 @@ import numpy as np
 
 
 class CasRelREPredictor(object):
+    """
+    CasRel bert模型的联合关系抽取任务的预测器
+
+    Args:
+        module: 深度学习模型
+        tokernizer: 分词器
+        cat2id (:obj:`dict`): 标签映射
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         module,

@@ -7,6 +7,25 @@ from ark_nlp.nn.layer.biaffine_block import Biaffine
 
 
 class BiaffineBert(BertForTokenClassification):
+    """
+    Biaffine的命名实体识别模型
+
+    Args:
+        config: 模型的配置对象
+        encoder_trained (:obj:`bool`, optional, defaults to True):
+            bert参数是否可训练，默认可训练
+        biaffine_size (:obj:`int`, optional, defaults to 128): 
+            biaffine输入的embedding size
+        lstm_dropout (:obj:`float`, optional, defaults to 0.4): 
+            lstm的dropout rate
+        select_bert_layer (:obj:`int`, optional, defaults to -1): 
+            获取哪一层的bert embedding
+
+    Reference:
+        [1] Named Entity Recognition as Dependency Parsing
+        [2] https://github.com/suolyer/PyTorch_BERT_Biaffine_NER
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         config,
@@ -15,21 +34,6 @@ class BiaffineBert(BertForTokenClassification):
         lstm_dropout=0.4,
         select_bert_layer=-1
     ):
-        """
-        初始化Biaffine的命名实体模型
-
-        Args:
-            config: 模型的配置对象
-            bert_trained (:obj:`bool`, optional): 预设的文本最大长度
-            biaffine_size (:obj:`int`, optional): biaffine输入的embedding size
-            lstm_dropout (:obj:`float`, optional): lstm的dropout
-            select_bert_layer (:obj:`int`, optional): 获取哪一层的bert embedding
-
-        Reference:
-            [1] Named Entity Recognition as Dependency Parsing
-            [2] https://github.com/suolyer/PyTorch_BERT_Biaffine_NER
-        """  # noqa: ignore flake8"
-
         super(BiaffineBert, self).__init__(config)
 
         self.num_labels = config.num_labels
