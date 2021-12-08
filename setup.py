@@ -129,8 +129,7 @@ setup(
     "jieba >= 0.42.1",
     "transformers >= 3.0.0",
     "zhon >= 1.1.5",
-    "scipy",
-    "scikit-learn"
+    "scipy >= 1.2.0",
+    "scikit-learn >= 0.17.0"
     ],
 )
-
