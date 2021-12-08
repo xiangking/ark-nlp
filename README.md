@@ -11,6 +11,8 @@ ark-nlp主要是收集和复现学术与工作中常用的NLP模型
 * jieba >= 0.42.1 
 * transformers >= 3.0.0 
 * zhon >= 1.1.5 
+* scipy >= 1.2.0
+* scikit-learn >= 0.17.0
 
 
 
@@ -76,6 +78,7 @@ pip install --upgrade ark-nlp
 | 模型       | 简介                       |
 | :--------- | -------------------------- |
 | BERT/ERNIE | 常用的预训练模型匹配分类 |
+| UnsupervisedSimcse | 无监督Simcse匹配算法 |
 
 ### 命名实体识别 (Named Entity Recognition)
 
@@ -95,7 +98,7 @@ pip install --upgrade ark-nlp
 
 ## 使用例子
 
-
+完整代码可参考`test`文件夹
 
 * 文本分类
 
