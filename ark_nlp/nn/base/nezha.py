@@ -25,18 +25,6 @@ from ark_nlp.nn.layer.nezha_block import (
 
 
 class NeZhaModel(NeZhaPreTrainedModel):
-    """
-    The model can behave as an encoder (with only self-attention) as well
-    as a decoder, in which case a layer of cross-attention is added between
-    the self-attention layers, following the architecture described in `Attention is all you need`_ by Ashish Vaswani,
-    Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser and Illia Polosukhin.
-    To behave as an decoder the model needs to be initialized with the
-    :obj:`is_decoder` argument of the configuration set to :obj:`True`; an
-    :obj:`encoder_hidden_states` is expected as an input to the forward pass.
-    .. _`Attention is all you need`:
-        https://arxiv.org/abs/1706.03762
-    """
-
     def __init__(self, config):
         super().__init__(config)
         self.config = config
@@ -70,38 +58,6 @@ class NeZhaModel(NeZhaPreTrainedModel):
             encoder_hidden_states=None,
             encoder_attention_mask=None,
     ):
-        r"""
-    Return:
-        :obj:`tuple(torch.FloatTensor)` comprising various elements depending on the configuration (:class:`~transformers.BertConfig`) and inputs:
-        last_hidden_state (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`):
-            Sequence of hidden-states at the output of the last layer of the model.
-        pooler_output (:obj:`torch.FloatTensor`: of shape :obj:`(batch_size, hidden_size)`):
-            Last layer hidden-state of the first token of the sequence (classification token)
-            further processed by a Linear layer and a Tanh activation function. The Linear
-            layer weights are trained from the next sentence prediction (classification)
-            objective during pre-training.
-            This output is usually *not* a good summary
-            of the semantic content of the input, you're often better with averaging or pooling
-            the sequence of hidden-states for the whole input sequence.
-        hidden_states (:obj:`tuple(torch.FloatTensor)`, `optional`, returned when ``config.output_hidden_states=True``):
-            Tuple of :obj:`torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer)
-            of shape :obj:`(batch_size, sequence_length, hidden_size)`.
-            Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(torch.FloatTensor)`, `optional`, returned when ``config.output_attentions=True``):
-            Tuple of :obj:`torch.FloatTensor` (one for each layer) of shape
-            :obj:`(batch_size, num_heads, sequence_length, sequence_length)`.
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
-    Examples::
-        from transformers import BertModel, BertTokenizer
-        import torch
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        model = BertModel.from_pretrained('bert-base-uncased')
-        input_ids = torch.tensor(tokenizer.encode("Hello, my dog is cute", add_special_tokens=True)).unsqueeze(0)  # Batch size 1
-        outputs = model(input_ids)
-        last_hidden_states = outputs[0]  # The last hidden-state is the first element of the output tuple
-        """
-
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
@@ -170,9 +126,9 @@ class NeZha(NeZhaPreTrainedModel):
             模型的配置对象
         encoder_trained (:obj:`bool`, optional, defaults to True):
             bert参数是否可训练，默认可训练
-        pooling (:obj:`str`, optional, defaults to "cls"):
-            bert输出的池化方式，默认为"cls"，
-            可选有["cls", "cls_with_fc", "first_last_avg", "last_avg", "last_2_avg"]
+        pooling (:obj:`str`, optional, defaults to "cls_with_pooler"):
+            bert输出的池化方式，默认为"cls_with_pooler"，
+            可选有["cls", "cls_with_pooler", "first_last_avg", "last_avg", "last_2_avg"]
 
     Reference:
         [1] NEZHA: Neural Contextualized Representation for Chinese Language Understanding
@@ -183,7 +139,7 @@ class NeZha(NeZhaPreTrainedModel):
         self,
         config,
         encoder_trained=True,
-        pooling='cls_with_fc'
+        pooling='cls_with_pooler'
     ):
         super(NeZha, self).__init__(config)
 
@@ -207,7 +163,7 @@ class NeZha(NeZhaPreTrainedModel):
 
     def sequence_pooling(self, sequence_feature, attention_mask):
 
-        if self.pooling == 'cls_with_fc':
+        if self.pooling == 'cls_with_pooler':
             return sequence_feature.pooler_output
         sequence_feature = sequence_feature.hidden_states
         if self.pooling == 'first_last_avg':

@@ -28,8 +28,8 @@ class Bert(BertPreTrainedModel):
         encoder_trained (:obj:`bool`, optional, defaults to True):
             bert参数是否可训练，默认可训练
         pooling (:obj:`str`, optional, defaults to "cls"):
-            bert输出的池化方式，默认为"cls"，
-            可选有["cls", "cls_with_fc", "first_last_avg", "last_avg", "last_2_avg"]
+            bert输出的池化方式，默认为"cls_with_pooler"，
+            可选有["cls", "cls_with_pooler", "first_last_avg", "last_avg", "last_2_avg"]
 
     Reference:
         [1] BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding  

@@ -16,6 +16,15 @@ from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
 class TextLevelGCNTokenizer(BaseTokenizer):
+    """
+    文本编码器，用于对文本进行图编码
+
+    Args:
+        vocab: 词典类对象，用于实现文本分词和ID化
+        max_seq_len (:obj:`int`): 预设的文本最大长度
+        graph: 图类对象，用于生成子图
+
+    """  # noqa: ignore flake8"
 
     def __init__(
         self,
@@ -23,15 +32,6 @@ class TextLevelGCNTokenizer(BaseTokenizer):
         max_seq_len,
         graph
     ):
-        """
-        文本编码器，用于对文本进行图编码
-
-        Args:
-            vocab: 词典类对象，用于实现文本分词和ID化
-            max_seq_len (:obj:`int`): 预设的文本最大长度
-            graph: 图类对象，用于生成子图
-
-        """
         super(TextLevelGCNTokenizer, self).__init__(max_seq_len, vocab)
         self.graph = graph
         self.tokenizer_type = 'graph'

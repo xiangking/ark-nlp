@@ -17,7 +17,14 @@ from ark_nlp.factory.predictor import SequenceClassificationPredictor
 
 
 class UnsupervisedSimCSEPredictor(SequenceClassificationPredictor):
-    """UnsupervisedSimCSE的预测器"""
+    """
+    UnsupervisedSimCSE的预测器
+    
+    Args:
+        module: 深度学习模型
+        tokernizer: 分词器
+        cat2id (:obj:`dict`): 标签映射
+    """  # noqa: ignore flake8"
 
     def _get_input_ids(
         self,

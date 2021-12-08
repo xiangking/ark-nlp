@@ -32,10 +32,6 @@ class SequenceLabelForSO(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, input_features):
-        """
-        Args:
-            input_features: (bs, seq_len, h)
-        """
         features_tmp = self.linear(input_features)
         features_tmp = nn.ReLU()(features_tmp)
         features_tmp = self.dropout(features_tmp)
@@ -45,6 +41,24 @@ class SequenceLabelForSO(nn.Module):
 
 
 class PRGCBert(BertPreTrainedModel):
+    """
+    PRGC Bert命名实体模型
+
+    Args:
+        config: 模型的配置对象
+        seq_tag_size (:obj:`int`, optional, defaults to 3): 序列标注子任务的字符标签个数
+        drop_prob (:obj:`float`, optional, defaults to 0.3): dropout rate，bert之外的模型统一使用这个数值的dropout
+        emb_fusion (:obj:`string`, optional, defaults to `concat`): 关系嵌入与bert输出向量的融合方式，concat是拼接，sum是加和
+        corres_mode (:obj:`string` or :obj:`string`, optional, defaults to None): 生成global correspondence矩阵的方式，
+                                                                                  biaffine是使用biaffine交叉主体和客体向量进行生成，比较节约显存，
+                                                                                  None则是原论文方式，通过拼接向量再使用全连接层生成
+        biaffine_hidden_size (:obj:`int`, optional, defaults to 128): 若使用biaffine生成global correspondence矩阵时，biaffine的隐层size
+
+    Reference:
+        [1] PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction
+        [2] https://github.com/hy-struggle/PRGC
+    """  # noqa: ignore flake8"
+
     def __init__(
         self,
         config,
