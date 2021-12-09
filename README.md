@@ -87,7 +87,7 @@ pip install --upgrade ark-nlp
 | CRF BERT |  |
 | Biaffine BERT |  |
 | Span BERT |  |
-| Global Pointer BERT |  |
+| Global Pointer BERT | https://www.kexue.fm/archives/8373 |
 
 ### 关系抽取 (Relation Extraction)
 
