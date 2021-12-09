@@ -396,7 +396,7 @@ pip install --upgrade ark-nlp
 - wechat ID: **fk95624**
 - wechat group
 
-  ![wechat group](./docs/pics/code.png)
+  ![wechat group](https://upload-images.jianshu.io/upload_images/10798244-a15d26cbda0924c4.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
   
 ## Main contributors
 
