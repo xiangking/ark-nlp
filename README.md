@@ -390,7 +390,34 @@ pip install --upgrade ark-nlp
   prgc_re_predictor_instance.predict_one_sample(待抽取文本)
   ```
 
+## DisscussionGroup
 
+- 公众号：**DataArk**
+- wechat ID: **fk95624**
+- wechat group
+
+  ![wechat group](./docs/pics/code.png)
+  
+## Main contributors
+
+<table>
+<tr>
+    <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
+        <a href=https://github.com/xiangking>
+            <img src=https://avatars.githubusercontent.com/u/29096754?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=xiangking/>
+            <br />
+            <sub style="font-size:14px"><b>xiangking</b></sub>
+        </a>
+    </td>
+    <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
+        <a href=https://github.com/jimme0421>
+            <img src=https://avatars.githubusercontent.com/u/43140191?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=Jimme/>
+            <br />
+            <sub style="font-size:14px"><b>Jimme</b></sub>
+        </a>
+    </td>
+</tr>
+</table>
 
 ## Acknowledge
 
