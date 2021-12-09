@@ -6,7 +6,7 @@ ark-nlp主要是收集和复现学术与工作中常用的NLP模型
 ## 环境 
 
 * python 3
-* torch >= 1.0.0 
+* torch >= 1.0.0, <1.10.0 
 * tqdm >= 4.56.0 
 * jieba >= 0.42.1 
 * transformers >= 3.0.0 
