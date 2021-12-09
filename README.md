@@ -394,9 +394,6 @@ pip install --upgrade ark-nlp
 
 - 公众号：**DataArk**
 - wechat ID: **fk95624**
-- wechat group
-
-<img src=https://user-images.githubusercontent.com/29096754/145331340-0677dd83-7c0e-495c-b849-d219db1db494.jpg width="300;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:20px" alt=wechat group/>
   
 ## Main contributors
 
