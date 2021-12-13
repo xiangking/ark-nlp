@@ -96,6 +96,10 @@ pip install --upgrade ark-nlp
 | Casrel | A Novel Cascade Binary Tagging Framework for Relational Triple Extraction|
 | PRGC | PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction |
 
+## 实际应用
+
+[CHIP2021-Task3-临床术语标准化任务-第三名](https://github.com/DataArk/CHIP2021-Task3)
+
 ## 使用例子
 
 完整代码可参考`test`文件夹
