@@ -6,7 +6,7 @@ ark-nlp主要是收集和复现学术与工作中常用的NLP模型
 ## 环境 
 
 * python 3
-* torch >= 1.0.0 
+* torch >= 1.0.0, <1.10.0
 * tqdm >= 4.56.0 
 * jieba >= 0.42.1 
 * transformers >= 3.0.0 
@@ -87,7 +87,7 @@ pip install --upgrade ark-nlp
 | CRF BERT |  |
 | Biaffine BERT |  |
 | Span BERT |  |
-| Global Pointer BERT |  |
+| Global Pointer BERT | https://www.kexue.fm/archives/8373 |
 
 ### 关系抽取 (Relation Extraction)
 
@@ -96,8 +96,16 @@ pip install --upgrade ark-nlp
 | Casrel | A Novel Cascade Binary Tagging Framework for Relational Triple Extraction|
 | PRGC | PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction |
 
+## 实际应用
+
+* [CHIP2021-Task3-临床术语标准化任务-第三名](https://github.com/DataArk/CHIP2021-Task3)
+* [CHIP2021-Task1-医学对话临床发现阴阳性判别任务-第一名](https://github.com/DataArk/CHIP2021-Task1-Top1)
+
+<<<<<<< HEAD
+=======
 ## 使用例子
 
+>>>>>>> 3897b5e3b49f1d441db1efd28c793783c01ecc21
 完整代码可参考`test`文件夹
 
 * 文本分类
@@ -390,11 +398,33 @@ pip install --upgrade ark-nlp
   prgc_re_predictor_instance.predict_one_sample(待抽取文本)
   ```
 
+## DisscussionGroup
 
+- 公众号：**DataArk**
+- wechat ID: **fk95624**
+  
+## Main contributors
 
-## PS
+<table>
+<tr>
+    <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
+        <a href=https://github.com/xiangking>
+            <img src=https://avatars.githubusercontent.com/u/29096754?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=xiangking/>
+            <br />
+            <sub style="font-size:14px"><b>xiangking</b></sub>
+        </a>
+    </td>
+    <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
+        <a href=https://github.com/jimme0421>
+            <img src=https://avatars.githubusercontent.com/u/43140191?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=Jimme/>
+            <br />
+            <sub style="font-size:14px"><b>Jimme</b></sub>
+        </a>
+    </td>
+</tr>
+</table>
 
-  ```
+## Acknowledge
+
   本项目用于收集和复现学术与工作中常用的NLP模型，整合成方便调用的形式，所以参考借鉴了网上很多开源实现，如有不当的地方，还请联系批评指教。
   在此，感谢大佬们的开源实现。
-  ```
