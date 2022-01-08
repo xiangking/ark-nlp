@@ -58,6 +58,4 @@ class UnsupervisedSimCSEDataset(TwinTowersSentenceClassificationDataset):
                 label_ids = self.cat2id[_row['label']]
                 feature['label_ids'] = label_ids
 
-            features.append(feature)
-
         return features
