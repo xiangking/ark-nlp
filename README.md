@@ -77,24 +77,26 @@ pip install --upgrade ark-nlp
 
 | 模型       | 简介                       |
 | :--------- | -------------------------- |
-| BERT/ERNIE | 常用的预训练模型匹配分类 |
-| UnsupervisedSimcse | 无监督Simcse匹配算法 |
+| [BERT/ERNIE](https://github.com/xiangking/ark-nlp/blob/main/test/text_match.ipynb) | 常用的预训练模型匹配分类 |
+| [UnsupervisedSimcse](https://github.com/xiangking/ark-nlp/blob/main/test/simcse.ipynb) | 无监督Simcse匹配算法 |
+| [CoSENT](https://github.com/xiangking/PyTorch_CoSENT) | [CoSENT：比Sentence-BERT更有效的句向量方案](https://spaces.ac.cn/archives/8847) |
+
 
 ### 命名实体识别 (Named Entity Recognition)
 
 | 模型       | 简介                       |
 | :--------- | -------------------------- |
-| CRF BERT |  |
-| Biaffine BERT |  |
-| Span BERT |  |
-| Global Pointer BERT | https://www.kexue.fm/archives/8373 |
+| [CRF BERT](https://github.com/xiangking/ark-nlp/blob/main/test/crf_bert.ipynb) |  |
+| [Biaffine BERT](https://github.com/xiangking/ark-nlp/blob/main/test/biaffine_bert.ipynb) |  |
+| [Span BERT](https://github.com/xiangking/ark-nlp/blob/main/test/span_bert.ipynb) |  |
+| [Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/test/gobalpoint_bert.ipynb) | [GlobalPointer：用统一的方式处理嵌套和非嵌套NER](https://www.kexue.fm/archives/8373) |
 
 ### 关系抽取 (Relation Extraction)
 
 | 模型       | 简介                       |
 | :--------- | -------------------------- |
-| Casrel | A Novel Cascade Binary Tagging Framework for Relational Triple Extraction|
-| PRGC | PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction |
+| [Casrel](https://github.com/xiangking/ark-nlp/blob/main/test/casrel_bert.ipynb) | A Novel Cascade Binary Tagging Framework for Relational Triple Extraction|
+| [PRGC](https://github.com/xiangking/ark-nlp/blob/main/test/prgc_bert.ipynb) | PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction |
 
 ## 实际应用
 
