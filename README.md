@@ -102,6 +102,7 @@ pip install --upgrade ark-nlp
 
 * [CHIP2021-Task3-临床术语标准化任务-第三名](https://github.com/DataArk/CHIP2021-Task3)
 * [CHIP2021-Task1-医学对话临床发现阴阳性判别任务-第一名](https://github.com/DataArk/CHIP2021-Task1-Top1)
+* [中文医疗信息处理挑战榜CBLUE](https://github.com/DataArk/CBLUE-Baseline)
 
 ## 使用例子
 
