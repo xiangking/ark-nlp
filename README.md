@@ -59,24 +59,24 @@ pip install --upgrade ark-nlp
 
 ### 预训练模型
 
-| 模型     | 简介 |
-| :------- | ---- |
-| BERT     |      |
-| ERNIE1.0 |      |
-| NEZHA    |      |
-| Roformer |      |
+|   模型   |                           参考文献                           |
+| :------: | :----------------------------------------------------------: |
+|   BERT   | [BERT:Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf) |
+| ERNIE1.0 | [ERNIE:Enhanced Representation through Knowledge Integration](https://arxiv.org/pdf/1904.09223.pdf) |
+|  NEZHA   | [NEZHA:Neural Contextualized Representation For Chinese Language Understanding](https://arxiv.org/pdf/1909.00204.pdf) |
+| Roformer | [Reformer: The Efficient Transformer](https://arxiv.org/pdf/2001.04451.pdf) |
 
 ### 文本分类 (Text Classification)
-| 模型             | 简介                                          |
-| :--------------- | --------------------------------------------- |
+|       模型       |                    简介                     |
+| :--------------: | :-----------------------------------------: |
 | RNN/CNN/GRU/LSTM | 经典的RNN, CNN, GRU, LSTM等经典文本分类结构 |
-| BERT/ERNIE       | 常用的预训练模型分类                        |
+|    BERT/ERNIE    |            常用的预训练模型分类             |
 
 
 ### 文本匹配 (Text Matching)
 
 | 模型       | 简介                       |
-| :--------- | -------------------------- |
+| :--------: | :------------------------: |
 | [BERT/ERNIE](https://github.com/xiangking/ark-nlp/blob/main/test/text_match.ipynb) | 常用的预训练模型匹配分类 |
 | [UnsupervisedSimcse](https://github.com/xiangking/ark-nlp/blob/main/test/simcse.ipynb) | 无监督Simcse匹配算法 |
 | [CoSENT](https://github.com/xiangking/PyTorch_CoSENT) | [CoSENT：比Sentence-BERT更有效的句向量方案](https://spaces.ac.cn/archives/8847) |
@@ -85,7 +85,7 @@ pip install --upgrade ark-nlp
 ### 命名实体识别 (Named Entity Recognition)
 
 | 模型       | 简介                       |
-| :--------- | -------------------------- |
+| :--------: | :------------------------: |
 | [CRF BERT](https://github.com/xiangking/ark-nlp/blob/main/test/crf_bert.ipynb) |  |
 | [Biaffine BERT](https://github.com/xiangking/ark-nlp/blob/main/test/biaffine_bert.ipynb) |  |
 | [Span BERT](https://github.com/xiangking/ark-nlp/blob/main/test/span_bert.ipynb) |  |
@@ -93,10 +93,10 @@ pip install --upgrade ark-nlp
 
 ### 关系抽取 (Relation Extraction)
 
-| 模型       | 简介                       |
-| :--------- | -------------------------- |
-| [Casrel](https://github.com/xiangking/ark-nlp/blob/main/test/casrel_bert.ipynb) | A Novel Cascade Binary Tagging Framework for Relational Triple Extraction|
-| [PRGC](https://github.com/xiangking/ark-nlp/blob/main/test/prgc_bert.ipynb) | PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction |
+|                             模型                             |                           参考文献                           |                   论文源码                    |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
+| [Casrel](https://github.com/xiangking/ark-nlp/blob/main/test/casrel_bert.ipynb) | [A Novel Cascade Binary Tagging Framework for Relational Triple Extraction](https://arxiv.org/pdf/1909.03227.pdf) | [github](https://github.com/weizhepei/CasRel) |
+| [PRGC](https://github.com/xiangking/ark-nlp/blob/main/test/prgc_bert.ipynb) | [PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction](https://arxiv.org/pdf/2106.09895.pdf) | [github](https://github.com/hy-struggle/PRGC) |
 
 ## 实际应用
 
