@@ -64,7 +64,7 @@ pip install --upgrade ark-nlp
 |   BERT   | [BERT:Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf) |
 | ERNIE1.0 | [ERNIE:Enhanced Representation through Knowledge Integration](https://arxiv.org/pdf/1904.09223.pdf) |
 |  NEZHA   | [NEZHA:Neural Contextualized Representation For Chinese Language Understanding](https://arxiv.org/pdf/1909.00204.pdf) |
-| Roformer | [Reformer: The Efficient Transformer](https://arxiv.org/pdf/2001.04451.pdf) |
+| Roformer | [Roformer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/pdf/2104.09864.pdf) |
 
 ### 文本分类 (Text Classification)
 |       模型       |                    简介                     |
