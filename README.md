@@ -421,6 +421,13 @@ pip install --upgrade ark-nlp
             <sub style="font-size:14px"><b>Jimme</b></sub>
         </a>
     </td>
+    <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
+        <a href=https://github.com/Zrealshadow>
+            <img src=https://avatars.githubusercontent.com/u/30857435?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=Zrealshadow/>
+            <br />
+            <sub style="font-size:14px"><b>Zrealshadow</b></sub>
+        </a>
+    </td>
 </tr>
 </table>
 
