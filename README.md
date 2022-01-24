@@ -401,6 +401,9 @@ pip install --upgrade ark-nlp
 ## DisscussionGroup
 
 - 公众号：**DataArk**
+
+![wechat](https://github.com/xiangking/XK-PictureHost/blob/main/0.5Ark.jpg)
+
 - wechat ID: **fk95624**
   
 ## Main contributors
