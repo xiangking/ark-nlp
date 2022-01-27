@@ -1,10 +1,9 @@
 
-"""
-Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# From: https://github.com/facebookresearch/madgrad
+# Status: Active
 
-From: https://github.com/facebookresearch/madgrad
-Status: Active
-"""
 
 import math
 from typing import TYPE_CHECKING, Any, Callable, Optional
