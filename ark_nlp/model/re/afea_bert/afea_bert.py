@@ -1,16 +1,3 @@
-"""
-# Copyright Xiang Wang, Inc. All Rights Reserved
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-
-Author: Xiang Wang, xiangking1995@163.com
-Status: Active
-"""
-
-
 import torch
 
 from torch import nn
@@ -25,17 +12,11 @@ class AFEABert(BertPreTrainedModel):
 
     Args:
         config: 模型的配置对象
-        seq_tag_size (:obj:`int`, optional, defaults to 3): 序列标注子任务的字符标签个数
-        drop_prob (:obj:`float`, optional, defaults to 0.3): dropout rate，bert之外的模型统一使用这个数值的dropout
-        emb_fusion (:obj:`string`, optional, defaults to `concat`): 关系嵌入与bert输出向量的融合方式，concat是拼接，sum是加和
-        corres_mode (:obj:`string` or :obj:`string`, optional, defaults to None): 生成global correspondence矩阵的方式，
-                                                                                  biaffine是使用biaffine交叉主体和客体向量进行生成，比较节约显存，
-                                                                                  None则是原论文方式，通过拼接向量再使用全连接层生成
-        biaffine_hidden_size (:obj:`int`, optional, defaults to 128): 若使用biaffine生成global correspondence矩阵时，biaffine的隐层size
+        use_rope (:obj:`bool`, optional, defaults to True): 是否使用相对位置编码
 
     Reference:
-        [1] PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction
-        [2] https://github.com/hy-struggle/PRGC
+        [1] A Frustratingly Easy Approach for Joint Entity and Relation Extraction
+        [2] https://github.com/yeqingzhao/relation-extraction
     """  # noqa: ignore flake8"
 
     def __init__(self, config, use_rope=True):

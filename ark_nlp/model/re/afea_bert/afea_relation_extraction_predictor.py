@@ -1,14 +1,19 @@
-"""
-# Copyright 2021 Xiang Wang, Inc. All Rights Reserved
+# Copyright (c) 2020 DataArk Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-
-Author: Xiang Wang, xiangking1995@163.com
-Status: Active
-"""
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Author: Chenjie Shen, jimme.shen123@gmail.com
+# Status: Active
 
 import torch
 import numpy as np
@@ -16,7 +21,7 @@ import numpy as np
 
 class AFEAREPredictor(object):
     """
-    CasRel bert模型的联合关系抽取任务的预测器
+    AFEA bert模型的联合关系抽取任务的预测器
 
     Args:
         module: 深度学习模型
@@ -70,8 +75,6 @@ class AFEAREPredictor(object):
         if len(tokens) > (self.tokenizer.max_seq_len - 3 - len(entities_) * 2):
             tokens = tokens[0:(self.tokenizer.max_seq_len - 3 - len(entities_) * 2)]
 
-        input_ids, input_mask, segment_ids = self.tokenizer.sequence_to_ids(tokens)
-
         # 生成position_ids
         position_ids = [i for i in range(len(tokens) + 2)]
         tokens += ['[SEP]']
@@ -90,6 +93,8 @@ class AFEAREPredictor(object):
 
         pad = [0] * (self.tokenizer.max_seq_len - len(position_ids))
         position_ids.extend(pad)
+
+        input_ids, input_mask, segment_ids = self.tokenizer.sequence_to_ids(tokens)
 
         feature = {
             'input_ids': input_ids,
