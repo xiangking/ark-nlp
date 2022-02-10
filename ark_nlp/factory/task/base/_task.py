@@ -63,7 +63,9 @@ class Task(object):
 
         self.n_gpu = n_gpu
 
-        if device is None:
+        self.device = device
+
+        if self.device is None:
             if torch.cuda.is_available():
                 if cuda_device == -1:
                     self.device = torch.device("cuda")
