@@ -1,7 +1,5 @@
-"""
-Reference:
-    [1] https://github.com/spyysalo/conlleval.py
-"""
+# From: https://github.com/spyysalo/conlleval.py
+
 
 import sys
 import re

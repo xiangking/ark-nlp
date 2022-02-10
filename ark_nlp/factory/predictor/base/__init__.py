@@ -1,0 +1,3 @@
+from ark_nlp.factory.predictor.base._predictor import Predictor
+from ark_nlp.factory.predictor.base._sequence_classification import SequenceClassificationPredictor
+from ark_nlp.factory.predictor.base._token_classification import TokenClassificationPredictor

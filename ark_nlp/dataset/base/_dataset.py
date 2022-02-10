@@ -1,14 +1,20 @@
-"""
-# Copyright Xiang Wang, Inc. All Rights Reserved
+# Copyright (c) 2020 DataArk Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Author: Xiang Wang, xiangking1995@163.com
+# Status: Active
 
-Author: Xiang Wang, xiangking1995@163.com
-Status: Active
-"""
 
 import json
 import copy
@@ -109,7 +115,7 @@ class BaseDataset(Dataset):
             skiprows (:obj:`int`, defaults to -1): 读取跳过指定行数，默认为不跳过
         """  # noqa: ignore flake8"
 
-        if data_format is not None:
+        if data_format is None:
             data_format = data_path.split('.')[-1]
 
         if data_format == 'csv':
