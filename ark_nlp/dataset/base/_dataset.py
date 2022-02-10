@@ -115,7 +115,7 @@ class BaseDataset(Dataset):
             skiprows (:obj:`int`, defaults to -1): 读取跳过指定行数，默认为不跳过
         """  # noqa: ignore flake8"
 
-        if data_format is not None:
+        if data_format is None:
             data_format = data_path.split('.')[-1]
 
         if data_format == 'csv':

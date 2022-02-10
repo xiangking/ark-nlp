@@ -16,6 +16,7 @@
 # Status: Active
 
 
+import warnings
 import unicodedata
 import transformers
 import numpy as np
@@ -246,7 +247,7 @@ class SpanTokenizer(TransfomerTokenizer):
             预设的文本最大长度
         split_token (:obj:`string`):
             分隔符
-        additional_special_token (:obj:`list`):
+        additional_special_split_token (:obj:`string`):
             额外添加的特殊字符
     """  # noqa: ignore flake8"
 
@@ -255,21 +256,31 @@ class SpanTokenizer(TransfomerTokenizer):
         vocab,
         max_seq_len,
         split_token=' ',
-        additional_special_token='[blank]'
+        additional_special_split_token='[unused1]'
     ):
         super(SpanTokenizer, self).__init__(vocab, max_seq_len)
         self.split_token = split_token
-        self.additional_special_token = self.split_token
-        if self.additional_special_token:
-            self.additional_special_token = additional_special_token
-            self.vocab.add_special_tokens({'additional_special_tokens': [self.additional_special_token]})
-            self.additional_special_tokens = set([self.additional_special_token])
+        if additional_special_split_token is None:
+            self.additional_special_split_token = self.split_token
+        else:
+            self.additional_special_split_token = additional_special_split_token
+
+        if self.additional_special_split_token not in self.vocab.vocab:
+
+            warnings.warn(
+                f"additional_special_split_token='{self.additional_special_split_token}'并不在预训练模型的词典"
+                "因此,请为其在预训练模型中增加词典嵌入或更换additional_special_split_token。"
+                "特别注意的是'nghuyong/ernie-1.0'预先预留了部分嵌入位置。"
+            )
+
+        self.vocab.add_special_tokens({'additional_special_tokens': [self.additional_special_split_token]})
+        self.additional_special_tokens = set([self.additional_special_split_token])
 
     def tokenize(self, text, **kwargs) -> List[str]:
         tokens = []
         for span_ in text.split(self.split_token):
             tokens += self.vocab.tokenize(span_)
-            tokens += [self.additional_special_token]
+            tokens += [self.additional_special_split_token]
         return tokens[:-1]
 
     def sequence_to_ids(self, sequence, **kwargs):
