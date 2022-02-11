@@ -25,6 +25,6 @@ class GlobalPointerCrossEntropy(nn.Module):
         logits: [N, C, L, L]
         """
         bh = logits.shape[0] * logits.shape[1]
-        target = torch.reshape(target, (bh, -1))
+        target = torch.reshape(target.to_dense(), (bh, -1))
         logits = torch.reshape(logits, (bh, -1))
         return torch.mean(GlobalPointerCrossEntropy.multilabel_categorical_crossentropy(target, logits))
