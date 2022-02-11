@@ -90,3 +90,42 @@ class GlobalPointer(Module):
 
         # scale返回
         return logits / self.head_size ** 0.5
+
+
+class EfficientGlobalPointer(Module):
+    """全局指针模块
+    将序列的每个(start, end)作为整体来进行判断
+    """
+    def __init__(self, heads, head_size, hidden_size, RoPE=True):
+        super(EfficientGlobalPointer, self).__init__()
+        self.heads = heads
+        self.head_size = head_size
+        self.RoPE = RoPE
+        self.dense_1 = nn.Linear(hidden_size, self.head_size * 2)
+        self.dense_2 = nn.Linear(self.head_size * 2, self.heads * 2)
+
+    def forward(self, inputs, mask=None):
+        inputs = self.dense_1(inputs)  # batch,
+        # 沿着一个新维度对输入张量序列进行连接。 序列中所有的张量都应该为相同形状
+        qw, kw = inputs[..., :self.head_size], inputs[..., self.head_size:]
+        # 分出qw和kw
+        # RoPE编码
+        if self.RoPE:
+            pos = SinusoidalPositionEmbedding(self.head_size, 'zero')(inputs)
+            cos_pos = pos[..., 1::2].repeat(1, 1, 2)
+            sin_pos = pos[..., ::2].repeat(1, 1, 2)
+            qw2 = torch.stack([-qw[..., 1::2], qw[..., ::2]], 3)
+            qw2 = torch.reshape(qw2, qw.shape)
+            qw = qw * cos_pos + qw2 * sin_pos
+            kw2 = torch.stack([-kw[..., 1::2], kw[..., ::2]], 3)
+            kw2 = torch.reshape(kw2, kw.shape)
+            kw = kw * cos_pos + kw2 * sin_pos
+        # 计算内积
+        logits = torch.einsum('bmd , bnd -> bmn', qw, kw) / self.head_size ** 0.5
+        bias = torch.einsum('bnh -> bhn', self.dense_2(inputs)) / 2
+        logits = logits[:, None] + bias[:, :self.heads, None] + bias[:, self.heads:, :, None]
+        # 排除padding 排除下三角
+        logits = add_mask_tril(logits, mask)
+
+        # scale返回
+        return logits
