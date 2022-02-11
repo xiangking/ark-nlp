@@ -71,7 +71,7 @@ class GlobalPointerNERTask(TokenClassificationTask):
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
 
             numerate, denominator = conlleval.global_pointer_f1_score(
-                inputs['label_ids'].cpu(),
+                inputs['label_ids'].to_dense().cpu(),
                 logits.cpu()
             )
             self.evaluate_logs['numerate'] += numerate
