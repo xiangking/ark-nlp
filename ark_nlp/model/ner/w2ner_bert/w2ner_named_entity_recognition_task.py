@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: Chenjie Shen, jimme.shen123@gmail.com.com
+# Author: Chenjie Shen, jimme.shen123@gmail.com
 # Status: Active
 
 

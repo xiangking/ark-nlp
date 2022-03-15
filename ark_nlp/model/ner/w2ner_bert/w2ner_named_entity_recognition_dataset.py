@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: Chenjie Shen, jimme.shen123@gmail.com.com
+# Author: Chenjie Shen, jimme.shen123@gmail.com
 # Status: Active
 
 
@@ -52,11 +52,7 @@ class W2nerDataset(TokenClassificationDataset):
 
         for (index_, row_) in enumerate(self.dataset):
 
-            # TODO： Token 问题， 需要保持输入不变
-            tokens_ = [bert_tokenizer.tokenize(word) for word in row_['text'].split(' ')]
-            tokens = [piece for pieces in tokens_ for piece in pieces][:bert_tokenizer.max_seq_len-2]
-
-            # tokens = bert_tokenizer.tokenize(row_['text'])[:bert_tokenizer.max_seq_len-2]
+            tokens = bert_tokenizer.tokenize(row_['text'])[:bert_tokenizer.max_seq_len-2]
             # token_mapping = bert_tokenizer.get_token_mapping(row_['text'], tokens)
             #
             # start_mapping = {j[0]: i for i, j in enumerate(token_mapping) if j}
@@ -73,9 +69,10 @@ class W2nerDataset(TokenClassificationDataset):
             _pieces2word = np.zeros((input_length, input_length+2), dtype=np.bool)
 
             # pieces2word,
-            # TODO: 最大长度问题 与 Token问题相关
             start = 0
-            for i, pieces in enumerate(tokens_):
+            for i, pieces in enumerate(tokens):
+                # 对齐源码
+                pieces = [pieces]
                 if len(pieces) == 0:
                     continue
                 pieces = list(range(start, start + len(pieces)))
@@ -114,7 +111,7 @@ class W2nerDataset(TokenClassificationDataset):
             for info_ in row_["label"]:
                 index = list(range(info_['start_idx'], info_['end_idx']+1))
 
-                if index[-1] < bert_tokenizer.max_seq_len:
+                if len(index) > 0 and index[-1] < bert_tokenizer.max_seq_len:
 
                     for i in range(len(index)):
                         if i + 1 >= len(index):
