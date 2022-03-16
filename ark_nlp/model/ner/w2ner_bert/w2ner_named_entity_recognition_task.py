@@ -156,13 +156,6 @@ class W2NERTask(TokenClassificationTask):
         self.evaluate_logs['eval_step'] = 0
         self.evaluate_logs['eval_example'] = 0
 
-        self.evaluate_logs['labels'] = []
-        self.evaluate_logs['logits'] = []
-        self.evaluate_logs['input_lengths'] = []
-
-        self.evaluate_logs['numerate'] = 0
-        self.evaluate_logs['denominator'] = 0
-
         self.evaluate_logs['rights'] = []
         self.evaluate_logs['founds'] = []
         self.evaluate_logs['origins'] = []
@@ -192,20 +185,17 @@ class W2NERTask(TokenClassificationTask):
         epoch=1,
         is_evaluate_print=True,
         id2cat=None,
-        markup='bio',
         **kwargs
     ):
 
         if id2cat is None:
             id2cat = self.id2cat
 
-        self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
+        self.ner_metric = conlleval.SeqEntityScore(id2cat)
 
         self.ner_metric.rights = self.evaluate_logs['rights']
         self.ner_metric.founds = self.evaluate_logs['founds']
         self.ner_metric.origins = self.evaluate_logs['origins']
-
-        print(len(self.ner_metric.rights), len(self.ner_metric.founds), len(self.ner_metric.origins))
 
         eval_info, entity_info = self.ner_metric.result()
 

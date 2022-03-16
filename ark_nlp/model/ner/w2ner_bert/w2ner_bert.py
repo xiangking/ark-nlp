@@ -193,24 +193,24 @@ class W2NERBert(BertPreTrainedModel):
     """  # noqa: ignore flake8"
 
     def __init__(
-            self,
-            config,
-            use_bert_last_4_layers=True,
+        self,
+        config,
+        use_bert_last_4_layers=True,
 
-            # TODO: 参数问题， 如何优雅嵌入这些参数
-            dist_emb_size=20,
-            type_emb_size=20,
-            lstm_hid_size=512,
-            conv_hid_size=96,
+        # TODO: 参数问题， 如何优雅嵌入这些参数
+        dist_emb_size=20,
+        type_emb_size=20,
+        lstm_hid_size=512,
+        conv_hid_size=96,
 
-            biaffine_size=512,
-            ffnn_hid_size=288,
-            dilation=[1, 2, 3],
+        biaffine_size=512,
+        ffnn_hid_size=288,
+        dilation=[1, 2, 3],
 
-            conv_dropout=0.5,
-            emb_dropout=0.5,
-            out_dropout=0.33
-
+        conv_dropout=0.5,
+        emb_dropout=0.5,
+        out_dropout=0.33,
+        ** kwargs
     ):
         super(W2NERBert, self).__init__(config)
         self.num_labels = config.num_labels
