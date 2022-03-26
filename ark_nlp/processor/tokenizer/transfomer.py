@@ -229,13 +229,8 @@ class TokenTokenizer(TransfomerTokenizer):
 
     def tokenize(self, text, **kwargs):
         tokens = []
-        for token_ in text:
-            tokenized_token_ = self.vocab.tokenize(token_)
-            if tokenized_token_ == []:
-                tokens.extend([token_])
-            else:
-                tokens.extend(tokenized_token_)
-            
+        text = ' '.join([token_ for token_ in text])
+        tokens = self.vocab.tokenize(text)
         return tokens
 
     def sequence_to_ids(self, sequence, **kwargs):
