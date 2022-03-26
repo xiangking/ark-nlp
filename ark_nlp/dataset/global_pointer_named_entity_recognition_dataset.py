@@ -66,7 +66,7 @@ class GlobalPointerNERDataset(TokenClassificationDataset):
                         continue
                     global_label[self.cat2id[info_['type']], start_idx+1, end_idx+1] = 1
 
-            global_label = torch.tensor(global_label).to_sparse()
+            global_label = global_label.to_sparse()
 
             features.append({
                 'input_ids': input_ids,
