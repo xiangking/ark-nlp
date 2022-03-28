@@ -36,7 +36,7 @@ class W2nerDataset(TokenClassificationDataset):
     """  # noqa: ignore flake8"
 
     def _get_categories(self):
-        categories = sorted(list(set([label_['type'] for data in self.dataset for label_ in data['label']])) + ['<suc>', '<none>'])
+        categories = ['<none>', '<suc>'] + sorted(list(set([label_['type'] for data in self.dataset for label_ in data['label']])))
         return categories
 
     # TODO：函数迁移

@@ -221,17 +221,17 @@ class W2NERPredictor(object):
         for head in head_dict:
             find_entity(head, [], head_dict[head])
 
-        entities = set()
-        for entity_ in predicts:
-            entities.add(
-                text[entity_[0]: entity_[-1] + 1] + '-' + self.id2cat[ht_type_dict[(entity_[0], entity_[-1])]])
+        # entities = set()
+        # for entity_ in predicts:
+        #     entities.add(
+        #         text[entity_[0]: entity_[-1] + 1] + '-' + self.id2cat[ht_type_dict[(entity_[0], entity_[-1])]])
 
         entities = []
         for entity_ in predicts:
             entities.append({
                 "start_idx": entity_[0],
                 "end_idx": entity_[-1],
-                "entity": text[entity_[0]: entity_[-1] + 1],
+                "entity": ''.join([text[i] for i in entity_]),
                 "type": self.id2cat[ht_type_dict[(entity_[0], entity_[-1])]]
             })
 
