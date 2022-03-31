@@ -13,8 +13,8 @@ from ark_nlp.model.ner.crf_bert.crf_bert import CrfBert as Module
 from ark_nlp.factory.optimizer import get_default_crf_bert_optimizer as get_default_model_optimizer
 from ark_nlp.factory.optimizer import get_default_crf_bert_optimizer as get_default_crf_bert_optimizer
 
-from ark_nlp.factory.task import BIONERTask as Task
-from ark_nlp.factory.task import BIONERTask as CrfBertNERTask
+from ark_nlp.factory.task import CRFNERTask as Task
+from ark_nlp.factory.task import CRFNERTask as CrfBertNERTask
 
-from ark_nlp.factory.predictor import BIONERPredictor as Predictor
-from ark_nlp.factory.predictor import BIONERPredictor as CrfBertNERPredictor
+from ark_nlp.factory.predictor import CRFNERPredictor as Predictor
+from ark_nlp.factory.predictor import CRFNERPredictor as CrfBertNERPredictor
