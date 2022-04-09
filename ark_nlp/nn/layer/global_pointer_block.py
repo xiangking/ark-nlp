@@ -75,8 +75,8 @@ class GlobalPointer(Module):
         # RoPE编码
         if self.RoPE:
             pos = SinusoidalPositionEmbedding(self.head_size, 'zero')(inputs)
-            cos_pos = pos[..., None, 1::2].repeat(1, 1, 1, 2)
-            sin_pos = pos[..., None, ::2].repeat(1, 1, 1, 2)
+            cos_pos = pos[..., None, 1::2].repeat_interleave(2, dim=-1)
+            sin_pos = pos[..., None, ::2].repeat_interleave(2, dim=-1)
             qw2 = torch.stack([-qw[..., 1::2], qw[..., ::2]], 4)
             qw2 = torch.reshape(qw2, qw.shape)
             qw = qw * cos_pos + qw2 * sin_pos
@@ -112,8 +112,8 @@ class EfficientGlobalPointer(Module):
         # RoPE编码
         if self.RoPE:
             pos = SinusoidalPositionEmbedding(self.head_size, 'zero')(inputs)
-            cos_pos = pos[..., 1::2].repeat(1, 1, 2)
-            sin_pos = pos[..., ::2].repeat(1, 1, 2)
+            cos_pos = pos[..., 1::2].repeat_interleave(2, dim=-1)
+            sin_pos = pos[..., ::2].repeat_interleave(2, dim=-1)
             qw2 = torch.stack([-qw[..., 1::2], qw[..., ::2]], 3)
             qw2 = torch.reshape(qw2, qw.shape)
             qw = qw * cos_pos + qw2 * sin_pos
