@@ -23,6 +23,7 @@ import numpy as np
 class GlobalPointerNERPredictor(object):
     """
     GlobalPointer命名实体识别的预测器
+
     Args:
         module: 深度学习模型
         tokernizer: 分词器
@@ -57,10 +58,16 @@ class GlobalPointerNERPredictor(object):
         input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
+        zero = [0 for i in range(self.tokenizer.max_seq_len)]
+        span_mask = [input_mask for i in range(sum(input_mask))]
+        span_mask.extend([zero for i in range(sum(input_mask), self.tokenizer.max_seq_len)])
+        span_mask = np.array(span_mask)
+
         features = {
             'input_ids': input_ids,
             'attention_mask': input_mask,
-            'token_type_ids': segment_ids
+            'token_type_ids': segment_ids,
+            'span_mask': span_mask
         }
 
         return features, token_mapping
@@ -91,6 +98,7 @@ class GlobalPointerNERPredictor(object):
     ):
         """
         单样本预测
+
         Args:
             text (:obj:`string`): 输入文本
             threshold (:obj:`float`, optional, defaults to 0): 预测的阈值
