@@ -58,16 +58,10 @@ class GlobalPointerNERPredictor(object):
         input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
-        zero = [0 for i in range(self.tokenizer.max_seq_len)]
-        span_mask = [input_mask for i in range(sum(input_mask))]
-        span_mask.extend([zero for i in range(sum(input_mask), self.tokenizer.max_seq_len)])
-        span_mask = np.array(span_mask)
-
         features = {
             'input_ids': input_ids,
             'attention_mask': input_mask,
-            'token_type_ids': segment_ids,
-            'span_mask': span_mask
+            'token_type_ids': segment_ids
         }
 
         return features, token_mapping
