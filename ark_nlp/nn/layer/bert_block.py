@@ -35,8 +35,9 @@ from transformers.file_utils import ModelOutput
 @dataclass
 class BaseBertModelOutput(ModelOutput):
     """
-    基础Bert模型输出类，继承自`transformers.file_utils.ModelOutput`，方便兼容索引取值和属性取值
+    基础Bert模型输出类, 继承自`transformers.file_utils.ModelOutput`, 方便兼容索引取值和属性取值
     Base class for model's outputs, with potential hidden states and attentions.
+
     Args:
         last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
             bert编码器最后一层的输出向量
@@ -55,22 +56,20 @@ class BaseBertModelOutput(ModelOutput):
 
 
 class BertEmbeddings(nn.Module):
-    """
-    bert的嵌入层，包含词嵌入、位置嵌入和token类型嵌入
-    """  # noqa: ignore flake8"
+    """bert的嵌入层, 包含词嵌入、位置嵌入和token类型嵌入"""
 
     def __init__(self, config):
         super().__init__()
-        
+
         # bert的输入分为三部分：词嵌入、位置嵌入和token类型嵌入
-        #（token类型嵌入用于区分词是属于哪个句子，主要用于N个句子拼接输入的情况）
+        # （token类型嵌入用于区分词是属于哪个句子，主要用于N个句子拼接输入的情况）
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        
+
         # bert的位置嵌入使用的是绝对位置，即从句首开始按自然数进行编码
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         # 初始化时position_ids按设置中的max_position_embeddings生成，在forward会根据input_ids输入长度进行截断
@@ -99,7 +98,7 @@ class BertEmbeddings(nn.Module):
 
         if position_ids is None:
             position_ids = self.position_ids[:, :seq_length]
-        
+
         if token_type_ids is None:
             if hasattr(self, "token_type_ids"):
                 buffered_token_type_ids = self.token_type_ids[:, :seq_length]
@@ -107,7 +106,7 @@ class BertEmbeddings(nn.Module):
                 token_type_ids = buffered_token_type_ids_expanded
             else:
                 token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=self.position_ids.device)
-        
+
         # 生成词嵌入向量
         input_embedings = self.word_embeddings(input_ids)
         # 生成token类型嵌入向量
@@ -117,20 +116,18 @@ class BertEmbeddings(nn.Module):
         # 本部分的位置编码仅使用绝对编码
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
-        
+
         # 将三个向量相加
         embeddings = input_embedings + position_embeddings + token_type_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
-        
+
         return embeddings
 
 
 class BertSelfAttention(nn.Module):
-    """
-    Bert自注意力层
-    """  # noqa: ignore flake8"
-    
+    """自注意力层"""
+
     def __init__(self, config):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
@@ -138,10 +135,10 @@ class BertSelfAttention(nn.Module):
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
                 f"heads ({config.num_attention_heads})"
             )
-        
+
         # 虽然在解释多头机制的时候都是以向量直接分别经过几个NN生成
-        # 但实际的实现思路类似于对向量按头的个数在维度上进行分割，然后分别经过NN后进行拼接
-        # 实际代码不会显式地进行分割，但思路上是一致的
+        # 但在实际实现时是使用将向量维度从hidden_size -> num_attention_heads * attention_head_size
+        # 然后通过维度变化转化成（批大小，序列长度, 注意力头数，每个注意力头的维度）的形式
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
@@ -168,7 +165,7 @@ class BertSelfAttention(nn.Module):
         mixed_query_layer = self.query(hidden_states)
         mixed_key_layer = self.key(hidden_states)
         mixed_value_layer = self.value(hidden_states)
-        
+
         # "query"、"key"和"value"维度和位置调整
         query_layer = self.transpose_for_scores(mixed_query_layer)
         key_layer = self.transpose_for_scores(mixed_key_layer)
@@ -178,7 +175,7 @@ class BertSelfAttention(nn.Module):
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         # 论文里提到的除以维度
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-        
+
         if attention_mask is not None:
             # 由于后续需要通过softmax，所以这里的mask并不是通过使attention_scores
             # 对应位置变为0实现的，而是将原先的mask中的0转化成-1e4，1转化成0，这样
@@ -189,25 +186,23 @@ class BertSelfAttention(nn.Module):
 
         # 注意力dropout,transformers库中提到这是原始代码的实现
         attention_probs = self.dropout(attention_probs)
-        
+
         # "attention"和"value"的点积
         context_layer = torch.matmul(attention_probs, value_layer)
-        
+
         # 维度恢复
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
-        
+
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
 
         return outputs
 
 
 class BertSelfOutput(nn.Module):
-    """
-    Bert自注意力输出层，本质上就是使用了self-attention之后需要经过的残差和LayerNorm层
-    """  # noqa: ignore flake8"
-    
+    """单层Bert的自注意力输出层, --> 全连接层 --> 残差层 --> LayerNorm层"""
+
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -215,7 +210,10 @@ class BertSelfOutput(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
+        # 这里的全连接层本身是为了对齐自注意力之后的向量与原始输入向量的维度差异, 从而方便做残差操作
+        # 但由于bert中这两部分向量的维度天然对齐，所以此处的维度变化为：hidden_size -> hidden_size
         hidden_states = self.dense(hidden_states)
+
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
@@ -223,14 +221,14 @@ class BertSelfOutput(nn.Module):
 
 class BertAttention(nn.Module):
     """
-    Bert注意力层，本质上就是对自注意力层+残差+LayerNorm层的一个封装，方便调用
+    单层Bert的注意力层, 自注意力层 --> 全连接层 --> dropout --> 残差层 --> LayerNorm层
     """  # noqa: ignore flake8"
-    
+
     def __init__(self, config):
         super().__init__()
         self.self = BertSelfAttention(config)
         self.output = BertSelfOutput(config)
-        
+
     def forward(
         self,
         hidden_states,
@@ -249,9 +247,9 @@ class BertAttention(nn.Module):
 
 class BertIntermediate(nn.Module):
     """
-    Bert中间层，单层全连接层（升维，原始bert：768->3072）+激活函数（原始bert实现使用gelu函数）
+    单层Bert的中间层, --> PositionwiseFeedForward层(缺少降维部分): 单层全连接层(升维, 原始bert: 768->3072) + 激活函数(原始bert实现使用gelu函数)
     """  # noqa: ignore flake8"
-    
+
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
@@ -261,16 +259,21 @@ class BertIntermediate(nn.Module):
             self.intermediate_act_fn = config.hidden_act
 
     def forward(self, hidden_states):
+        # 在最初的《Attention is All You Need》中是使用的relu作为激活函数并添加了dropout，但在Bert的实现中换成了gelu
+        # 关于dropout，尽管Google AI的bert-pytorch开源项目中添加了该代码：self.w_2(self.dropout(self.activation(self.w_1(x))))
+        # 但是原始TF实现、transformers和UER-py都未使用dropout操作，此处选择对齐transformers的操作
+
         hidden_states = self.dense(hidden_states)
         hidden_states = self.intermediate_act_fn(hidden_states)
+
         return hidden_states
 
 
 class BertOutput(nn.Module):
     """
-    Bert单层编码输出层，单层全连接层（降维，原始bert：3072->768）+dropout+残差+LayerNorm层
+    单层Bert的输出层, --> PositionwiseFeedForward层(降维部分, 原始bert: 3072->768) --> dropout --> 残差层 --> LayerNorm层
     """  # noqa: ignore flake8"
-    
+
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
@@ -283,14 +286,19 @@ class BertOutput(nn.Module):
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
+
 class BertLayer(nn.Module):
     """
-    Bert编码层（单层），即对前面所有层的封装，可分为三部分：
-        1. bert注意力层：自注意力层+残差+LayerNorm层
-        2. Bert中间层：单层全连接层+激活函数
-        3. Bert单层编码输出层：单层全连接层+dropout+残差+LayerNorm层
+    单层Bert
+
+    按论文的描述, 单层bert的内部顺序为: 自注意力层 --> 全连接层 --> 残差层 --> LayerNorm层 --> PositionwiseFeedForward层 --> 残差层 --> LayerNorm层
+    但在实际原始bert代码实现里, PositionwiseFeedForward层的升维和降维被拆分到BertIntermediate和BertOutput中分别计算
+    因此，实际代码的顺序为：
+        1. BertSelfAttention: 自注意力层 + 单层全连接层 + dropout + 残差层 + LayerNorm层
+        2. BertIntermediate: 单层全连接层 + 激活函数 (PositionwiseFeedForward的升维部分)
+        3. Bert单层编码输出层: 单层全连接层(PositionwiseFeedForward的降维部分) + dropout + 残差层 + LayerNorm层
     """  # noqa: ignore flake8"
-    
+
     def __init__(self, config):
         super().__init__()
         self.attention = BertAttention(config)
@@ -311,10 +319,10 @@ class BertLayer(nn.Module):
         )
         attention_output = self_attention_outputs[0]
         outputs = self_attention_outputs[1:]
-        
+
         # 中间层
         intermediate_output = self.intermediate(attention_output)
-        
+
         # 输出层
         layer_output = self.output(intermediate_output, attention_output)
 
@@ -325,7 +333,7 @@ class BertLayer(nn.Module):
 
 class BertEncoder(nn.Module):
     """Bert编码器"""
-    
+
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -341,12 +349,12 @@ class BertEncoder(nn.Module):
     ):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
-        
+
         # N层编码过程，每层的结构都是一致的
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
-            
+
             # 该段代码是核心代码，即单层bert编码
             layer_outputs = layer_module(
                 hidden_states,
@@ -358,11 +366,11 @@ class BertEncoder(nn.Module):
 
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
-        
+
         # 在输出将bert最后一层的输出单独作为提取出来作为一项
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
-        
+
         # 下面都是关于返回形式的处理
         if not return_dict:
             return tuple(
@@ -374,7 +382,7 @@ class BertEncoder(nn.Module):
                 ]
                 if v is not None
             )
-        
+
         return BaseBertModelOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
@@ -384,7 +392,7 @@ class BertEncoder(nn.Module):
 
 class BertPooler(nn.Module):
     """用于cls pooling方式的Pooler"""
-    
+
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -398,9 +406,7 @@ class BertPooler(nn.Module):
 
 
 class BertPreTrainedModel(PreTrainedModel):
-    """
-    用于初始化权重和加载预训练语言模型权重的抽象类
-    """  # noqa: ignore flake8"
+    """用于初始化权重和加载预训练语言模型权重的抽象类"""
 
     config_class = BertConfig
     base_model_prefix = "bert"
@@ -426,7 +432,7 @@ class BertPreTrainedModel(PreTrainedModel):
 
 class BertModel(BertPreTrainedModel):
     """
-    基础的Bert模型，仅对encoder功能进行实现，并不兼容decoder功能，原始的transformers（v4.0.0）实现是兼容decoder
+    基础的Bert模型, 仅对encoder功能进行实现, 并不兼容decoder功能, 原始的transformers(v4.0.0)实现是兼容decoder
     """  # noqa: ignore flake8"
 
     def __init__(self, config, add_pooling_layer=True):
@@ -446,19 +452,19 @@ class BertModel(BertPreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.embeddings.word_embeddings = value
-        
+
     def get_extended_attention_mask(
         self,
         attention_mask: Tensor
     ) -> Tensor:
         """
-        为了实现self-attention中的mask操作，需要将原先的attention_mask矩阵的值域从0和1变为-1e4和0
-        需要注意的是：由于BertPreTrainedModel继承自PreTrainedModel，所以是带有该方法的，但为了保证
-        用户可以在一个文件中就了解模型全貌，ark-nlp会将其他文件中的方法尽量copy到一个文件中，并去掉
+        为了实现self-attention中的mask操作, 需要将原先的attention_mask矩阵的值域从0和1变为-1e4和0
+        需要注意的是: 由于BertPreTrainedModel继承自PreTrainedModel, 所以是带有该方法的, 但为了保证
+        用户可以在一个文件中就了解模型全貌, ark-nlp会将其他文件中的方法尽量copy到一个文件中, 并去掉
         与该模型无关的兼容性代码
         Args:
             attention_mask (`torch.Tensor`):
-                Mask矩阵，1表示可使用，0表示被遮蔽
+                Mask矩阵, 1表示可使用, 0表示被遮蔽
 
         Returns:
             `torch.Tensor` 调整值域后的attention_mask
@@ -466,7 +472,7 @@ class BertModel(BertPreTrainedModel):
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-        
+
         return extended_attention_mask
 
     def forward(
@@ -484,7 +490,7 @@ class BertModel(BertPreTrainedModel):
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-        
+
         if input_ids is not None:
             input_shape = input_ids.size()
         else:
@@ -507,15 +513,15 @@ class BertModel(BertPreTrainedModel):
         # 调整attention_mask的值域，将原先的attention_mask矩阵的值域从0和1变为-1e4和0
         # 以满足BertSelfAttention类的需求
         extended_attention_mask: torch.Tensor = self.get_extended_attention_mask(attention_mask)
-        
-        # bert的输入分为三部分：词嵌入、位置嵌入和token类型嵌入
+
+        # bert的输入分为三部分: 词嵌入、位置嵌入和token类型嵌入
         # 三种嵌入向量使用`+`的方式融合到一起
         embedding_output = self.embeddings(
             input_ids=input_ids,
             position_ids=position_ids,
             token_type_ids=token_type_ids
         )
-        
+
         # 使用Bert encoder进行编码
         encoder_outputs = self.encoder(
             embedding_output,
@@ -524,13 +530,13 @@ class BertModel(BertPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        
+
         # encoder_outputs[0]即last_hidden_state
         sequence_output = encoder_outputs[0]
-        
+
         # 提供了cls pooling方式
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
-        
+
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
 
