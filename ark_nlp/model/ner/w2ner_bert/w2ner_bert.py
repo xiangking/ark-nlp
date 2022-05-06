@@ -197,7 +197,6 @@ class W2NERBert(BertPreTrainedModel):
         config,
         use_bert_last_4_layers=True,
 
-        # TODO: 参数问题， 如何优雅嵌入这些参数
         dist_emb_size=20,
         type_emb_size=20,
         lstm_hid_size=512,

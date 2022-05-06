@@ -19,13 +19,6 @@
 import torch
 import numpy as np
 
-from ark_nlp.factory.utils.conlleval import get_entities
-
-def convert_index_to_text(index, type):
-    text = "-".join([str(i) for i in index])
-    text = text + "-#-{}".format(type)
-    return text
-
 
 class W2NERPredictor(object):
     """
@@ -60,13 +53,8 @@ class W2NERPredictor(object):
             text
     ):
         tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len - 2]
-        # token_mapping = self.tokenizer.get_token_mapping(row_['text'], tokens)
-        #
-        # start_mapping = {j[0]: i for i, j in enumerate(token_mapping) if j}
-        # end_mapping = {j[-1]: i for i, j in enumerate(token_mapping) if j}
 
         input_ids = self.tokenizer.sequence_to_ids(tokens)
-
         input_ids, input_mask, segment_ids = input_ids
 
         # input_length 对应源码 sent_length
@@ -75,7 +63,7 @@ class W2NERPredictor(object):
         _dist_inputs = np.zeros((input_length, input_length), dtype=np.int)
         _pieces2word = np.zeros((input_length, input_length + 2), dtype=np.bool)
 
-        # pieces2word,
+        # pieces2word 类似于token_mapping
         start = 0
         for i, pieces in enumerate(tokens):
             # 对齐源码
@@ -87,6 +75,7 @@ class W2NERPredictor(object):
             start += len(pieces)
 
         # dist_inputs
+        # https://github.com/ljynlp/W2NER/issues/17
         dis2idx = np.zeros((1000), dtype='int64')
         dis2idx[1] = 1
         dis2idx[2:] = 2
@@ -221,16 +210,10 @@ class W2NERPredictor(object):
         for head in head_dict:
             find_entity(head, [], head_dict[head])
 
-        # entities = set()
-        # for entity_ in predicts:
-        #     entities.add(
-        #         text[entity_[0]: entity_[-1] + 1] + '-' + self.id2cat[ht_type_dict[(entity_[0], entity_[-1])]])
-
         entities = []
         for entity_ in predicts:
             entities.append({
-                "start_idx": entity_[0],
-                "end_idx": entity_[-1],
+                "idx": entity_,
                 "entity": ''.join([text[i] for i in entity_]),
                 "type": self.id2cat[ht_type_dict[(entity_[0], entity_[-1])]]
             })

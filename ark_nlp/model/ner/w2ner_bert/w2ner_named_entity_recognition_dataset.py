@@ -39,7 +39,6 @@ class W2nerDataset(TokenClassificationDataset):
         categories = ['<none>', '<suc>'] + sorted(list(set([label_['type'] for data in self.dataset for label_ in data['label']])))
         return categories
 
-    # TODO：函数迁移
     @staticmethod
     def convert_index_to_text(index, type):
         text = "-".join([str(i) for i in index])
@@ -53,13 +52,8 @@ class W2nerDataset(TokenClassificationDataset):
         for (index_, row_) in enumerate(self.dataset):
 
             tokens = bert_tokenizer.tokenize(row_['text'])[:bert_tokenizer.max_seq_len-2]
-            # token_mapping = bert_tokenizer.get_token_mapping(row_['text'], tokens)
-            #
-            # start_mapping = {j[0]: i for i, j in enumerate(token_mapping) if j}
-            # end_mapping = {j[-1]: i for i, j in enumerate(token_mapping) if j}
 
             input_ids = bert_tokenizer.sequence_to_ids(tokens)
-
             input_ids, input_mask, segment_ids = input_ids
 
             # input_length 对应源码 sent_length
@@ -68,7 +62,7 @@ class W2nerDataset(TokenClassificationDataset):
             _dist_inputs = np.zeros((input_length, input_length), dtype=np.int)
             _pieces2word = np.zeros((input_length, input_length+2), dtype=np.bool)
 
-            # pieces2word,
+            # pieces2word 类似于token_mapping
             start = 0
             for i, pieces in enumerate(tokens):
                 # 对齐源码
@@ -80,6 +74,7 @@ class W2nerDataset(TokenClassificationDataset):
                 start += len(pieces)
 
             # dist_inputs
+            # https://github.com/ljynlp/W2NER/issues/17
             dis2idx = np.zeros((1000), dtype='int64')
             dis2idx[1] = 1
             dis2idx[2:] = 2
@@ -109,7 +104,7 @@ class W2nerDataset(TokenClassificationDataset):
             )
 
             for info_ in row_["label"]:
-                index = list(range(info_['start_idx'], info_['end_idx']+1))
+                index = info_['idx']
 
                 if len(index) > 0 and index[-1] < bert_tokenizer.max_seq_len:
 
@@ -133,8 +128,8 @@ class W2nerDataset(TokenClassificationDataset):
             labels_mat = torch.zeros((bert_tokenizer.max_seq_len, bert_tokenizer.max_seq_len), dtype=torch.long)
             _grid_labels = fill(_grid_labels, labels_mat)
 
-            _entity_text = list(set([W2nerDataset.convert_index_to_text(list(range(e['start_idx'], e['end_idx']+1)),
-                                self.cat2id[e["type"]]) for e in row_['label']]))
+            _entity_text = list(set([W2nerDataset.convert_index_to_text(info_['idx'],
+                                self.cat2id[info_["type"]]) for info_ in row_['label']]))
 
             feature = {
                 'input_ids': input_ids,

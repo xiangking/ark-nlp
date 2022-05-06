@@ -4,7 +4,7 @@ from ark_nlp.dataset import BIONERDataset as CrfBertNERDataset
 from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as Tokenizer
 from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as W2NERTokenizer
 
-from ark_nlp.nn import BertConfig as CrfBertConfig
+from ark_nlp.nn import BertConfig as W2nerBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig
 
 from ark_nlp.model.ner.w2ner_bert.w2ner_bert import W2NERBert

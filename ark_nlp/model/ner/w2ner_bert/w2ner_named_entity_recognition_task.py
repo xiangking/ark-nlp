@@ -19,19 +19,17 @@
 import torch
 
 from collections import Counter
+from torch.utils.data._utils.collate import default_collate
 from ark_nlp.factory.utils import conlleval
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 from torch.utils.data._utils.collate import default_collate
 
 
-# TODO: 将该函数加入conlleval
 def convert_index_to_text(index, type):
     text = "-".join([str(i) for i in index])
     text = text + "-#-{}".format(type)
     return text
 
-
-# TODO: 将该函数加入conlleval
 def decode(outputs, entities, length):
     ent_r, ent_p, ent_c = [], [], []
     for index, (instance, ent_set, l) in enumerate(zip(outputs, entities, length)):
@@ -85,7 +83,6 @@ def decode(outputs, entities, length):
     # return ent_c, ent_p, ent_r
 
 
-# TODO: 将该函数加入conlleval
 class SeqEntityScore(object):
     def __init__(self, id2label, markup='bio'):
         self.id2label = id2label
