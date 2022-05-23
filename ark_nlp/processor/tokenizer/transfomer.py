@@ -26,69 +26,6 @@ from copy import deepcopy
 from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
-class WordpieceTokenizer(object):
-    """WordPiece分词器"""
-
-    def __init__(self, vocab, unk_token, max_input_chars_per_word=100):
-        self.vocab = vocab
-        self.unk_token = unk_token
-        self.max_input_chars_per_word = max_input_chars_per_word
-        
-    def whitespace_tokenize(self, text):
-        """将文本按空格切分"""
-        text = text.strip()
-        if not text:
-            return []
-        tokens = text.split()
-        return tokens
-
-    def tokenize(self, text):
-        """
-        将文本分为子词, 例如`input = "unaffable"` wil return as output `["un", "##aff", "##able"]`.
-        Args:
-            text: 单个词或者以空格分割的文本，需要已经过*BasicTokenizer*处理
-        Returns:
-            wordpiece token列表
-            
-        Reference:
-            [1] https://github.com/huggingface/transformers/blob/508baf194313c397345af868202404e285494a28/src/transformers/models/bert/tokenization_bert.py#L500
-        """  # noqa: ignore flake8"
-
-        output_tokens = []
-        for token in self.whitespace_tokenize(text):
-            chars = list(token)
-            if len(chars) > self.max_input_chars_per_word:
-                output_tokens.append(self.unk_token)
-                continue
-
-            is_bad = False
-            start = 0
-            sub_tokens = []
-            while start < len(chars):
-                end = len(chars)
-                cur_substr = None
-                while start < end:
-                    substr = "".join(chars[start:end])
-                    if start > 0:
-                        substr = "##" + substr
-                    if substr in self.vocab:
-                        cur_substr = substr
-                        break
-                    end -= 1
-                if cur_substr is None:
-                    is_bad = True
-                    break
-                sub_tokens.append(cur_substr)
-                start = end
-
-            if is_bad:
-                for _term in chars:
-                    output_tokens.append(self.vocab.get(_term, self.unk_token))
-            else:
-                output_tokens.extend(sub_tokens)
-        return output_tokens
-    
-
 class TransfomerTokenizer(BaseTokenizer):
     """
     Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
@@ -105,10 +42,7 @@ class TransfomerTokenizer(BaseTokenizer):
     ):
         if isinstance(vocab, str):
             # TODO: 改成由自定义的字典所决定
-            vocab = transformers.AutoTokenizer.from_pretrained(vocab, use_fast=False)
-            # transformers库中的WordpieceTokenizer对不存在词典中的词会将其整体视为unk_token
-            # 该操作会导致get_token_mapping无法完成对齐，因此使用自定义的WordpieceTokenizer就行替换
-            vocab.wordpiece_tokenizer = WordpieceTokenizer(vocab=vocab.vocab, unk_token=vocab.unk_token)
+            vocab = transformers.AutoTokenizer.from_pretrained(vocab)
 
         self.vocab = vocab
         self.max_seq_len = max_seq_len
@@ -295,13 +229,10 @@ class TokenTokenizer(TransfomerTokenizer):
 
     def tokenize(self, text, **kwargs):
         tokens = []
-        for token_ in text:
-            tokenized_token_ = self.vocab.tokenize(token_)
-            if tokenized_token_ == []:
-                tokens.extend([token_])
-            else:
-                tokens.extend(tokenized_token_)
-            
+        for token in text:
+            if token == ' ':
+                tokens.extend([token])
+            tokens.extend(self.vocab.tokenize(token))
         return tokens
 
     def sequence_to_ids(self, sequence, **kwargs):
