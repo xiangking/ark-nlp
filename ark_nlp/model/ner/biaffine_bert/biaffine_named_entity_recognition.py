@@ -50,7 +50,7 @@ class BiaffineNERTask(TokenClassificationTask):
         span_label = inputs['label_ids'].view(size=(-1,))
         span_logits = logits.view(size=(-1, self.class_num))
 
-        span_loss = self.loss_function(span_logits, span_label)
+        span_loss = self.loss_function(span_logits, span_label.long())
 
         span_mask = inputs['span_mask'].view(size=(-1,))
 
