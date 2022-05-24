@@ -91,6 +91,7 @@ pip install --upgrade ark-nlp
 | [Span BERT](https://github.com/xiangking/ark-nlp/blob/main/test/span_bert.ipynb) |  |
 | [Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/test/gobalpoint_bert.ipynb) | [GlobalPointer：用统一的方式处理嵌套和非嵌套NER](https://www.kexue.fm/archives/8373) |
 | [Efficient Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/ark_nlp/model/ner/global_pointer_bert/global_pointer_bert.py) | [Efficient GlobalPointer：少点参数，多点效果](https://spaces.ac.cn/archives/8877) |
+| [W2NER BERT](https://github.com/xiangking/ark-nlp/blob/main/test/w2ner_bert.ipynb) |  |
 
 ### 关系抽取 (Relation Extraction)
 

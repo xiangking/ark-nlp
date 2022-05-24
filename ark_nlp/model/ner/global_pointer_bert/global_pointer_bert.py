@@ -13,7 +13,6 @@ class GlobalPointerBert(BertForTokenClassification):
 
     Reference:
         [1] https://www.kexue.fm/archives/8373
-        [2] https://github.com/suolyer/PyTorch_BERT_Biaffine_NER
     """  # noqa: ignore flake8"
 
     def __init__(
@@ -70,7 +69,7 @@ class EfficientGlobalPointerBert(BertForTokenClassification):
 
     Reference:
         [1] https://www.kexue.fm/archives/8877
-        [2] https://github.com/suolyer/PyTorch_BERT_Biaffine_NER
+        [2] https://github.com/powerycy/Efficient-GlobalPointer
     """  # noqa: ignore flake8"
 
     def __init__(

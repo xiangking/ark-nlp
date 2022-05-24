@@ -22,9 +22,9 @@ import numpy as np
 from ark_nlp.dataset import TokenClassificationDataset
 
 
-class W2nerDataset(TokenClassificationDataset):
+class W2NERDataset(TokenClassificationDataset):
     """
-    用于BIO形式的字符分类任务的Dataset
+    W2NER的Dataset
 
     Args:
         data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址

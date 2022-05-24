@@ -140,7 +140,7 @@ class SeqEntityScore(object):
 
 class W2NERTask(TokenClassificationTask):
     """
-    W2NER的命名实体识别Task
+    W2NER的Task
 
     Args:
         module: 深度学习模型

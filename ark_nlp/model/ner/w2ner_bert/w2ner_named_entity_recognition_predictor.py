@@ -22,7 +22,7 @@ import numpy as np
 
 class W2NERPredictor(object):
     """
-    BIO模式的字符分类任务的预测器
+    W2NER的预测器
 
     Args:
         module: 深度学习模型

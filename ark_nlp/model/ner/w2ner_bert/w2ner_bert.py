@@ -186,6 +186,22 @@ class W2NERBert(BertPreTrainedModel):
 
     Args:
         config: 模型的配置对象
+        use_bert_last_4_layers (:obj:`bool`, optional, defaults to True)：Encoder Layer bert层数
+        dist_emb_size (:obj:`int`, defaults to 20)：
+            Convolution Layer - Distance Embedding 用于表示距离向量的大小
+        type_emb_size (:obj:`int`, defaults to 20)：
+            Convolution Layer - Rigion Embedding 用于表示上下矩阵向量的大小
+        lstm_hid_size (:obj:`int`, defaults to 512)：
+            Convolution Layer - Word Embedding 用于表示词向量的大小, defaults to 768(large)
+        conv_hid_size (:obj:`int`, defaults to 96)：Convolution Layer 卷积的大小
+        biaffine_size (:obj:`int`, defaults to 512)：
+            Co-Predictor Layer biaffine的大小, defaults to 768(large)
+        ffnn_hid_size (:obj:`int`, defaults to 288)：
+            Co-Predictor Layer MLP的大小, defaults to 128(large)
+        dilation (:obj:`list`, defaults to [1, 2, 3]): Convolution Layer - Dialation Rate 类似textcnn
+        conv_dropout (:obj:`float`, defaults to 0.5): Convolution Layer dropout
+        emb_dropout (:obj:`float`, defaults to 0.5): Encoder Layer dropout
+        out_dropout (:obj:`float`, defaults to 0.33): Co-Predictor Layer dropout
         bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
 
     Reference:
