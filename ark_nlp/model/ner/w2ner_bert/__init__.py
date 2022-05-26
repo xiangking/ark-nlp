@@ -9,8 +9,8 @@ from ark_nlp.nn import BertConfig as ModuleConfig
 from ark_nlp.model.ner.w2ner_bert.w2ner_bert import W2NERBert
 from ark_nlp.model.ner.w2ner_bert.w2ner_bert import W2NERBert as Module
 
-from ark_nlp.factory.optimizer import get_default_crf_bert_optimizer as get_default_model_optimizer
-from ark_nlp.factory.optimizer import get_default_crf_bert_optimizer as get_default_crf_bert_optimizer
+from ark_nlp.factory.optimizer import get_w2ner_model_optimizer as get_default_model_optimizer
+from ark_nlp.factory.optimizer import get_w2ner_model_optimizer as get_default_w2ner_optimizer
 
 from ark_nlp.model.ner.w2ner_bert.w2ner_named_entity_recognition_task import W2NERTask as Task
 

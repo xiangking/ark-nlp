@@ -128,7 +128,7 @@ class W2NERDataset(TokenClassificationDataset):
             labels_mat = torch.zeros((bert_tokenizer.max_seq_len, bert_tokenizer.max_seq_len), dtype=torch.long)
             _grid_labels = fill(_grid_labels, labels_mat)
 
-            _entity_text = list(set([W2nerDataset.convert_index_to_text(info_['idx'],
+            _entity_text = list(set([W2NERDataset.convert_index_to_text(info_['idx'],
                                 self.cat2id[info_["type"]]) for info_ in row_['label']]))
 
             feature = {
