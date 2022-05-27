@@ -84,13 +84,14 @@ pip install --upgrade ark-nlp
 
 ### 命名实体识别 (Named Entity Recognition)
 
-| 模型       | 简介                       |
-| :--------: | :------------------------: |
-| [CRF BERT](https://github.com/xiangking/ark-nlp/blob/main/test/crf_bert.ipynb) |  |
-| [Biaffine BERT](https://github.com/xiangking/ark-nlp/blob/main/test/biaffine_bert.ipynb) |  |
-| [Span BERT](https://github.com/xiangking/ark-nlp/blob/main/test/span_bert.ipynb) |  |
-| [Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/test/gobalpoint_bert.ipynb) | [GlobalPointer：用统一的方式处理嵌套和非嵌套NER](https://www.kexue.fm/archives/8373) |
-| [Efficient Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/ark_nlp/model/ner/global_pointer_bert/global_pointer_bert.py) | [Efficient GlobalPointer：少点参数，多点效果](https://spaces.ac.cn/archives/8877) |
+| 模型       | 参考文献                       |                   论文源码                    |
+| :--------: | :------------------------: | :-------------------------------------------: |
+| [CRF BERT](https://github.com/xiangking/ark-nlp/blob/main/test/crf_bert.ipynb) |  |  |
+| [Biaffine BERT](https://github.com/xiangking/ark-nlp/blob/main/test/biaffine_bert.ipynb) |  |  |
+| [Span BERT](https://github.com/xiangking/ark-nlp/blob/main/test/span_bert.ipynb) |  |  |
+| [Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/test/gobalpoint_bert.ipynb) | [GlobalPointer：用统一的方式处理嵌套和非嵌套NER](https://www.kexue.fm/archives/8373) |  |
+| [Efficient Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/ark_nlp/model/ner/global_pointer_bert/global_pointer_bert.py) | [Efficient GlobalPointer：少点参数，多点效果](https://spaces.ac.cn/archives/8877) |  |
+| [W2NER BERT](https://github.com/xiangking/ark-nlp/blob/main/test/w2ner_bert.ipynb) | [Unified Named Entity Recognition as Word-Word Relation Classification](https://arxiv.org/pdf/2112.10070.pdf) | [github](https://github.com/ljynlp/w2ner) |
 
 ### 关系抽取 (Relation Extraction)
 
