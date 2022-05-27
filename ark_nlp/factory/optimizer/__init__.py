@@ -117,3 +117,29 @@ def get_default_crf_bert_optimizer(
                       correct_bias=correct_bias)
 
     return optimizer
+
+
+def get_w2ner_model_optimizer(
+    dl_module,
+    lr: float = 1e-3,
+    bert_lr: float = 5e-6,
+    weight_decay=0.0
+):
+    bert_params = set(dl_module.bert.parameters())
+    other_params = list(set(dl_module.parameters()) - bert_params)
+    no_decay = ['bias', 'LayerNorm.weight']
+    params = [
+        {'params': [p for n, p in dl_module.bert.named_parameters() if not any(nd in n for nd in no_decay)],
+         'lr': bert_lr,
+         'weight_decay': weight_decay},
+        {'params': [p for n, p in dl_module.bert.named_parameters() if any(nd in n for nd in no_decay)],
+         'lr': bert_lr,
+         'weight_decay': weight_decay},
+        {'params': other_params,
+         'lr': lr,
+         'weight_decay': weight_decay},
+    ]
+
+    optimizer = AdamW(params, lr=lr, weight_decay=weight_decay)
+
+    return optimizer
