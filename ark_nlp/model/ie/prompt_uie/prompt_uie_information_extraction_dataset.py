@@ -45,7 +45,7 @@ class PromptUIEDataset(TokenClassificationDataset):
             start_mapping = {j[0]: i for i, j in enumerate(token_mapping) if j}
             end_mapping = {j[-1]: i for i, j in enumerate(token_mapping) if j}
 
-            input_ids = bert_tokenizer.sequence_to_ids(prompt_tokens, tokens)
+            input_ids = bert_tokenizer.sequence_to_ids(prompt_tokens, tokens, truncation_method='last')
 
             input_ids, input_mask, segment_ids = input_ids
 

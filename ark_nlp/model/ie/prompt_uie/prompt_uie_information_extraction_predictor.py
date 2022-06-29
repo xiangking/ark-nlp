@@ -43,7 +43,7 @@ class PromptUIEPredictor(object):
 
         prompt_tokens = self.tokenizer.tokenize(prompt)
 
-        input_ids = self.tokenizer.sequence_to_ids(prompt_tokens, tokens)
+        input_ids = self.tokenizer.sequence_to_ids(prompt_tokens, tokens, truncation_method='last')
         input_ids, input_mask, segment_ids = input_ids
 
         features = {
