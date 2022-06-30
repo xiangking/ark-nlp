@@ -110,11 +110,11 @@ class TransfomerTokenizer(BaseTokenizer):
 
         return token_mapping
 
-    def sequence_to_ids(self, sequence_a, sequence_b=None):
+    def sequence_to_ids(self, sequence_a, sequence_b=None, **kwargs):
         if sequence_b is None:
-            return self.sentence_to_ids(sequence_a)
+            return self.sentence_to_ids(sequence_a, **kwargs)
         else:
-            return self.pair_to_ids(sequence_a, sequence_b)
+            return self.pair_to_ids(sequence_a, sequence_b, **kwargs)
 
     def sentence_to_ids(self, sequence, return_sequence_length=False):
         if type(sequence) == str:
@@ -150,7 +150,13 @@ class TransfomerTokenizer(BaseTokenizer):
 
         return (sequence, sequence_mask, segment_ids)
 
-    def pair_to_ids(self, sequence_a, sequence_b, return_sequence_length=False):
+    def pair_to_ids(
+        self,
+        sequence_a,
+        sequence_b,
+        return_sequence_length=False,
+        truncation_method='average'
+    ):
         if type(sequence_a) == str:
             sequence_a = self.tokenize(sequence_a)
 
@@ -161,10 +167,19 @@ class TransfomerTokenizer(BaseTokenizer):
             sequence_length = (len(sequence_a), len(sequence_b))
 
         # 对超长序列进行截断
-        if len(sequence_a) > ((self.max_seq_len - 3)//2):
-            sequence_a = sequence_a[0:(self.max_seq_len - 3)//2]
-        if len(sequence_b) > ((self.max_seq_len - 3)//2):
-            sequence_b = sequence_b[0:(self.max_seq_len - 3)//2]
+        if truncation_method == 'average':
+            if len(sequence_a) > ((self.max_seq_len - 3)//2):
+                sequence_a = sequence_a[0:(self.max_seq_len - 3)//2]
+            if len(sequence_b) > ((self.max_seq_len - 3)//2):
+                sequence_b = sequence_b[0:(self.max_seq_len - 3)//2]
+        elif truncation_method == 'last':
+            if len(sequence_b) > (self.max_seq_len - 3 - len(sequence_a)):
+                sequence_b = sequence_b[0:(self.max_seq_len - 3 - len(sequence_a))]
+        elif truncation_method == 'first':
+            if len(sequence_a) > (self.max_seq_len - 3 - len(sequence_b)):
+                sequence_a = sequence_a[0:(self.max_seq_len - 3 - len(sequence_b))]
+        else:
+            raise ValueError("The truncation method does not exist")
 
         # 分别在首尾拼接特殊符号
         sequence = ['[CLS]'] + sequence_a + ['[SEP]'] + sequence_b + ['[SEP]']
