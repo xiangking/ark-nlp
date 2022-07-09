@@ -93,12 +93,21 @@ pip install --upgrade ark-nlp
 | [Efficient Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/ark_nlp/model/ner/global_pointer_bert/global_pointer_bert.py) | [Efficient GlobalPointer：少点参数，多点效果](https://spaces.ac.cn/archives/8877) |  |
 | [W2NER BERT](https://github.com/xiangking/ark-nlp/blob/main/test/w2ner_bert.ipynb) | [Unified Named Entity Recognition as Word-Word Relation Classification](https://arxiv.org/pdf/2112.10070.pdf) | [github](https://github.com/ljynlp/w2ner) |
 
+
 ### 关系抽取 (Relation Extraction)
 
 |                             模型                             |                           参考文献                           |                   论文源码                    |
 | :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
 | [Casrel](https://github.com/xiangking/ark-nlp/blob/main/test/casrel_bert.ipynb) | [A Novel Cascade Binary Tagging Framework for Relational Triple Extraction](https://arxiv.org/pdf/1909.03227.pdf) | [github](https://github.com/weizhepei/CasRel) |
 | [PRGC](https://github.com/xiangking/ark-nlp/blob/main/test/prgc_bert.ipynb) | [PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction](https://arxiv.org/pdf/2106.09895.pdf) | [github](https://github.com/hy-struggle/PRGC) |
+
+### 信息抽取 (Information Extraction)
+
+|                             模型                             |                           参考文献                           |                   论文源码                    |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
+| [PromptUie](https://github.com/xiangking/ark-nlp/blob/main/example/CMeEE-PromptUIE.ipynb) | [通用信息抽取 UIE(Universal Information Extraction)](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/model_zoo/uie) |[github](https://github.com/PaddlePaddle/PaddleNLP/blob/develop/model_zoo/uie/model.py) |
+
+
 
 ## 实际应用
 
