@@ -302,3 +302,72 @@ class SpanTokenizer(TransfomerTokenizer):
 
     def sequence_to_ids(self, sequence, **kwargs):
         return self.sentence_to_ids(sequence, **kwargs)
+
+
+class PromptMLMTransformerTokenizer(TransfomerTokenizer):
+    """
+    模板学习Transfomer文本编码器, 用于对文本进行分词、ID化、填充等操作
+
+    Args:
+        vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化
+        max_seq_len (int): 预设的文本最大长度
+    """
+    def sequence_to_ids(
+        self,
+        sequence,
+        prompt,
+        prompt_mode='postfix',
+        return_sequence_length=False,
+        **kwargs
+    ):
+        """
+        将序列ID化
+
+        Args:
+            sequence (string or list): 输入序列
+            prompt (list): 所使用的prompt, 如["是", "[MASK]"]
+            prompt_mode (string):
+                prompt放置在文本中的方式
+                有postfix和prefix两种, postfix表示text + prompt, prefix表示prompt + text
+                默认值为"postfix"
+            return_sequence_length (bool, optional): 返回是否包含序列长度, 默认值为False
+        """  # noqa: ignore flake8"
+
+        if type(sequence) == str:
+            sequence = self.tokenize(sequence)
+
+        if return_sequence_length:
+            sequence_length = len(sequence)
+
+        # 对超长序列进行截断
+        if len(sequence) > self.max_seq_len - 2 - len(prompt):
+            sequence = sequence[0:(self.max_seq_len - 2 - len(prompt))]
+
+        # 分别在首尾拼接特殊符号
+        if prompt_mode == 'postfix':
+            sequence = ['[CLS]'] + sequence + prompt + ['[SEP]']
+        else:
+            sequence = ['[CLS]'] + prompt + sequence + ['[SEP]']
+
+        # ID化
+        sequence = self.vocab.convert_tokens_to_ids(sequence)
+
+        segment_ids = [0] * len(sequence)
+
+        # 根据max_seq_len与seq的长度产生填充序列
+        padding = [0] * (self.max_seq_len - len(sequence))
+        # 创建seq_mask
+        sequence_mask = [1] * len(sequence) + padding
+        # 创建seq_segment
+        segment_ids = segment_ids + padding
+        # 对seq拼接填充序列
+        sequence += padding
+
+        sequence = np.asarray(sequence, dtype='int64')
+        sequence_mask = np.asarray(sequence_mask, dtype='int64')
+        segment_ids = np.asarray(segment_ids, dtype='int64')
+
+        if return_sequence_length:
+            return (sequence, sequence_mask, segment_ids, sequence_length)
+
+        return (sequence, sequence_mask, segment_ids)
