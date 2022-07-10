@@ -9,4 +9,4 @@ from ark_nlp.factory.task.named_entity_recognition import CRFNERTask
 from ark_nlp.factory.task.named_entity_recognition import BiaffineNERTask
 from ark_nlp.factory.task.named_entity_recognition import GlobalPointerNERTask
 from ark_nlp.factory.task.named_entity_recognition import SpanNERTask
-from ark_nlp.factory.task.prompt_mask_language_model import PromptMLMTask
+from ark_nlp.factory.task.prompt_masked_language_model import PromptMLMTask

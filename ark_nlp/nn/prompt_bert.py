@@ -42,9 +42,9 @@ class BertLMPredictionHead(nn.Module):
         return hidden_states
 
 
-class BertForMaskedLM(Bert):
+class BertForPromptMaskedLM(Bert):
     """
-    基于BERT的mlm任务
+    针对prompt的基于BERT的mlm任务
 
     :param config: (obejct) 模型的配置对象
     :param bert_trained: (bool) bert参数是否可训练, 默认可训练
@@ -60,7 +60,7 @@ class BertForMaskedLM(Bert):
         config,
         encoder_trained=True
     ):
-        super(BertForMaskedLM, self).__init__(config)
+        super(BertForPromptMaskedLM, self).__init__(config)
 
         self.bert = BertModel(config, add_pooling_layer=False)
 
@@ -104,7 +104,7 @@ class BertForMaskedLM(Bert):
 
         sequence_output = outputs[0]
 
-        sequence_output = BertForMaskedLM._batch_gather(sequence_output, mask_position)
+        sequence_output = BertForPromptMaskedLM._batch_gather(sequence_output, mask_position)
 
         batch_size, _, hidden_size = sequence_output.shape
 

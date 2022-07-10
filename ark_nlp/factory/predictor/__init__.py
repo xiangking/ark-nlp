@@ -9,3 +9,4 @@ from ark_nlp.factory.predictor.crf_named_entity_recognition import CRFNERPredict
 from ark_nlp.factory.predictor.biaffine_named_entity_recognition import BiaffineNERPredictor
 from ark_nlp.factory.predictor.span_named_entity_recognition import SpanNERPredictor
 from ark_nlp.factory.predictor.global_pointer_named_entity_recognition import GlobalPointerNERPredictor
+from ark_nlp.factory.predictor.prompt_masked_language_model import PromptMLMPredictor
