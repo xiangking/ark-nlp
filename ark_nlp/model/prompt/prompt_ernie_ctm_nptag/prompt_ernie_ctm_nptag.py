@@ -17,9 +17,6 @@
 
 import torch
 
-from torch import nn
-from torch import Tensor
-from transformers import BertPreTrainedModel
 from ark_nlp.nn.base.bert import Bert
 from ark_nlp.nn.layer.ernie_ctm_block import ErnieCtmModel
 from ark_nlp.nn.layer.ernie_ctm_block import BertLMPredictionHead
@@ -29,12 +26,12 @@ class PromptErnieCtmNptag(Bert):
 
     """
     基于ErnieCtmNptag的prompt模型
-    
+
     Args:
-        config: 
+        config:
             模型的配置对象
         encoder_trained (bool, optional):
-            bert参数是否可训练，默认值为可训练
+            bert参数是否可训练, 默认值为可训练
 
     Reference:
         [1] https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/text_to_knowledge/nptag
@@ -45,7 +42,7 @@ class PromptErnieCtmNptag(Bert):
             encoder_trained=True
     ):
         super(PromptErnieCtmNptag, self).__init__(config)
-        
+
         self.bert = ErnieCtmModel(config)
 
         self.predictions = BertLMPredictionHead(config)
@@ -65,7 +62,7 @@ class PromptErnieCtmNptag(Bert):
             torch.Tensor: (bs, n, hidden)的张量
         """
         index = index.unsqueeze(-1).repeat_interleave(data.size()[-1], dim=-1)  # (bs, n, hidden)
-                
+
         return torch.gather(data, 1, index)
 
     def forward(
@@ -83,13 +80,13 @@ class PromptErnieCtmNptag(Bert):
         )
 
         sequence_output = outputs[0]
-                
+
         sequence_output = PromptErnieCtmNptag._batch_gather(sequence_output, mask_position)
-        
+
         batch_size, _, hidden_size = sequence_output.shape
-        
+
         sequence_output = sequence_output.reshape(-1, hidden_size)
-                
+
         out = self.predictions(sequence_output)
-        
+
         return out
