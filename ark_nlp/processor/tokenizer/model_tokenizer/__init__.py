@@ -1,1 +1,1 @@
-from ark_nlp.processor.model_tokenizer.ernie_ctm_tokenizer import ErnieCtmTokenizer
+from ark_nlp.processor.tokenizer.model_tokenizer.ernie_ctm_tokenizer import ErnieCtmTokenizer

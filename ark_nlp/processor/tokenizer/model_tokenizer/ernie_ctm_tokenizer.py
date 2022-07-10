@@ -24,7 +24,7 @@ from ark_nlp.processor.tokenizer.transfomer import TransfomerTokenizer
 
 class ErnieCtmTokenizer(TransfomerTokenizer):
     """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+    ErnieCtm模型的文本编码器，用于对文本进行分词、ID化、填充等操作
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
