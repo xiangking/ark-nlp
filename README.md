@@ -65,6 +65,7 @@ pip install --upgrade ark-nlp
 | ERNIE1.0 | [ERNIE:Enhanced Representation through Knowledge Integration](https://arxiv.org/pdf/1904.09223.pdf) |
 |  NEZHA   | [NEZHA:Neural Contextualized Representation For Chinese Language Understanding](https://arxiv.org/pdf/1909.00204.pdf) |
 | Roformer | [Roformer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/pdf/2104.09864.pdf) |
+|    [ERNIE-CTM](https://github.com/xiangking/ark-nlp/blob/main/ark_nlp/nn/layer/ernie_ctm_block.py)      |            [ERNIE-CTM（ERNIE for Chinese Text Mining）](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/text_to_knowledge/ernie-ctm)                                                  |
 
 ### 文本分类 (Text Classification)
 |       模型       |                    简介                     |
