@@ -83,16 +83,16 @@ def get_bool_ids_greater_than(probs, limit=0.5, return_prob=False):
 
     Args:
         probs (list):
-            概率列表: [[每个位置是span的首index的概率], [每个位置是span的尾index的概率]]
+            概率列表: [[概率]]
             例如: [[0.1, 0.1, 0.2, 0.5, 0.1, 0.3], [0.7, 0.6, 0.1, 0.1, 0.1, 0.1]]
         limit (float, optional): 阈值, 默认值为0.5
         return_prob (bool, optional): 返回是否带上概率, 默认值为False
 
     Returns:
-        list: span的index列表, 例如: [[3], [0, 1]]
+        list: span的index列表, 例如: [[], [0, 1]]
 
     Reference:
-        [1] https://github.com/PaddlePaddle/PaddleNLP/blob/develop/model_zoo/uie/utils.py
+        [1] https://github.com/PaddlePaddle/PaddleNLP/blob/develop/paddlenlp/utils/tools.py
     """
     probs = np.array(probs)
     dim_len = len(probs.shape)
@@ -125,7 +125,7 @@ def get_span(start_ids, end_ids, with_prob=False):
         set: span列表, 例如: set((2, 4), (10, 12))
 
     Reference:
-        [1] https://github.com/PaddlePaddle/PaddleNLP/blob/develop/model_zoo/uie/utils.py
+        [1] https://github.com/PaddlePaddle/PaddleNLP/blob/develop/paddlenlp/utils/tools.py
     """
     if with_prob:
         start_ids = sorted(start_ids, key=lambda x: x[0])
