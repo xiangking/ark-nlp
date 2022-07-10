@@ -107,6 +107,12 @@ pip install --upgrade ark-nlp
 | :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
 | [PromptUie](https://github.com/xiangking/ark-nlp/blob/main/example/CMeEE-PromptUIE.ipynb) | [通用信息抽取 UIE(Universal Information Extraction)](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/model_zoo/uie) |[github](https://github.com/PaddlePaddle/PaddleNLP/blob/develop/model_zoo/uie/model.py) |
 
+### 少样本 (Few-Shot Learning)
+
+|                             模型                             |                           参考文献                           |                   论文源码                    |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
+| [PromptBert](https://github.com/xiangking/ark-nlp/blob/main/test/prompt_bert.ipynb) | [Pre-train, Prompt, and Predict: A Systematic Survey of Prompting Methods in Natural Language Processing)](https://arxiv.org/abs/2107.13586) ||
+
 
 
 ## 实际应用
