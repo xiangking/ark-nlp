@@ -1,6 +1,7 @@
 # ark-nlp
 ark-nlp主要是收集和复现学术与工作中常用的NLP模型
 
+<a href="https://www.oscs1024.com/project/oscs/xiangking/ark-nlp?ref=badge_small" alt="OSCS Status"><img src="https://www.oscs1024.com/platform/badge/xiangking/ark-nlp.svg?size=small"/></a>
 
 
 ## 环境 
