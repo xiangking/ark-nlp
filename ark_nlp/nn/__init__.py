@@ -13,6 +13,8 @@ from ark_nlp.nn.span_bert import SpanBert
 from ark_nlp.nn.global_pointer_bert import GlobalPointerBert
 from ark_nlp.nn.crf_bert import CrfBert
 
+from ark_nlp.nn.prompt_bert import BertForPromptMaskedLM
+
 from transformers import BertConfig
 from ark_nlp.nn.configuration import ErnieConfig
 from ark_nlp.nn.configuration.configuration_nezha import NeZhaConfig

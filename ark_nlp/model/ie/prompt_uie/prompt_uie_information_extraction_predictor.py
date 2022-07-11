@@ -94,6 +94,10 @@ class PromptUIEPredictor(object):
 
         entities = []
         for span in get_span(start_scores, end_scores):
+
+            if span[0] >= len(token_mapping) or span[-1] >= len(token_mapping):
+                continue
+
             entitie_ = {
                 "start_idx": token_mapping[span[0]][0],
                 "end_idx": token_mapping[span[-1]][-1],
