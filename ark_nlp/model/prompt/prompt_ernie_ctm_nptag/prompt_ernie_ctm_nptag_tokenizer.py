@@ -16,22 +16,18 @@
 # Status: Active
 
 
-import abc
-import torch
-import random
 import transformers
 import numpy as np
 
-from torch.utils.data import Dataset
 from ark_nlp.processor.tokenizer.transfomer import TransfomerTokenizer
 
 
 class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
     """
-    nptag文本编码器，用于对文本进行分词、ID化、填充等操作
+    nptag文本编码器, 用于对文本进行分词、ID化、填充等操作
 
     Args:
-        vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+        vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化
         max_seq_len (int): 预设的文本最大长度
     """
     def __init__(
@@ -46,10 +42,10 @@ class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
         self.max_seq_len = max_seq_len
         self.additional_special_tokens = set()
         self.tokenizer_type = 'transfomer'
-        
+
         self.do_lower_case = self.vocab.do_lower_case
         self.vocab._tokenize = self._tokenize
-    
+
     def sequence_to_ids(
         self,
         sequence,
@@ -64,7 +60,7 @@ class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
         Args:
             sequence (string or list): 输入序列
             prompt (list): 所使用的prompt, 如["是", "[MASK]"]
-            prompt_mode (string): 
+            prompt_mode (string):
                 prompt放置在文本中的方式
                 有postfix和prefix两种, postfix表示text + prompt, prefix表示prompt + text
                 默认值为"postfix"
@@ -75,22 +71,22 @@ class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
 
         if return_sequence_length:
             sequence_length = len(sequence)
-            
+
         # 对超长序列进行截断
         if len(sequence) > self.max_seq_len - 1 - 2 - len(prompt):
-            sequence = sequence[0:(self.max_seq_len -1 - 2 - len(prompt))]
-            
+            sequence = sequence[0:(self.max_seq_len - 1 - 2 - len(prompt))]
+
         # 分别在首尾拼接特殊符号
         if prompt_mode == 'postfix':
-            sequence =  ['[CLS0]'] + ['[CLS1]'] + sequence + prompt + ['[SEP]']
+            sequence = ['[CLS0]'] + ['[CLS1]'] + sequence + prompt + ['[SEP]']
         else:
-            sequence =  ['[CLS0]'] + ['[CLS1]'] + prompt + sequence + ['[SEP]']
-                
+            sequence = ['[CLS0]'] + ['[CLS1]'] + prompt + sequence + ['[SEP]']
+
         # ID化
         sequence = self.vocab.convert_tokens_to_ids(sequence)
-        
+
         segment_ids = [0] * len(sequence)
-        
+
         # 根据max_seq_len与seq的长度产生填充序列
         padding = [0] * (self.max_seq_len - len(sequence))
         # 创建seq_mask
@@ -99,7 +95,7 @@ class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
         segment_ids = segment_ids + padding
         # 对seq拼接填充序列
         sequence += padding
-        
+
         sequence = np.asarray(sequence, dtype='int64')
         sequence_mask = np.asarray(sequence_mask, dtype='int64')
         segment_ids = np.asarray(segment_ids, dtype='int64')
@@ -108,7 +104,7 @@ class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
             return (sequence, sequence_mask, segment_ids, sequence_length)
 
         return (sequence, sequence_mask, segment_ids)
-    
+
     def _tokenize(self, text, **kwargs):
         orig_tokens = list(text)
         output_tokens = []
