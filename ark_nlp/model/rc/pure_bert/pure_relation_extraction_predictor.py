@@ -21,7 +21,7 @@ import numpy as np
 
 class PUREREPredictor(object):
     """
-    AFEA bert模型的联合关系抽取任务的预测器
+    PURE bert模型的联合关系抽取任务的预测器
 
     Args:
         module: 深度学习模型

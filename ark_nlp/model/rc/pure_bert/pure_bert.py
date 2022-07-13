@@ -8,7 +8,7 @@ from collections import Counter
 
 class PUREBert(BertPreTrainedModel):
     """
-    AFEA Bert命名实体模型
+    PURE Bert命名实体模型
 
     Args:
         config: 模型的配置对象
