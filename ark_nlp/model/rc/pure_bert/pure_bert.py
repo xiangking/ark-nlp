@@ -6,7 +6,7 @@ from transformers import BertPreTrainedModel
 from collections import Counter
 
 
-class AFEABert(BertPreTrainedModel):
+class PUREBert(BertPreTrainedModel):
     """
     AFEA Bert命名实体模型
 
@@ -20,7 +20,7 @@ class AFEABert(BertPreTrainedModel):
     """  # noqa: ignore flake8"
 
     def __init__(self, config, use_rope=True):
-        super(AFEABert, self).__init__(config)
+        super(PUREBert, self).__init__(config)
         self.bert = BertModel(config)  # transformers的写法，方便保存，加载模型
 
         self.linear_dim = int(config.hidden_size / config.num_attention_heads)  # 默认

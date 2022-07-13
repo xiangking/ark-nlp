@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 
-class AFEARETask(SequenceClassificationTask):
+class PURERETask(SequenceClassificationTask):
     """
     基于AFEA Bert的关系抽取任务的Task
 
@@ -42,7 +42,7 @@ class AFEARETask(SequenceClassificationTask):
     """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
-        super(AFEARETask, self).__init__(*args, **kwargs)
+        super(PURERETask, self).__init__(*args, **kwargs)
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
 
@@ -115,7 +115,7 @@ class AFEARETask(SequenceClassificationTask):
         if verbose:
             with torch.no_grad():
                 _, preds = torch.max(logits, 1)
-                self.logs['epoch_evaluation'] += torch.sum(preds == inputs['label_ids']).item() / len(logits[1])
+                self.logs['epoch_evaluation'] += torch.sum(preds == inputs['label_ids']).item() / len(inputs['label_ids'])
 
     def _on_step_end(
         self,

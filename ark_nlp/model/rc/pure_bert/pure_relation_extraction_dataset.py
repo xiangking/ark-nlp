@@ -23,7 +23,7 @@ from collections import defaultdict
 from ark_nlp.dataset.base._dataset import BaseDataset
 
 
-class AFEAREDataset(BaseDataset):
+class PUREREDataset(BaseDataset):
     """
     用于AFEA bert联合关系抽取任务的Dataset
 

@@ -19,7 +19,7 @@ import torch
 import numpy as np
 
 
-class AFEAREPredictor(object):
+class PUREREPredictor(object):
     """
     AFEA bert模型的联合关系抽取任务的预测器
 
