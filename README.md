@@ -65,6 +65,7 @@ pip install --upgrade ark-nlp
 | ERNIE1.0 | [ERNIE:Enhanced Representation through Knowledge Integration](https://arxiv.org/pdf/1904.09223.pdf) |
 |  NEZHA   | [NEZHA:Neural Contextualized Representation For Chinese Language Understanding](https://arxiv.org/pdf/1909.00204.pdf) |
 | Roformer | [Roformer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/pdf/2104.09864.pdf) |
+|    [ERNIE-CTM](https://github.com/xiangking/ark-nlp/blob/main/ark_nlp/nn/layer/ernie_ctm_block.py)      |            [ERNIE-CTM（ERNIE for Chinese Text Mining）](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/text_to_knowledge/ernie-ctm)                                                  |
 
 ### 文本分类 (Text Classification)
 |       模型       |                    简介                     |
@@ -84,12 +85,15 @@ pip install --upgrade ark-nlp
 
 ### 命名实体识别 (Named Entity Recognition)
 
-| 模型       | 简介                       |
-| :--------: | :------------------------: |
-| [CRF BERT](https://github.com/xiangking/ark-nlp/blob/main/test/crf_bert.ipynb) |  |
-| [Biaffine BERT](https://github.com/xiangking/ark-nlp/blob/main/test/biaffine_bert.ipynb) |  |
-| [Span BERT](https://github.com/xiangking/ark-nlp/blob/main/test/span_bert.ipynb) |  |
-| [Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/test/gobalpoint_bert.ipynb) | [GlobalPointer：用统一的方式处理嵌套和非嵌套NER](https://www.kexue.fm/archives/8373) |
+| 模型       | 参考文献                       |                   论文源码                    |
+| :--------: | :------------------------: | :-------------------------------------------: |
+| [CRF BERT](https://github.com/xiangking/ark-nlp/blob/main/test/crf_bert.ipynb) |  |  |
+| [Biaffine BERT](https://github.com/xiangking/ark-nlp/blob/main/test/biaffine_bert.ipynb) |  |  |
+| [Span BERT](https://github.com/xiangking/ark-nlp/blob/main/test/span_bert.ipynb) |  |  |
+| [Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/test/gobalpoint_bert.ipynb) | [GlobalPointer：用统一的方式处理嵌套和非嵌套NER](https://www.kexue.fm/archives/8373) |  |
+| [Efficient Global Pointer BERT](https://github.com/xiangking/ark-nlp/blob/main/ark_nlp/model/ner/global_pointer_bert/global_pointer_bert.py) | [Efficient GlobalPointer：少点参数，多点效果](https://spaces.ac.cn/archives/8877) |  |
+| [W2NER BERT](https://github.com/xiangking/ark-nlp/blob/main/test/w2ner_bert.ipynb) | [Unified Named Entity Recognition as Word-Word Relation Classification](https://arxiv.org/pdf/2112.10070.pdf) | [github](https://github.com/ljynlp/w2ner) |
+
 
 ### 关系抽取 (Relation Extraction)
 
@@ -97,6 +101,20 @@ pip install --upgrade ark-nlp
 | :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
 | [Casrel](https://github.com/xiangking/ark-nlp/blob/main/test/casrel_bert.ipynb) | [A Novel Cascade Binary Tagging Framework for Relational Triple Extraction](https://arxiv.org/pdf/1909.03227.pdf) | [github](https://github.com/weizhepei/CasRel) |
 | [PRGC](https://github.com/xiangking/ark-nlp/blob/main/test/prgc_bert.ipynb) | [PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction](https://arxiv.org/pdf/2106.09895.pdf) | [github](https://github.com/hy-struggle/PRGC) |
+
+### 信息抽取 (Information Extraction)
+
+|                             模型                             |                           参考文献                           |                   论文源码                    |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
+| [PromptUie](https://github.com/xiangking/ark-nlp/blob/main/example/CMeEE-PromptUIE.ipynb) | [通用信息抽取 UIE(Universal Information Extraction)](https://github.com/PaddlePaddle/PaddleNLP/tree/develop/model_zoo/uie) |[github](https://github.com/PaddlePaddle/PaddleNLP/blob/develop/model_zoo/uie/model.py) |
+
+### 少样本 (Few-Shot Learning)
+
+|                             模型                             |                           参考文献                           |                   论文源码                    |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
+| [PromptBert](https://github.com/xiangking/ark-nlp/blob/main/test/prompt_bert.ipynb) | [Pre-train, Prompt, and Predict: A Systematic Survey of Prompting Methods in Natural Language Processing)](https://arxiv.org/abs/2107.13586) ||
+
+
 
 ## 实际应用
 

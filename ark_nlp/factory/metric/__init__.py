@@ -71,7 +71,7 @@ class BiaffineSpanMetrics(nn.Module):
 
 class SpanMetrics(object):
 
-    def __init__(self, id2label):
+    def __init__(self, id2label=None):
         self.id2label = id2label
         self.reset()
 
@@ -87,21 +87,27 @@ class SpanMetrics(object):
         return recall, precision, f1
 
     def result(self):
-        class_info = {}
-        origin_counter = Counter([self.id2label[x[0]] for x in self.origins])
-        found_counter = Counter([self.id2label[x[0]] for x in self.founds])
-        right_counter = Counter([self.id2label[x[0]] for x in self.rights])
-        for type_, count in origin_counter.items():
-            origin = count
-            found = found_counter.get(type_, 0)
-            right = right_counter.get(type_, 0)
-            recall, precision, f1 = self.compute(origin, found, right)
-            class_info[type_] = {"acc": round(precision, 4), 'recall': round(recall, 4), 'f1': round(f1, 4)}
+        if self.id2label is not None:
+            class_info = {}
+            origin_counter = Counter([self.id2label[x[0]] for x in self.origins])
+            found_counter = Counter([self.id2label[x[0]] for x in self.founds])
+            right_counter = Counter([self.id2label[x[0]] for x in self.rights])
+            for type_, count in origin_counter.items():
+                origin = count
+                found = found_counter.get(type_, 0)
+                right = right_counter.get(type_, 0)
+                recall, precision, f1 = self.compute(origin, found, right)
+                class_info[type_] = {"acc": round(precision, 4), 'recall': round(recall, 4), 'f1': round(f1, 4)}
+
         origin = len(self.origins)
         found = len(self.founds)
         right = len(self.rights)
         recall, precision, f1 = self.compute(origin, found, right)
-        return {'acc': precision, 'recall': recall, 'f1': f1}, class_info
+
+        if self.id2label is None:
+            return {'acc': precision, 'recall': recall, 'f1': f1}
+        else:
+            return {'acc': precision, 'recall': recall, 'f1': f1}, class_info
 
     def update(self, true_subject, pred_subject):
         self.origins.extend(true_subject)

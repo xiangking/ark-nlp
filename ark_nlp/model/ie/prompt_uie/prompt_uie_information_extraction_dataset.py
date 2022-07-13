@@ -1,4 +1,4 @@
-# Copyright (c) 2020 DataArk Authors. All Rights Reserved.
+# Copyright (c) 2022 DataArk Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,15 +15,14 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
 from ark_nlp.dataset import TokenClassificationDataset
 
 
-class GlobalPointerNERDataset(TokenClassificationDataset):
+class PromptUIEDataset(TokenClassificationDataset):
     """
-    用于GlobalPointer命名实体识别任务的Dataset
+    用于通用信息抽取UIE任务的Dataset
 
     Args:
         data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
@@ -34,45 +33,52 @@ class GlobalPointerNERDataset(TokenClassificationDataset):
         is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
     """  # noqa: ignore flake8"
 
-    def _get_categories(self):
-        categories = sorted(list(set([label_['type'] for data in self.dataset for label_ in data['label']])))
-        return categories
-
     def _convert_to_transfomer_ids(self, bert_tokenizer):
 
         features = []
         for (index_, row_) in enumerate(self.dataset):
-            tokens = bert_tokenizer.tokenize(row_['text'])[:bert_tokenizer.max_seq_len-2]
+
+            prompt_tokens = bert_tokenizer.tokenize(row_['condition'])
+            tokens = bert_tokenizer.tokenize(row_['text'])[:bert_tokenizer.max_seq_len - 3 - len(prompt_tokens)]
             token_mapping = bert_tokenizer.get_token_mapping(row_['text'], tokens)
 
             start_mapping = {j[0]: i for i, j in enumerate(token_mapping) if j}
             end_mapping = {j[-1]: i for i, j in enumerate(token_mapping) if j}
 
-            input_ids = bert_tokenizer.sequence_to_ids(tokens)
+            input_ids = bert_tokenizer.sequence_to_ids(prompt_tokens, tokens, truncation_method='last')
 
             input_ids, input_mask, segment_ids = input_ids
 
-            global_label = torch.zeros((
-                self.class_num,
-                bert_tokenizer.max_seq_len,
-                bert_tokenizer.max_seq_len)
-            )
+            start_label = torch.zeros((bert_tokenizer.max_seq_len))
+            end_label = torch.zeros((bert_tokenizer.max_seq_len))
 
+            label_ = set()
             for info_ in row_['label']:
                 if info_['start_idx'] in start_mapping and info_['end_idx'] in end_mapping:
                     start_idx = start_mapping[info_['start_idx']]
                     end_idx = end_mapping[info_['end_idx']]
                     if start_idx > end_idx or info_['entity'] == '':
                         continue
-                    global_label[self.cat2id[info_['type']], start_idx+1, end_idx+1] = 1
 
-            global_label = global_label.to_sparse()
+                    start_label[start_idx + 2 + len(prompt_tokens)] = 1
+                    end_label[end_idx + 2 + len(prompt_tokens)] = 1
+
+                    label_.add((start_idx + 2 + len(prompt_tokens),
+                                end_idx + 2 + len(prompt_tokens)))
 
             features.append({
                 'input_ids': input_ids,
                 'attention_mask': input_mask,
                 'token_type_ids': segment_ids,
-                'label_ids': global_label
+                'start_label_ids': start_label,
+                'end_label_ids': end_label,
+                'label_ids': list(label_)
             })
 
         return features
+
+    @property
+    def to_device_cols(self):
+        _cols = list(self.dataset[0].keys())
+        _cols.remove('label_ids')
+        return _cols
