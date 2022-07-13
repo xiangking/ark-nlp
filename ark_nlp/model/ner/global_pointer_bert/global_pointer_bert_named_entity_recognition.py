@@ -18,6 +18,8 @@
 
 import torch
 
+from torch.utils.data._utils.collate import default_collate
+
 from ark_nlp.factory.utils import conlleval
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
@@ -38,6 +40,25 @@ class GlobalPointerNERTask(TokenClassificationTask):
         ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
+
+    def _train_collate_fn(self, batch):
+
+        input_ids = default_collate([f['input_ids'] for f in batch])
+        attention_mask = default_collate([f['attention_mask'] for f in batch])
+        token_type_ids = default_collate([f['token_type_ids'] for f in batch])
+        label_ids = default_collate([f['label_ids'].to_dense() for f in batch])
+
+        tensors = {
+            'input_ids': input_ids,
+            'attention_mask': attention_mask,
+            'token_type_ids': token_type_ids,
+            'label_ids': label_ids,
+        }
+        return tensors
+
+    def _evaluate_collate_fn(self, batch):
+        return self._train_collate_fn(batch)
+
 
     def _compute_loss(
         self,
@@ -71,7 +92,7 @@ class GlobalPointerNERTask(TokenClassificationTask):
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
 
             numerate, denominator = conlleval.global_pointer_f1_score(
-                inputs['label_ids'].to_dense().cpu(),
+                inputs['label_ids'].cpu(),
                 logits.cpu()
             )
             self.evaluate_logs['numerate'] += numerate
