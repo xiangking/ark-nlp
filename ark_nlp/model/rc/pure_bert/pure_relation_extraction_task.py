@@ -26,7 +26,7 @@ from ark_nlp.factory.task.base._sequence_classification import SequenceClassific
 
 class PURERETask(SequenceClassificationTask):
     """
-    基于PURE Bert的关系抽取任务的Task
+    基于PURE Bert的关系分类任务的Task
 
     Args:
         module: 深度学习模型

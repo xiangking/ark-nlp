@@ -25,7 +25,7 @@ from ark_nlp.dataset.base._dataset import BaseDataset
 
 class PUREREDataset(BaseDataset):
     """
-    用于PURE bert联合关系抽取任务的Dataset
+    用于PURE bert联合关系分类任务的Dataset
 
     Args:
         data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
