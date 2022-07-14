@@ -19,7 +19,7 @@ import torch
 import numpy as np
 
 
-class PUREREPredictor(object):
+class PURERCPredictor(object):
     """
     PURE bert模型的关系分类任务的预测器
 

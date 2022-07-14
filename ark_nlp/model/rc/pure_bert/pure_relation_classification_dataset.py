@@ -23,7 +23,7 @@ from collections import defaultdict
 from ark_nlp.dataset.base._dataset import BaseDataset
 
 
-class PUREREDataset(BaseDataset):
+class PURERCDataset(BaseDataset):
     """
     用于PURE bert联合关系分类任务的Dataset
 

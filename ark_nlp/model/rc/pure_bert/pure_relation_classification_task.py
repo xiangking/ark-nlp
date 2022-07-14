@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 
-class PURERETask(SequenceClassificationTask):
+class PURERCTask(SequenceClassificationTask):
     """
     基于PURE Bert的关系分类任务的Task
 
@@ -42,7 +42,7 @@ class PURERETask(SequenceClassificationTask):
     """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
-        super(PURERETask, self).__init__(*args, **kwargs)
+        super(PURERCTask, self).__init__(*args, **kwargs)
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
 
