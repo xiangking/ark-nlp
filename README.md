@@ -101,6 +101,7 @@ pip install --upgrade ark-nlp
 | :----------------------------------------------------------: | :----------------------------------------------------------: | :-------------------------------------------: |
 | [Casrel](https://github.com/xiangking/ark-nlp/blob/main/test/casrel_bert.ipynb) | [A Novel Cascade Binary Tagging Framework for Relational Triple Extraction](https://arxiv.org/pdf/1909.03227.pdf) | [github](https://github.com/weizhepei/CasRel) |
 | [PRGC](https://github.com/xiangking/ark-nlp/blob/main/test/prgc_bert.ipynb) | [PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction](https://arxiv.org/pdf/2106.09895.pdf) | [github](https://github.com/hy-struggle/PRGC) |
+| [PURE](https://github.com/xiangking/ark-nlp/blob/main/example/CHIP-CMeIE-PURE/CMeIE-PURE-RE.ipynb) | [A Frustratingly Easy Approach for Joint Entity and Relation Extraction](https://arxiv.org/abs/2010.12812v2) | [github](https://github.com/princeton-nlp/PURE) |
 
 ### 信息抽取 (Information Extraction)
 
