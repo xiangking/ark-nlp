@@ -163,6 +163,8 @@ class PromptUIE(BertPreTrainedModel):
 
         self.sigmoid = nn.Sigmoid()
 
+        self.init_weights()
+
     def forward(self,
                 input_ids,
                 token_type_ids=None,

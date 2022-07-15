@@ -46,13 +46,22 @@ class PRGCBert(BertPreTrainedModel):
 
     Args:
         config: 模型的配置对象
-        seq_tag_size (:obj:`int`, optional, defaults to 3): 序列标注子任务的字符标签个数
-        drop_prob (:obj:`float`, optional, defaults to 0.3): dropout rate，bert之外的模型统一使用这个数值的dropout
-        emb_fusion (:obj:`string`, optional, defaults to `concat`): 关系嵌入与bert输出向量的融合方式，concat是拼接，sum是加和
-        corres_mode (:obj:`string` or :obj:`string`, optional, defaults to None): 生成global correspondence矩阵的方式，
-                                                                                  biaffine是使用biaffine交叉主体和客体向量进行生成，比较节约显存，
-                                                                                  None则是原论文方式，通过拼接向量再使用全连接层生成
-        biaffine_hidden_size (:obj:`int`, optional, defaults to 128): 若使用biaffine生成global correspondence矩阵时，biaffine的隐层size
+        seq_tag_size (int, optional):
+            序列标注子任务的字符标签个数, 默认值为3
+        drop_prob (float, optional):
+            dropout rate, bert之外的模型统一使用这个数值的dropout
+            默认值为0.3
+        emb_fusion (string, optional):
+            关系嵌入与bert输出向量的融合方式, "concat"是拼接, "sum"是加和
+            默认值为"concat"
+        corres_mode (string, optional):
+            生成global correspondence矩阵的方式,
+            "biaffine"是使用biaffine交叉主体和客体向量进行生成, 比较节约显存，
+            None则是原论文方式, 通过拼接向量再使用全连接层生成
+            默认值为None
+        biaffine_hidden_size (int, optional):
+            若使用biaffine生成global correspondence矩阵时, biaffine的隐层size
+            默认值为128
 
     Reference:
         [1] PRGC: Potential Relation and Global Correspondence Based Joint Relational Triple Extraction

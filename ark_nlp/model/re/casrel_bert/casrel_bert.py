@@ -11,7 +11,7 @@ class CasRelBert(BertPreTrainedModel):
 
     Args:
         config: 模型的配置对象
-        bert_trained (:obj:`bool`, optional): 预设的文本最大长度
+        bert_trained (bool, optional): bert参数是否可训练, 默认值为True
 
     Reference:
         [1] A Novel Cascade Binary Tagging Framework for Relational Triple Extraction

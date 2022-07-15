@@ -8,7 +8,7 @@ class CrfBert(BertForTokenClassification):
 
     Args:
         config: 模型的配置对象
-        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+        bert_trained (bool, optional): 预训练模型的参数是否可训练, 默认值为True
     """  # noqa: ignore flake8"
 
     def __init__(

@@ -186,23 +186,40 @@ class W2NERBert(BertPreTrainedModel):
 
     Args:
         config: 模型的配置对象
-        use_bert_last_4_layers (:obj:`bool`, optional, defaults to True)：Encoder Layer bert层数
-        dist_emb_size (:obj:`int`, defaults to 20)：
+        use_bert_last_4_layers (bool, optional): Encoder Layer bert层数, 默认值为True
+        dist_emb_size (int, optional):
             Convolution Layer - Distance Embedding 用于表示距离向量的大小
-        type_emb_size (:obj:`int`, defaults to 20)：
+            默认值为20
+        type_emb_size (int, optional):
             Convolution Layer - Rigion Embedding 用于表示上下矩阵向量的大小
-        lstm_hid_size (:obj:`int`, defaults to 512)：
-            Convolution Layer - Word Embedding 用于表示词向量的大小, defaults to 768(large)
-        conv_hid_size (:obj:`int`, defaults to 96)：Convolution Layer 卷积的大小
-        biaffine_size (:obj:`int`, defaults to 512)：
-            Co-Predictor Layer biaffine的大小, defaults to 768(large)
-        ffnn_hid_size (:obj:`int`, defaults to 288)：
-            Co-Predictor Layer MLP的大小, defaults to 128(large)
-        dilation (:obj:`list`, defaults to [1, 2, 3]): Convolution Layer - Dialation Rate 类似textcnn
-        conv_dropout (:obj:`float`, defaults to 0.5): Convolution Layer dropout
-        emb_dropout (:obj:`float`, defaults to 0.5): Encoder Layer dropout
-        out_dropout (:obj:`float`, defaults to 0.33): Co-Predictor Layer dropout
-        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+            默认值为20
+        lstm_hid_size (int, optional):
+            Convolution Layer - Word Embedding 用于表示词向量的大小
+            默认值为512, large为768
+        conv_hid_size (int, optional):
+            Convolution Layer 卷积的大小
+            默认值为96
+        biaffine_size (int, optional):
+            Co-Predictor Layer biaffine的大小
+            默认值为512, large为768
+        ffnn_hid_size (int, optional):
+            Co-Predictor Layer MLP的大小
+            默认值为288, large为128
+        dilation (list, optional):
+            Convolution Layer - Dialation Rate 类似textcnn
+            默认值为[1, 2, 3]
+        conv_dropout (float, optional):
+            Convolution Layer dropout
+            默认值为0.5
+        emb_dropout (float, optional):
+            Encoder Layer dropout
+            默认值为0.5
+        out_dropout (float, optional):
+            Co-Predictor Layer dropout
+            默认值为0.33
+        bert_trained (bool, optional):
+            预训练模型的参数是否可训练
+            默认值为True
 
     Reference:
         [1] https://github.com/ljynlp/w2ner

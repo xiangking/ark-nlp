@@ -17,12 +17,12 @@
 
 import torch
 
-from ark_nlp.nn.base.bert import Bert
+from transformers import BertPreTrainedModel
 from ark_nlp.nn.layer.ernie_ctm_block import ErnieCtmModel
 from ark_nlp.nn.layer.ernie_ctm_block import BertLMPredictionHead
 
 
-class PromptErnieCtmNptag(Bert):
+class PromptErnieCtmNptag(BertPreTrainedModel):
 
     """
     基于ErnieCtmNptag的prompt模型

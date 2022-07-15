@@ -20,11 +20,11 @@ import torch
 
 from torch import nn
 from transformers import BertModel
-from ark_nlp.nn.base.bert import BertForTokenClassification
+from transformers import BertPreTrainedModel
 from ark_nlp.nn.layer.biaffine_block import Biaffine
 
 
-class BiaffineBert(BertForTokenClassification):
+class BiaffineBert(BertPreTrainedModel):
     """
     Biaffine的命名实体识别模型
 
@@ -86,6 +86,8 @@ class BiaffineBert(BertForTokenClassification):
         )
 
         self.biaffne = Biaffine(biaffine_size, self.num_labels)
+
+        self.init_weights()
 
         self.reset_params()
 

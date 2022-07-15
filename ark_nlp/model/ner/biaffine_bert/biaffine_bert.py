@@ -20,24 +20,24 @@ import torch
 
 from torch import nn
 from transformers import BertModel
-from ark_nlp.nn.base.bert import BertForTokenClassification
+from transformers import BertPreTrainedModel
 from ark_nlp.nn.layer.biaffine_block import Biaffine
 
 
-class BiaffineBert(BertForTokenClassification):
+class BiaffineBert(BertPreTrainedModel):
     """
     Biaffine Bert命名实体模型
 
     Args:
         config: 模型的配置对象
-        encoder_trained (:obj:`bool`, optional, defaults to True):
-            bert参数是否可训练，默认可训练
-        biaffine_size (:obj:`int`, optional, defaults to 128): 
-            biaffine输入的embedding size
-        lstm_dropout (:obj:`float`, optional, defaults to 0.4): 
-            lstm的dropout rate
-        select_bert_layer (:obj:`int`, optional): 
-            获取哪一层的bert embedding
+        encoder_trained (bool, optional):
+            bert参数是否可训练, 默认值为True
+        biaffine_size (int, optional):
+            biaffine输入的embedding size, 默认值为128
+        lstm_dropout (float, optional):
+            lstm的dropout rate, 默认值为0.4
+        select_bert_layer (int, optional):
+            获取哪一层的bert embedding, 默认值为-1
 
     Reference:
         [1] Named Entity Recognition as Dependency Parsing
@@ -86,6 +86,8 @@ class BiaffineBert(BertForTokenClassification):
         )
 
         self.biaffne = Biaffine(biaffine_size, self.num_labels)
+
+        self.init_weights()
 
         self.reset_params()
 

@@ -17,11 +17,11 @@
 
 
 from transformers import BertModel
-from ark_nlp.nn.base.bert import BertForTokenClassification
+from transformers import BertPreTrainedModel
 from ark_nlp.nn.layer.global_pointer_block import GlobalPointer
 
 
-class GlobalPointerBert(BertForTokenClassification):
+class GlobalPointerBert(BertPreTrainedModel):
     """
     基于GlobalPointe的命名实体模型
 

@@ -1,15 +1,16 @@
 from transformers import BertModel
-from ark_nlp.nn.base.bert import BertForTokenClassification
-from ark_nlp.nn.layer.global_pointer_block import GlobalPointer, EfficientGlobalPointer
+from transformers import BertPreTrainedModel
+from ark_nlp.nn.layer.global_pointer_block import GlobalPointer
+from ark_nlp.nn.layer.global_pointer_block import EfficientGlobalPointer
 
 
-class GlobalPointerBert(BertForTokenClassification):
+class GlobalPointerBert(BertPreTrainedModel):
     """
     GlobalPointer + Bert 的命名实体模型
 
     Args:
         config: 模型的配置对象
-        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+        bert_trained (bool, optional): 预训练模型的参数是否可训练
 
     Reference:
         [1] https://www.kexue.fm/archives/8373
@@ -59,13 +60,14 @@ class GlobalPointerBert(BertForTokenClassification):
 
         return logits
 
-class EfficientGlobalPointerBert(BertForTokenClassification):
+
+class EfficientGlobalPointerBert(BertPreTrainedModel):
     """
     EfficientGlobalPointer + Bert 的命名实体模型
 
     Args:
         config: 模型的配置对象
-        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+        bert_trained (bool, optional): 预训练模型的参数是否可训练
 
     Reference:
         [1] https://www.kexue.fm/archives/8877

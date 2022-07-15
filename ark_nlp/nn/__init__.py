@@ -4,6 +4,7 @@ from ark_nlp.nn.base.textcnn import TextCNN
 from ark_nlp.nn.base.rnn import RNN
 
 from ark_nlp.nn.base.bert import Bert
+from ark_nlp.nn.base.bert import BertMixin
 from ark_nlp.nn.base.ernie import Ernie
 from ark_nlp.nn.base.nezha import NeZha
 from ark_nlp.nn.base.roformer import RoFormer

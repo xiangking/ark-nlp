@@ -3,18 +3,18 @@ import torch.nn.functional as F
 
 from torch import nn
 from transformers import BertModel
-from ark_nlp.nn.base.bert import BertForTokenClassification
+from transformers import BertPreTrainedModel
 from ark_nlp.nn.layer.pooler_block import PoolerStartLogits
 from ark_nlp.nn.layer.pooler_block import PoolerEndLogits
 
 
-class SpanDependenceBert(BertForTokenClassification):
+class SpanDependenceBert(BertPreTrainedModel):
     """
     基于BERT指针的命名实体模型(end指针依赖start指针的结果)
 
     Args:
         config: 模型的配置对象
-        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+        bert_trained (bool, optional): 预训练模型的参数是否可训练
     """  # noqa: ignore flake8"
 
     def __init__(
@@ -67,13 +67,13 @@ class SpanDependenceBert(BertForTokenClassification):
         return (start_logits, end_logits)
 
 
-class SpanIndependenceBert(BertForTokenClassification):
+class SpanIndependenceBert(BertPreTrainedModel):
     """
     基于BERT指针的命名实体模型(start和end指针互相不影响)
 
     Args:
         config: 模型的配置对象
-        bert_trained (:obj:`bool`, optional): 预训练模型的参数是否可训练
+        bert_trained (bool, optional): 预训练模型的参数是否可训练
     """  # noqa: ignore flake8"
 
     def __init__(
@@ -101,6 +101,8 @@ class SpanIndependenceBert(BertForTokenClassification):
 
         self.start_fc = nn.Linear(mid_hidden_size, self.num_labels)
         self.end_fc = nn.Linear(mid_hidden_size, self.num_labels)
+
+        self.init_weights()
 
         init_blocks = [self.mid_linear, self.start_fc, self.end_fc]
 

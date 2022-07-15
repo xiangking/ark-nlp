@@ -21,12 +21,12 @@ import torch.nn.functional as F
 
 from torch import nn
 from transformers import BertModel
-from ark_nlp.nn.base.bert import BertForTokenClassification
+from transformers import BertPreTrainedModel
 from ark_nlp.nn.layer.pooler_block import PoolerStartLogits
 from ark_nlp.nn.layer.pooler_block import PoolerEndLogits
 
 
-class SpanBert(BertForTokenClassification):
+class SpanBert(BertPreTrainedModel):
     """
     基于span模式的BERT指针的命名实体模型
 
