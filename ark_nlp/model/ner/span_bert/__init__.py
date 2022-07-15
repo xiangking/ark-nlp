@@ -1,8 +1,8 @@
 from ark_nlp.dataset import SpanNERDataset as Dataset
 from ark_nlp.dataset import SpanNERDataset as SpanBertNERDataset
 
-from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as SpanBertNERTokenizer
+from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as SpanBertNERTokenizer
 
 from ark_nlp.nn import BertConfig as SpanBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

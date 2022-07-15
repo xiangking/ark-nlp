@@ -1,8 +1,8 @@
 from ark_nlp.model.re.prgc_bert.prgc_relation_extraction_dataset import PRGCREDataset 
 from ark_nlp.model.re.prgc_bert.prgc_relation_extraction_dataset import PRGCREDataset as Dataset
 
-from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as PRGCRETokenizer
+from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as PRGCRETokenizer
 
 from ark_nlp.nn import BertConfig as PRGCBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

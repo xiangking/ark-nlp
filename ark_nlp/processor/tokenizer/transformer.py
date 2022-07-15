@@ -26,12 +26,12 @@ from copy import deepcopy
 from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 
-class TransfomerTokenizer(BaseTokenizer):
+class TransformerTokenizer(BaseTokenizer):
     """
-    Transfomer文本编码器，用于对文本进行分词、ID化、填充等操作
+    Transfomer文本编码器, 用于对文本进行分词、ID化、填充等操作
 
     Args:
-        vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
+        vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化
         max_seq_len (:obj:`int`): 预设的文本最大长度
     """  # noqa: ignore flake8"
 
@@ -47,7 +47,7 @@ class TransfomerTokenizer(BaseTokenizer):
         self.vocab = vocab
         self.max_seq_len = max_seq_len
         self.additional_special_tokens = set()
-        self.tokenizer_type = 'transfomer'
+        self.tokenizer_type = 'transformer'
 
     @staticmethod
     def _is_control(ch):

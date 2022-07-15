@@ -1,8 +1,8 @@
 from ark_nlp.model.ie.prompt_uie.prompt_uie_information_extraction_dataset import PromptUIEDataset as Dataset
 from ark_nlp.model.ie.prompt_uie.prompt_uie_information_extraction_dataset import PromptUIEDataset
 
-from ark_nlp.processor.tokenizer.transfomer import TransfomerTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import TransfomerTokenizer as PromptUIETokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as PromptUIETokenizer
 
 from ark_nlp.nn import BertConfig as PromptUIEConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

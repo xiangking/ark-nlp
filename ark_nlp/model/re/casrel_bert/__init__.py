@@ -1,8 +1,8 @@
 from ark_nlp.model.re.casrel_bert.casrel_relation_extraction_dataset import CasRelREDataset 
 from ark_nlp.model.re.casrel_bert.casrel_relation_extraction_dataset import CasRelREDataset as Dataset
 
-from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as CasRelRETokenizer
+from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as CasRelRETokenizer
 
 from ark_nlp.nn import BertConfig as CasRelBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

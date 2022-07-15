@@ -1,8 +1,8 @@
 from ark_nlp.dataset import BIONERDataset as Dataset
 from ark_nlp.dataset import BIONERDataset as CrfBertNERDataset
 
-from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as CrfBertNERTokenizer
+from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as CrfBertNERTokenizer
 
 from ark_nlp.nn import BertConfig as CrfBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

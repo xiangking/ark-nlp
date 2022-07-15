@@ -1,8 +1,8 @@
 from ark_nlp.model.rc.pure_bert.pure_relation_classification_dataset import PURERCDataset
 from ark_nlp.model.rc.pure_bert.pure_relation_classification_dataset import PURERCDataset as Dataset
 
-from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import SpanTokenizer as PURERETokenizer
+from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as PURERETokenizer
 
 from ark_nlp.nn import BertConfig as PUREBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

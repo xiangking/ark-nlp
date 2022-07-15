@@ -2,9 +2,9 @@ from ark_nlp.model.tm.unsupervised_simcse.unsupervised_simcse_dataset import Uns
 from ark_nlp.model.tm.unsupervised_simcse.unsupervised_simcse_dataset import UnsupervisedSimCSEDataset as UnsupSimCSEDataset
 from ark_nlp.model.tm.unsupervised_simcse.unsupervised_simcse_dataset import UnsupervisedSimCSEDataset as Dataset
 
-from ark_nlp.processor.tokenizer.transfomer import SentenceTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import SentenceTokenizer as UnsupSimCSETokenizer
-from ark_nlp.processor.tokenizer.transfomer import SentenceTokenizer as UnsupervisedSimCSETokenizer
+from ark_nlp.processor.tokenizer.transformer import SentenceTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import SentenceTokenizer as UnsupSimCSETokenizer
+from ark_nlp.processor.tokenizer.transformer import SentenceTokenizer as UnsupervisedSimCSETokenizer
 
 from ark_nlp.nn import BertConfig as UnsupervisedSimCSEConfig
 from ark_nlp.nn import BertConfig as UnsupSimCSEConfig

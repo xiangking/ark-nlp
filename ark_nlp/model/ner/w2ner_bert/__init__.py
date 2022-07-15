@@ -1,7 +1,7 @@
 from ark_nlp.model.ner.w2ner_bert.w2ner_named_entity_recognition_dataset import W2NERDataset as Dataset
 
-from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import TokenTokenizer as W2NERTokenizer
+from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as W2NERTokenizer
 
 from ark_nlp.nn import BertConfig as W2NERBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig
