@@ -24,7 +24,7 @@ from ark_nlp.factory.metric import BiaffineSpanMetrics
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
-class SpanNERTask(TokenClassificationTask):
+class SpanBertNERTask(TokenClassificationTask):
     """
     Span模式的命名实体识别Task
     

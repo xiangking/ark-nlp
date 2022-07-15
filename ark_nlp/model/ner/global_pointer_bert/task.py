@@ -18,13 +18,15 @@
 
 import torch
 
-from ark_nlp.factory.metric import BiaffineSpanMetrics
+from torch.utils.data._utils.collate import default_collate
+
+from ark_nlp.factory.utils import conlleval
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
-class BiaffineNERTask(TokenClassificationTask):
+class GlobalPointerBertNERTask(TokenClassificationTask):
     """
-    Biaffine的命名实体识别Task
+    GlobalPointer的命名实体识别Task
     
     Args:
         module: 深度学习模型
@@ -39,6 +41,24 @@ class BiaffineNERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
+    def _train_collate_fn(self, batch):
+
+        input_ids = default_collate([f['input_ids'] for f in batch])
+        attention_mask = default_collate([f['attention_mask'] for f in batch])
+        token_type_ids = default_collate([f['token_type_ids'] for f in batch])
+        label_ids = default_collate([f['label_ids'].to_dense() for f in batch])
+
+        tensors = {
+            'input_ids': input_ids,
+            'attention_mask': attention_mask,
+            'token_type_ids': token_type_ids,
+            'label_ids': label_ids,
+        }
+        return tensors
+
+    def _evaluate_collate_fn(self, batch):
+        return self._train_collate_fn(batch)
+
     def _compute_loss(
         self,
         inputs,
@@ -46,32 +66,40 @@ class BiaffineNERTask(TokenClassificationTask):
         verbose=True,
         **kwargs
     ):
-
-        span_label = inputs['label_ids'].view(size=(-1,))
-        span_logits = logits.view(size=(-1, self.class_num))
-
-        span_loss = self.loss_function(span_logits, span_label.long())
-
-        span_mask = inputs['span_mask'].view(size=(-1,))
-
-        span_loss *= span_mask
-        loss = torch.sum(span_loss) / inputs['span_mask'].size()[0]
+        loss = self.loss_function(logits, inputs['label_ids'])
 
         return loss
+
+    def _on_evaluate_begin_record(self, **kwargs):
+
+        self.evaluate_logs['eval_loss'] = 0
+        self.evaluate_logs['eval_step'] = 0
+        self.evaluate_logs['eval_example'] = 0
+
+        self.evaluate_logs['labels'] = []
+        self.evaluate_logs['logits'] = []
+        self.evaluate_logs['input_lengths'] = []
+
+        self.evaluate_logs['numerate'] = 0
+        self.evaluate_logs['denominator'] = 0
 
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
+
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            logits = torch.nn.functional.softmax(logits, dim=-1)
-            self.evaluate_logs['eval_loss'] += loss.item()
 
-        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
-        self.evaluate_logs['logits'].append(logits.cpu())
+            numerate, denominator = conlleval.global_pointer_f1_score(
+                inputs['label_ids'].cpu(),
+                logits.cpu()
+            )
+            self.evaluate_logs['numerate'] += numerate
+            self.evaluate_logs['denominator'] += denominator
 
         self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
         self.evaluate_logs['eval_step'] += 1
+        self.evaluate_logs['eval_loss'] += loss.item()
 
     def _on_evaluate_epoch_end(
         self,
@@ -85,18 +113,10 @@ class BiaffineNERTask(TokenClassificationTask):
         if id2cat is None:
             id2cat = self.id2cat
 
-        biaffine_metric = BiaffineSpanMetrics()
-
-        preds_ = torch.cat(self.evaluate_logs['logits'], dim=0)
-        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0)
-
-        with torch.no_grad():
-            recall, precise, span_f1 = biaffine_metric(preds_, labels_)
-
         if is_evaluate_print:
             print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
                 self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                precise,
-                recall,
-                span_f1)
+                self.evaluate_logs['numerate'],
+                self.evaluate_logs['denominator'],
+                2*self.evaluate_logs['numerate']/self.evaluate_logs['denominator'])
             )

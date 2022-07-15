@@ -18,15 +18,13 @@
 
 import torch
 
-from torch.utils.data._utils.collate import default_collate
-
 from ark_nlp.factory.utils import conlleval
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
-class GlobalPointerNERTask(TokenClassificationTask):
+class BIONERTask(TokenClassificationTask):
     """
-    GlobalPointer的命名实体识别Task
+    BIO序列分类任务的Task
     
     Args:
         module: 深度学习模型
@@ -41,66 +39,23 @@ class GlobalPointerNERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _train_collate_fn(self, batch):
+    def __init__(self, *args, **kwargs):
 
-        input_ids = default_collate([f['input_ids'] for f in batch])
-        attention_mask = default_collate([f['attention_mask'] for f in batch])
-        token_type_ids = default_collate([f['token_type_ids'] for f in batch])
-        label_ids = default_collate([f['label_ids'].to_dense() for f in batch])
-
-        tensors = {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'token_type_ids': token_type_ids,
-            'label_ids': label_ids,
-        }
-        return tensors
-
-    def _evaluate_collate_fn(self, batch):
-        return self._train_collate_fn(batch)
-
-
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
-        loss = self.loss_function(logits, inputs['label_ids'])
-
-        return loss
-
-    def _on_evaluate_begin_record(self, **kwargs):
-
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_example'] = 0
-
-        self.evaluate_logs['labels'] = []
-        self.evaluate_logs['logits'] = []
-        self.evaluate_logs['input_lengths'] = []
-
-        self.evaluate_logs['numerate'] = 0
-        self.evaluate_logs['denominator'] = 0
+        super(BIONERTask, self).__init__(*args, **kwargs)
 
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
-
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['eval_loss'] += loss.item()
 
-            numerate, denominator = conlleval.global_pointer_f1_score(
-                inputs['label_ids'].cpu(),
-                logits.cpu()
-            )
-            self.evaluate_logs['numerate'] += numerate
-            self.evaluate_logs['denominator'] += denominator
+        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
+        self.evaluate_logs['logits'].append(logits.cpu())
+        self.evaluate_logs['input_lengths'].append(inputs['input_lengths'].cpu())
 
         self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
         self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
 
     def _on_evaluate_epoch_end(
         self,
@@ -108,16 +63,40 @@ class GlobalPointerNERTask(TokenClassificationTask):
         epoch=1,
         is_evaluate_print=True,
         id2cat=None,
+        markup='bio',
         **kwargs
     ):
 
         if id2cat is None:
             id2cat = self.id2cat
 
+        self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
+        preds_ = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1).numpy().tolist()
+        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
+        input_lens_ = torch.cat(self.evaluate_logs['input_lengths'], dim=0).numpy()
+
+        for index_, label_ in enumerate(labels_):
+            label_list_ = []
+            pred_list_ = []
+            for jndex_, _ in enumerate(label_):
+                if jndex_ == 0:
+                    continue
+                elif jndex_ == input_lens_[index_]-1:
+                    self.ner_metric.update(
+                        pred_paths=[pred_list_],
+                        label_paths=[label_list_]
+                    )
+                    break
+                else:
+                    label_list_.append(labels_[index_][jndex_])
+                    pred_list_.append(preds_[index_][jndex_])
+
+        eval_info, entity_info = self.ner_metric.result()
+
         if is_evaluate_print:
             print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
                 self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                self.evaluate_logs['numerate'],
-                self.evaluate_logs['denominator'],
-                2*self.evaluate_logs['numerate']/self.evaluate_logs['denominator'])
+                eval_info['acc'],
+                eval_info['recall'],
+                eval_info['f1'])
             )

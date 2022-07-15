@@ -17,12 +17,11 @@
 
 
 import torch
-import numpy as np
 
 
-class GlobalPointerNERPredictor(object):
+class SpanBertNERPredictor(object):
     """
-    GlobalPointer命名实体识别的预测器
+    span模式的命名实体识别的预测器
 
     Args:
         module: 深度学习模型
@@ -51,7 +50,6 @@ class GlobalPointerNERPredictor(object):
         self,
         text
     ):
-
         tokens = self.tokenizer.tokenize(text)
         token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
@@ -61,7 +59,7 @@ class GlobalPointerNERPredictor(object):
         features = {
             'input_ids': input_ids,
             'attention_mask': input_mask,
-            'token_type_ids': segment_ids
+            'token_type_ids': segment_ids,
         }
 
         return features, token_mapping
@@ -87,15 +85,13 @@ class GlobalPointerNERPredictor(object):
 
     def predict_one_sample(
         self,
-        text='',
-        threshold=0
+        text=''
     ):
         """
         单样本预测
 
         Args:
             text (:obj:`string`): 输入文本
-            threshold (:obj:`float`, optional, defaults to 0): 预测的阈值
         """  # noqa: ignore flake8"
 
         features, token_mapping = self._get_input_ids(text)
@@ -103,26 +99,31 @@ class GlobalPointerNERPredictor(object):
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            scores = self.module(**inputs)[0].cpu()
-
-        scores[:, [0, -1]] -= np.inf
-        scores[:, :, [0, -1]] -= np.inf
+            start_logits, end_logits = self.module(**inputs)
+            start_scores = torch.argmax(start_logits[0].cpu(), -1).numpy()[1:]
+            end_scores = torch.argmax(end_logits[0].cpu(), -1).numpy()[1:]
 
         entities = []
-        for category, start, end in zip(*np.where(scores > threshold)):
-            if end-1 > token_mapping[-1][-1]:
+        for index_, s_l in enumerate(start_scores):
+            if s_l == 0:
+                continue
+
+            if index_ > token_mapping[-1][-1]:
                 break
-            if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
-                entitie_ = {
-                    "start_idx": token_mapping[start-1][0],
-                    "end_idx": token_mapping[end-1][-1],
-                    "entity": text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
-                    "type": self.id2cat[category]
-                }
 
-                if entitie_['entity'] == '':
-                    continue
+            for jndex_, e_l in enumerate(end_scores[index_:]):
 
-                entities.append(entitie_)
+                if index_ + jndex_ > token_mapping[-1][-1]:
+                    break
+
+                if s_l == e_l:
+                    entitie_ = {
+                        "start_idx": token_mapping[index_][0],
+                        "end_idx": token_mapping[index_+jndex_][-1],
+                        "type": self.id2cat[s_l],
+                        "entity": text[token_mapping[index_][0]: token_mapping[index_+jndex_][-1]+1]
+                    }
+                    entities.append(entitie_)
+                    break
 
         return entities

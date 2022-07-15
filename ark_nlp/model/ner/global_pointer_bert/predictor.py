@@ -1,4 +1,4 @@
-# Copyright (c) 2020 DataArk Authors. All Rights Reserved.
+# Copyright (c) 2021 DataArk Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@
 
 
 import torch
+import numpy as np
 
-from ark_nlp.factory.utils.conlleval import get_entities
 
-
-class CRFNERPredictor(object):
+class GlobalPointerBertNERPredictor(object):
     """
-    +CRF模式的字符分类任务的预测器
+    GlobalPointer命名实体识别的预测器
 
     Args:
         module: 深度学习模型
@@ -35,11 +34,8 @@ class CRFNERPredictor(object):
         self,
         module,
         tokernizer,
-        cat2id,
-        markup='bio'
+        cat2id
     ):
-        self.markup = markup
-
         self.module = module
         self.module.task = 'TokenLevel'
 
@@ -55,29 +51,20 @@ class CRFNERPredictor(object):
         self,
         text
     ):
-        input_ids = self.tokenizer.sequence_to_ids(text)
+
+        tokens = self.tokenizer.tokenize(text)
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
+
+        input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
         features = {
-                'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids
-            }
-        return features
+            'input_ids': input_ids,
+            'attention_mask': input_mask,
+            'token_type_ids': segment_ids
+        }
 
-    def _convert_to_vanilla_ids(
-        self,
-        text
-    ):
-        tokens = self.tokenizer.tokenize(text)
-        length = len(tokens)
-        input_ids = self.tokenizer.sequence_to_ids(tokens)
-
-        features = {
-                'input_ids': input_ids,
-                'length': length if length < self.tokenizer.max_seq_len else self.tokenizer.max_seq_len,
-            }
-        return features
+        return features, token_mapping
 
     def _get_input_ids(
         self,
@@ -100,43 +87,42 @@ class CRFNERPredictor(object):
 
     def predict_one_sample(
         self,
-        text=''
+        text='',
+        threshold=0
     ):
         """
         单样本预测
 
         Args:
             text (:obj:`string`): 输入文本
+            threshold (:obj:`float`, optional, defaults to 0): 预测的阈值
         """  # noqa: ignore flake8"
 
-        features = self._get_input_ids(text)
+        features, token_mapping = self._get_input_ids(text)
         self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            logit = self.module(**inputs)
+            scores = self.module(**inputs)[0].cpu()
 
-        tags = self.module.crf.decode(logit, inputs['attention_mask'])
-        tags = tags.squeeze(0)
-
-        preds = tags.detach().cpu().numpy().tolist()
-        preds = preds[0][1:]
-        preds = preds[:len(text)]
-
-        tags = [self.id2cat[x] for x in preds]
-        label_entities = get_entities(preds, self.id2cat, self.markup)
-
-        entities = set()
-        for entity_ in label_entities:
-            entities.add(text[entity_[1]: entity_[2]+1] + '-' + entity_[0])
+        scores[:, [0, -1]] -= np.inf
+        scores[:, :, [0, -1]] -= np.inf
 
         entities = []
-        for entity_ in label_entities:
-            entities.append({
-                "start_idx": entity_[1],
-                "end_idx": entity_[2],
-                "entity": text[entity_[1]: entity_[2]+1],
-                "type": entity_[0]
-            })
+        for category, start, end in zip(*np.where(scores > threshold)):
+            if end-1 > token_mapping[-1][-1]:
+                break
+            if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
+                entitie_ = {
+                    "start_idx": token_mapping[start-1][0],
+                    "end_idx": token_mapping[end-1][-1],
+                    "entity": text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
+                    "type": self.id2cat[category]
+                }
+
+                if entitie_['entity'] == '':
+                    continue
+
+                entities.append(entitie_)
 
         return entities

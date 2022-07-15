@@ -20,7 +20,7 @@ import torch
 import numpy as np
 
 
-class BiaffineNERPredictor(object):
+class BiaffineBertNERPredictor(object):
     """
     Biaffine命名实体的预测器
 

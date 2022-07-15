@@ -21,7 +21,7 @@ import numpy as np
 from ark_nlp.dataset import TokenClassificationDataset
 
 
-class BiaffineNERDataset(TokenClassificationDataset):
+class BiaffineBertNERDataset(TokenClassificationDataset):
     """
     用于Biaffine命名实体识别任务的Dataset
 
