@@ -68,7 +68,7 @@ class CasRelREPredictor(object):
         self,
         text
     ):
-        if self.tokenizer.tokenizer_type == 'transfomer':
+        if self.tokenizer.tokenizer_type == 'transformer':
             return self._convert_to_transfomer_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist")

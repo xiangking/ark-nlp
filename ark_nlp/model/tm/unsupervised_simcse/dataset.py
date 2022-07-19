@@ -16,10 +16,10 @@
 # Status: Active
 
 
-from ark_nlp.dataset import TwinTowersSentenceClassificationDataset
+from ark_nlp.dataset import PairWiseSentenceClassificationDataset
 
 
-class UnsupervisedSimCSEDataset(TwinTowersSentenceClassificationDataset):
+class UnsupervisedSimCSEDataset(PairWiseSentenceClassificationDataset):
     """
     用于无监督的SimCSE模型文本匹配任务的Dataset
 

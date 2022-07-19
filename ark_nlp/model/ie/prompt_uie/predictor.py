@@ -55,7 +55,7 @@ class PromptUIEPredictor(object):
         return features, token_mapping
 
     def _get_input_ids(self, text, prompt):
-        if self.tokenizer.tokenizer_type == 'transfomer':
+        if self.tokenizer.tokenizer_type == 'transformer':
             return self._convert_to_transfomer_ids(text, prompt)
         else:
             raise ValueError("The tokenizer type does not exist")

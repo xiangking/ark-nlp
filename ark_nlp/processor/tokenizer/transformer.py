@@ -28,7 +28,7 @@ from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 
 class TransformerTokenizer(BaseTokenizer):
     """
-    Transfomer文本编码器, 用于对文本进行分词、ID化、填充等操作
+    Transformer文本编码器, 用于对文本进行分词、ID化、填充等操作
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化
@@ -207,9 +207,9 @@ class TransformerTokenizer(BaseTokenizer):
         return (sequence, sequence_mask, segment_ids)
 
 
-class SentenceTokenizer(TransfomerTokenizer):
+class SentenceTokenizer(TransformerTokenizer):
     """
-    Transfomer文本编码器，用于单句子进行分词、ID化、填充等操作
+    Transformer文本编码器，用于单句子进行分词、ID化、填充等操作
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
@@ -220,9 +220,9 @@ class SentenceTokenizer(TransfomerTokenizer):
         return self.sentence_to_ids(sequence, **kwargs)
 
 
-class PairTokenizer(TransfomerTokenizer):
+class PairTokenizer(TransformerTokenizer):
     """
-    Transfomer文本编码器，用于句子对拼接进行分词、ID化、填充等操作
+    Transformer文本编码器，用于句子对拼接进行分词、ID化、填充等操作
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
@@ -233,9 +233,9 @@ class PairTokenizer(TransfomerTokenizer):
         return self.pair_to_ids(sequence_a, sequence_b, **kwargs)
 
 
-class TokenTokenizer(TransfomerTokenizer):
+class TokenTokenizer(TransformerTokenizer):
     """
-    Transfomer文本编码器，用于按字符进行分词、ID化、填充等操作
+    Transformer文本编码器，用于按字符进行分词、ID化、填充等操作
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
@@ -254,9 +254,9 @@ class TokenTokenizer(TransfomerTokenizer):
         return self.sentence_to_ids(sequence, **kwargs)
 
 
-class SpanTokenizer(TransfomerTokenizer):
+class SpanTokenizer(TransformerTokenizer):
     """
-    Transfomer文本编码器，用于对文本（基于分隔符分割维度）进行分词、ID化、填充等操作
+    Transformer文本编码器，用于对文本（基于分隔符分割维度）进行分词、ID化、填充等操作
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
@@ -304,9 +304,9 @@ class SpanTokenizer(TransfomerTokenizer):
         return self.sentence_to_ids(sequence, **kwargs)
 
 
-class PromptMLMTransformerTokenizer(TransfomerTokenizer):
+class PromptMLMTransformerTokenizer(TransformerTokenizer):
     """
-    模板学习Transfomer文本编码器, 用于对文本进行分词、ID化、填充等操作
+    模板学习Transformer文本编码器, 用于对文本进行分词、ID化、填充等操作
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化

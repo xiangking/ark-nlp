@@ -19,10 +19,10 @@
 import transformers
 import numpy as np
 
-from ark_nlp.processor.tokenizer.transfomer import TransfomerTokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer
 
 
-class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
+class PromptErnieCtmNptagTokenizer(TransformerTokenizer):
     """
     nptag文本编码器, 用于对文本进行分词、ID化、填充等操作
 
@@ -41,7 +41,7 @@ class PromptErnieCtmNptagTokenizer(TransfomerTokenizer):
         self.vocab = vocab
         self.max_seq_len = max_seq_len
         self.additional_special_tokens = set()
-        self.tokenizer_type = 'transfomer'
+        self.tokenizer_type = 'transformer'
 
         self.do_lower_case = self.vocab.do_lower_case
         self.vocab._tokenize = self._tokenize

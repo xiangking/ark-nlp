@@ -51,7 +51,7 @@ class Predictor(object):
     ):
         if self.tokenizer.tokenizer_type == 'vanilla':
             return self._convert_to_vanilla_ids(text)
-        elif self.tokenizer.tokenizer_type == 'transfomer':
+        elif self.tokenizer.tokenizer_type == 'transformer':
             return self._convert_to_transfomer_ids(text)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text)
