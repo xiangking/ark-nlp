@@ -19,12 +19,10 @@
 import torch
 import numpy as np
 
-from ark_nlp.factory.utils.conlleval import get_entities
 
-
-class BIONERPredictor(object):
+class BiaffineBertNERPredictor(object):
     """
-    BIO模式的字符分类任务的预测器
+    Biaffine命名实体的预测器
 
     Args:
         module: 深度学习模型
@@ -36,11 +34,8 @@ class BIONERPredictor(object):
         self,
         module,
         tokernizer,
-        cat2id,
-        markup='bio'
+        cat2id
     ):
-        self.markup = markup
-
         self.module = module
         self.module.task = 'TokenLevel'
 
@@ -56,29 +51,25 @@ class BIONERPredictor(object):
         self,
         text
     ):
-        input_ids = self.tokenizer.sequence_to_ids(text)
+        tokens = self.tokenizer.tokenize(text)
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
+
+        input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
-        features = {
-                'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids
-            }
-        return features
-
-    def _convert_to_vanilla_ids(
-        self,
-        text
-    ):
-        tokens = self.tokenizer.tokenize(text)
-        length = len(tokens)
-        input_ids = self.tokenizer.sequence_to_ids(tokens)
+        zero = [0 for i in range(self.tokenizer.max_seq_len)]
+        span_mask = [input_mask for i in range(sum(input_mask))]
+        span_mask.extend([zero for i in range(sum(input_mask), self.tokenizer.max_seq_len)])
+        span_mask = np.array(span_mask)
 
         features = {
-                'input_ids': input_ids,
-                'length': length if length < self.tokenizer.max_seq_len else self.tokenizer.max_seq_len,
-            }
-        return features
+            'input_ids': input_ids,
+            'attention_mask': input_mask,
+            'token_type_ids': segment_ids,
+            'span_mask': span_mask
+        }
+
+        return features, token_mapping
 
     def _get_input_ids(
         self,
@@ -110,32 +101,30 @@ class BIONERPredictor(object):
             text (:obj:`string`): 输入文本
         """  # noqa: ignore flake8"
 
-        features = self._get_input_ids(text)
+        features, token_mapping = self._get_input_ids(text)
         self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            logit = self.module(**inputs)
-
-        preds = logit.detach().cpu().numpy()
-        preds = np.argmax(preds, axis=2).tolist()
-        preds = preds[0][1:]
-        preds = preds[:len(text)]
-
-        # tags = [self.id2cat[x] for x in preds]
-        label_entities = get_entities(preds, self.id2cat, self.markup)
-
-        entities = set()
-        for entity_ in label_entities:
-            entities.add(text[entity_[1]: entity_[2]+1] + '-' + entity_[0])
+            scores = torch.argmax(self.module(**inputs), dim=-1)[0].to(torch.device('cpu')).numpy().tolist()
 
         entities = []
-        for entity_ in label_entities:
-            entities.append({
-                "start_idx": entity_[1],
-                "end_idx": entity_[2],
-                "entity": text[entity_[1]: entity_[2]+1],
-                "type": entity_[0]
-            })
+        for start in range(len(scores)):
+            for end in range(start, len(scores[start])):
+                if scores[start][end] > 0:
+                    if end-1 > token_mapping[-1][-1]:
+                        break
+                    if token_mapping[start-1][0] <= token_mapping[end-1][-1]:
+                        entitie_ = {
+                            "start_idx": token_mapping[start-1][0],
+                            "end_idx": token_mapping[end-1][-1],
+                            "entity": text[token_mapping[start-1][0]: token_mapping[end-1][-1]+1],
+                            "type": self.id2cat[scores[start][end]]
+                        }
+
+                        if entitie_['entity'] == '':
+                            continue
+
+                        entities.append(entitie_)
 
         return entities

@@ -1,4 +1,4 @@
-# Copyright (c) 2021 DataArk Authors. All Rights Reserved.
+# Copyright (c) 2022 DataArk Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,57 +15,37 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
-from torch import nn
-from transformers import BertModel
 from transformers import BertPreTrainedModel
-from transformers.models.bert.modeling_bert import BertPredictionHeadTransform
+from ark_nlp.nn.layer.ernie_ctm_block import ErnieCtmModel
+from ark_nlp.nn.layer.ernie_ctm_block import BertLMPredictionHead
 
 
-class BertLMPredictionHead(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.transform = BertPredictionHeadTransform(config)
+class PromptErnieCtmNptag(BertPreTrainedModel):
 
-        self.decoder = nn.Linear(config.hidden_size, config.num_labels, bias=False)
-
-        self.bias = nn.Parameter(torch.zeros(config.num_labels))
-
-        self.decoder.bias = self.bias
-
-    def forward(self, hidden_states):
-        hidden_states = self.transform(hidden_states)
-        hidden_states = self.decoder(hidden_states)
-        return hidden_states
-
-
-class BertForPromptMaskedLM(BertPreTrainedModel):
     """
-    针对prompt的基于BERT的mlm任务
+    基于ErnieCtmNptag的prompt模型
 
     Args:
-        config (obejct): 模型的配置对象
-        encoder_trained (bool optional): bert参数是否可训练, 默认值为True
+        config:
+            模型的配置对象
+        encoder_trained (bool, optional):
+            bert参数是否可训练, 默认值为可训练
 
     Reference:
-        [1] BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding
-    """  # noqa: ignore flake8"
-
+        [1] https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/text_to_knowledge/nptag
+    """
     def __init__(
-        self,
-        config,
-        encoder_trained=True
+            self,
+            config,
+            encoder_trained=True
     ):
-        super(BertForPromptMaskedLM, self).__init__(config)
+        super(PromptErnieCtmNptag, self).__init__(config)
 
-        self.bert = BertModel(config, add_pooling_layer=False)
+        self.bert = ErnieCtmModel(config)
 
-        for param in self.bert.parameters():
-            param.requires_grad = encoder_trained
-
-        self.classifier = BertLMPredictionHead(config)
+        self.predictions = BertLMPredictionHead(config)
 
         self.init_weights()
 
@@ -81,8 +61,7 @@ class BertForPromptMaskedLM(BertPreTrainedModel):
         Returns:
             torch.Tensor: (bs, n, hidden)的张量
         """
-        # (bs, n, hidden)
-        index = index.unsqueeze(-1).repeat_interleave(data.size()[-1], dim=-1)
+        index = index.unsqueeze(-1).repeat_interleave(data.size()[-1], dim=-1)  # (bs, n, hidden)
 
         return torch.gather(data, 1, index)
 
@@ -102,12 +81,12 @@ class BertForPromptMaskedLM(BertPreTrainedModel):
 
         sequence_output = outputs[0]
 
-        sequence_output = BertForPromptMaskedLM._batch_gather(sequence_output, mask_position)
+        sequence_output = PromptErnieCtmNptag._batch_gather(sequence_output, mask_position)
 
         batch_size, _, hidden_size = sequence_output.shape
 
         sequence_output = sequence_output.reshape(-1, hidden_size)
 
-        out = self.classifier(sequence_output)
+        out = self.predictions(sequence_output)
 
         return out

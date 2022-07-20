@@ -1,4 +1,4 @@
-# Copyright (c) 2020 DataArk Authors. All Rights Reserved.
+# Copyright (c) 2021 DataArk Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,14 +17,11 @@
 
 
 import torch
-import numpy as np
-
-from ark_nlp.factory.utils.conlleval import get_entities
 
 
-class BIONERPredictor(object):
+class SpanBertNERPredictor(object):
     """
-    BIO模式的字符分类任务的预测器
+    span模式的命名实体识别的预测器
 
     Args:
         module: 深度学习模型
@@ -36,11 +33,8 @@ class BIONERPredictor(object):
         self,
         module,
         tokernizer,
-        cat2id,
-        markup='bio'
+        cat2id
     ):
-        self.markup = markup
-
         self.module = module
         self.module.task = 'TokenLevel'
 
@@ -56,29 +50,19 @@ class BIONERPredictor(object):
         self,
         text
     ):
-        input_ids = self.tokenizer.sequence_to_ids(text)
+        tokens = self.tokenizer.tokenize(text)
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
+
+        input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
         features = {
-                'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids
-            }
-        return features
+            'input_ids': input_ids,
+            'attention_mask': input_mask,
+            'token_type_ids': segment_ids,
+        }
 
-    def _convert_to_vanilla_ids(
-        self,
-        text
-    ):
-        tokens = self.tokenizer.tokenize(text)
-        length = len(tokens)
-        input_ids = self.tokenizer.sequence_to_ids(tokens)
-
-        features = {
-                'input_ids': input_ids,
-                'length': length if length < self.tokenizer.max_seq_len else self.tokenizer.max_seq_len,
-            }
-        return features
+        return features, token_mapping
 
     def _get_input_ids(
         self,
@@ -110,32 +94,36 @@ class BIONERPredictor(object):
             text (:obj:`string`): 输入文本
         """  # noqa: ignore flake8"
 
-        features = self._get_input_ids(text)
+        features, token_mapping = self._get_input_ids(text)
         self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            logit = self.module(**inputs)
-
-        preds = logit.detach().cpu().numpy()
-        preds = np.argmax(preds, axis=2).tolist()
-        preds = preds[0][1:]
-        preds = preds[:len(text)]
-
-        # tags = [self.id2cat[x] for x in preds]
-        label_entities = get_entities(preds, self.id2cat, self.markup)
-
-        entities = set()
-        for entity_ in label_entities:
-            entities.add(text[entity_[1]: entity_[2]+1] + '-' + entity_[0])
+            start_logits, end_logits = self.module(**inputs)
+            start_scores = torch.argmax(start_logits[0].cpu(), -1).numpy()[1:]
+            end_scores = torch.argmax(end_logits[0].cpu(), -1).numpy()[1:]
 
         entities = []
-        for entity_ in label_entities:
-            entities.append({
-                "start_idx": entity_[1],
-                "end_idx": entity_[2],
-                "entity": text[entity_[1]: entity_[2]+1],
-                "type": entity_[0]
-            })
+        for index_, s_l in enumerate(start_scores):
+            if s_l == 0:
+                continue
+
+            if index_ > token_mapping[-1][-1]:
+                break
+
+            for jndex_, e_l in enumerate(end_scores[index_:]):
+
+                if index_ + jndex_ > token_mapping[-1][-1]:
+                    break
+
+                if s_l == e_l:
+                    entitie_ = {
+                        "start_idx": token_mapping[index_][0],
+                        "end_idx": token_mapping[index_+jndex_][-1],
+                        "type": self.id2cat[s_l],
+                        "entity": text[token_mapping[index_][0]: token_mapping[index_+jndex_][-1]+1]
+                    }
+                    entities.append(entitie_)
+                    break
 
         return entities

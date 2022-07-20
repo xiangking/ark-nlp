@@ -17,14 +17,13 @@
 
 
 import torch
-import numpy as np
 
 from ark_nlp.factory.utils.conlleval import get_entities
 
 
-class BIONERPredictor(object):
+class CrfBertNERPredictor(object):
     """
-    BIO模式的字符分类任务的预测器
+    +CRF模式的字符分类任务的预测器
 
     Args:
         module: 深度学习模型
@@ -117,12 +116,14 @@ class BIONERPredictor(object):
             inputs = self._get_module_one_sample_inputs(features)
             logit = self.module(**inputs)
 
-        preds = logit.detach().cpu().numpy()
-        preds = np.argmax(preds, axis=2).tolist()
+        tags = self.module.crf.decode(logit, inputs['attention_mask'])
+        tags = tags.squeeze(0)
+
+        preds = tags.detach().cpu().numpy().tolist()
         preds = preds[0][1:]
         preds = preds[:len(text)]
 
-        # tags = [self.id2cat[x] for x in preds]
+        tags = [self.id2cat[x] for x in preds]
         label_entities = get_entities(preds, self.id2cat, self.markup)
 
         entities = set()

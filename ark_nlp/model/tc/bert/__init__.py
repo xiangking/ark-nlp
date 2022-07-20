@@ -1,8 +1,8 @@
 from ark_nlp.dataset import SentenceClassificationDataset as Dataset
 from ark_nlp.dataset import SentenceClassificationDataset as BertTCDataset
 
-from ark_nlp.processor.tokenizer.transfomer import SentenceTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import SentenceTokenizer as BertTCTokenizer
+from ark_nlp.processor.tokenizer.transformer import SentenceTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import SentenceTokenizer as BertTCTokenizer
 
 from ark_nlp.nn import BertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig
