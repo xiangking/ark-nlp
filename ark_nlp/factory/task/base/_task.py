@@ -15,7 +15,7 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
+import time
 import torch
 
 from torch.utils.data._utils.collate import default_collate
@@ -85,6 +85,29 @@ class Task(object):
         self.ema_decay = ema_decay
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
+
+    def save(self, save_path: str, save_mode: str = 'pth'):
+        """
+        通用信息抽取UIE的Task
+        
+        Args:
+            save_path: 保存的路径
+            save_mode (string, optional):
+                保存的方式
+                "huggingface"表示会以transformers库保存预训练模型的格式进行保存
+                "pth"表示module会以torch.save的方式保存模型权重
+                默认值为: "pth"
+        """  # noqa: ignore flake8"
+        if save_mode == 'huggingface':
+            self.module.save_pretrained(save_path)
+            if self.tokenizer is not None:
+                self.tokenizer.vocab.save_pretrained(save_path)
+        elif save_mode == 'pth':
+            if not save_path.endswith('pth'):
+                save_path += '/' + time.strftime(str(self.module.__class__.__name__) + '_%m%d_%H%M%S.pth')
+            torch.save(self.module.state_dict(), save_path)
+        else:
+            raise ValueError("The save mode does not exist")
 
     def _train_collate_fn(self, batch):
         return default_collate(batch)
