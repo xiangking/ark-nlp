@@ -31,6 +31,7 @@ class Task(object):
         module: 深度学习模型
         optimizer: 训练模型使用的优化器名或者优化器对象
         loss_function: 训练模型使用的损失函数名或损失函数对象
+        tokenizer (:obj:`class` or :obj:`None`, optional, defaults to None): 分词器
         class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
         scheduler (:obj:`class`, optional, defaults to None): scheduler对象
         n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
@@ -45,6 +46,7 @@ class Task(object):
         module,
         optimizer,
         loss_function,
+        tokenizer=None,
         class_num=None,
         scheduler=None,
         n_gpu=1,
@@ -57,6 +59,7 @@ class Task(object):
         self.module = module
         self.optimizer = optimizer
         self.loss_function = get_loss(loss_function)
+        self.tokenizer = tokenizer
 
         self.class_num = class_num
         self.scheduler = scheduler
