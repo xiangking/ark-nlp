@@ -89,7 +89,7 @@ class Task(object):
 
     def save(self, save_path: str, save_mode: str = 'pth'):
         """
-        通用信息抽取UIE的Task
+        提供多种方式保存模型
         
         Args:
             save_path: 保存的路径
