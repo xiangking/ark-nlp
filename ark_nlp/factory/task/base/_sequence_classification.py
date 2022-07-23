@@ -16,6 +16,7 @@
 # Status: Active
 
 
+import os
 import time
 import torch
 import warnings
@@ -484,8 +485,11 @@ class SequenceClassificationTask(Task):
 
         if evaluate_save:
             if save_module_path is None:
-                prefix = './checkpoint/' + str(self.module.__class__.__name__) + '_'
-                save_module_path = time.strftime(prefix + '%m%d_%H:%M:%S.pth')
+                if not os.path.exists('checkpoint'):
+                    os.path.exists('checkpoint')
+
+                prefix = './checkpoint/' + str(self.module.__class__.__name__)
+                save_module_path = time.strftime(prefix + '_%m%d_%H%M%S.pth')
 
             torch.save(self.module.state_dict(), save_module_path)
 
