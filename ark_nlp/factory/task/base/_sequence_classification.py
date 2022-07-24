@@ -22,6 +22,7 @@ import torch
 import warnings
 
 from tqdm import tqdm
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.task.base._task import Task
@@ -53,8 +54,6 @@ class SequenceClassificationTask(Task):
         self,
         train_data,
         validation_data=None,
-        lr=False,
-        params=None,
         batch_size=32,
         epochs=1,
         gradient_accumulation_steps=1,
@@ -66,12 +65,16 @@ class SequenceClassificationTask(Task):
         Args:
             train_data (:obj:`ark_nlp dataset`): 训练的batch文本
             validation_data (:obj:`ark_nlp dataset`): 验证的batch文本
-            lr (:obj:`float` or :obj:`bool`, optional, defaults to False): 学习率
-            params (:obj:`str` or :obj:`torch.optim.Optimizer` or :obj:`list` or :obj:`None`, optional, defaults to None): 优化器，可能是名称、对象、参数列表
             batch_size (:obj:`int`, optional, defaults to 32): batch大小
             epochs (:obj:`int`, optional, defaults to 1): 训练轮数
             gradient_accumulation_steps (:obj:`int`, optional, defaults to 1): 梯度累计数
-            **kwargs (optional): 其他可选参数
+            **kwargs (optional):
+                其他可选参数:
+                    lr (float or None, optional): 学习率, 默认值为: None
+                    eps (float or None, optional): 保持数值稳定性的短浮点类型值, 默认值为: None
+                    weight_decay (float or None, optional): 权重衰减系数, 默认值为: None
+                    params (list or None, optional): 指定优化器需要优化的参数, 默认值为: None
+
         """  # noqa: ignore flake8"
 
         self.logs = dict()
@@ -80,8 +83,6 @@ class SequenceClassificationTask(Task):
             train_data,
             validation_data,
             batch_size,
-            lr,
-            params,
             shuffle=True,
             **kwargs
         )
@@ -126,8 +127,6 @@ class SequenceClassificationTask(Task):
         train_data,
         validation_data,
         batch_size,
-        lr,
-        params,
         shuffle,
         num_workers=0,
         train_to_device_cols=None,
@@ -158,7 +157,7 @@ class SequenceClassificationTask(Task):
         )
         self.train_generator_lenth = len(train_generator)
 
-        self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
+        self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
         self.module.train()
@@ -171,6 +170,43 @@ class SequenceClassificationTask(Task):
 
         self.logs['global_step'] = 0
         self.logs['global_loss'] = 0
+
+    def set_optimizer(
+        self,
+        lr=None,
+        eps=None,
+        weight_decay=None,
+        params=None
+    ):
+        # 通过params对optimizer内的参数进行修改
+        if isinstance(self.optimizer, Optimizer) and not callable(self.optimizer) and params is not None:
+            for index, param_group in enumerate(self.optimizer.param_groups):
+                for key in (set(self.optimizer.param_groups[index].keys()) - set(params[index].keys())):
+                    params[index][key] = self.optimizer.param_groups[index][key]
+            self.optimizer.param_groups = params
+
+        # 当optimizer还未被创建时，该部分代码负责创建optimizer
+        if params is None:
+            params = [{"params": [p for p in self.optimizer.parameters() if p.requires_grad]}]
+        if self.optimizer is None:
+            self.optimizer = get_optimizer(self.default_optimizer, params)
+        if isinstance(self.optimizer, str) or callable(self.optimizer):
+            self.optimizer = get_optimizer(self.optimizer, params)
+        # 经过上述判断条件后仍然未创建optimizer, 则抛出相关创建异常
+        if not isinstance(self.optimizer, Optimizer) :
+            raise ValueError("The optimizer type does not exist")
+
+        if lr is not None:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = lr
+
+        if eps is not None:
+            for param_group in self.optimizer.param_groups:
+                param_group['eps'] = eps
+
+        if weight_decay is not None:
+            for param_group in self.optimizer.param_groups:
+                param_group['weight_decay'] = weight_decay
 
     def _on_epoch_begin(self, **kwargs):
 
@@ -497,3 +533,7 @@ class SequenceClassificationTask(Task):
 
         if self.ema_decay:
             self.ema.restore(self.module.parameters())
+
+    @property
+    def default_optimizer(self):
+        return 'adamw'

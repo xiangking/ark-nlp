@@ -29,28 +29,15 @@ all_optimizers_dict = dict(
 )
 
 
-def get_optimizer(optimizer, module, lr=False, params=None):
-
-    if params is None:
-        params_ = (p for p in module.parameters() if p.requires_grad)
-    else:
-        params_ = params
+def get_optimizer(optimizer, params):
 
     if isinstance(optimizer, str):
-        optimizer = all_optimizers_dict[optimizer](params_)
-    elif type(optimizer).__name__ == 'type' and issubclass(optimizer, Optimizer):
-        optimizer = optimizer(params_)
-    elif isinstance(optimizer, Optimizer):
-        if params is not None:
-            optimizer.param_groups = params
+        optimizer = all_optimizers_dict[optimizer](params)
     else:
-        raise ValueError("The optimizer type does not exist")
-
-    if lr is not False:
-        for param_groups_ in optimizer.param_groups:
-            param_groups_['lr'] = lr
+        optimizer = optimizer(params)
 
     return optimizer
+
 
 def get_default_optimizer(module, module_name='bert', **kwargs):
     module_name = module_name.lower()
