@@ -22,9 +22,7 @@ import torch
 import warnings
 
 from tqdm import tqdm
-from torch.optim import Optimizer
 from torch.utils.data import DataLoader
-from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.task.base._task import Task
 
 
@@ -82,6 +80,7 @@ class SequenceClassificationTask(Task):
         train_generator = self._on_train_begin(
             train_data,
             validation_data,
+            epochs,
             batch_size,
             shuffle=True,
             **kwargs
@@ -126,6 +125,7 @@ class SequenceClassificationTask(Task):
         self,
         train_data,
         validation_data,
+        epochs,
         batch_size,
         shuffle,
         num_workers=0,
@@ -160,6 +160,8 @@ class SequenceClassificationTask(Task):
         self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
+        self.set_scheduler(epochs, batch_size, **kwargs)
+
         self.module.train()
 
         self._on_train_begin_record(**kwargs)
@@ -170,43 +172,6 @@ class SequenceClassificationTask(Task):
 
         self.logs['global_step'] = 0
         self.logs['global_loss'] = 0
-
-    def set_optimizer(
-        self,
-        lr=None,
-        eps=None,
-        weight_decay=None,
-        params=None
-    ):
-        # 通过params对optimizer内的参数进行修改
-        if isinstance(self.optimizer, Optimizer) and not callable(self.optimizer) and params is not None:
-            for index, param_group in enumerate(self.optimizer.param_groups):
-                for key in (set(self.optimizer.param_groups[index].keys()) - set(params[index].keys())):
-                    params[index][key] = self.optimizer.param_groups[index][key]
-            self.optimizer.param_groups = params
-
-        # 当optimizer还未被创建时，该部分代码负责创建optimizer
-        if params is None:
-            params = [{"params": [p for p in self.optimizer.parameters() if p.requires_grad]}]
-        if self.optimizer is None:
-            self.optimizer = get_optimizer(self.default_optimizer, params)
-        if isinstance(self.optimizer, str) or callable(self.optimizer):
-            self.optimizer = get_optimizer(self.optimizer, params)
-        # 经过上述判断条件后仍然未创建optimizer, 则抛出相关创建异常
-        if not isinstance(self.optimizer, Optimizer) :
-            raise ValueError("The optimizer type does not exist")
-
-        if lr is not None:
-            for param_group in self.optimizer.param_groups:
-                param_group['lr'] = lr
-
-        if eps is not None:
-            for param_group in self.optimizer.param_groups:
-                param_group['eps'] = eps
-
-        if weight_decay is not None:
-            for param_group in self.optimizer.param_groups:
-                param_group['weight_decay'] = weight_decay
 
     def _on_epoch_begin(self, **kwargs):
 
@@ -537,3 +502,7 @@ class SequenceClassificationTask(Task):
     @property
     def default_optimizer(self):
         return 'adamw'
+
+    @property
+    def default_loss_function(self):
+        return 'ce'
