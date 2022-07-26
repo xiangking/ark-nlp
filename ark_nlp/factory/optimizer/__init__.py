@@ -1,32 +1,26 @@
-from torch.optim import (
-    Adadelta,
-    Adagrad,
-    Adam,
-    SparseAdam,
-    Adamax,
-    ASGD,
-    LBFGS,
-    RMSprop,
-    Rprop,
-    SGD
-)
-from torch.optim import Optimizer
+from torch.optim import Adadelta
+from torch.optim import Adagrad
+from torch.optim import Adam
+from torch.optim import SparseAdam
+from torch.optim import Adamax
+from torch.optim import ASGD
+from torch.optim import LBFGS
+from torch.optim import RMSprop
+from torch.optim import Rprop
+from torch.optim import SGD
 from transformers import AdamW
 
-
-all_optimizers_dict = dict(
-    adadelta=Adadelta,
-    adagrad=Adagrad,
-    adam=Adam,
-    sparseadam=SparseAdam,
-    adamax=Adamax,
-    asgd=ASGD,
-    lbfgs=LBFGS,
-    rmsprop=RMSprop,
-    rprop=Rprop,
-    sgd=SGD,
-    adamw=AdamW
-)
+all_optimizers_dict = dict(adadelta=Adadelta,
+                           adagrad=Adagrad,
+                           adam=Adam,
+                           sparseadam=SparseAdam,
+                           adamax=Adamax,
+                           asgd=ASGD,
+                           lbfgs=LBFGS,
+                           rmsprop=RMSprop,
+                           rprop=Rprop,
+                           sgd=SGD,
+                           adamw=AdamW)
 
 
 def get_optimizer(optimizer, params):
@@ -59,10 +53,20 @@ def get_default_bert_optimizer(
 ):
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
-        {"params": [p for n, p in module.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": weight_decay},
-        {"params": [p for n, p in module.named_parameters() if any(nd in n for nd in no_decay)],
-            "weight_decay": 0.0},
+        {
+            "params": [
+                p for n, p in module.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ],
+            "weight_decay":
+            weight_decay
+        },
+        {
+            "params":
+            [p for n, p in module.named_parameters() if any(nd in n for nd in no_decay)],
+            "weight_decay":
+            0.0
+        },
     ]
     optimizer = AdamW(optimizer_grouped_parameters,
                       lr=lr,
@@ -84,47 +88,85 @@ def get_default_crf_bert_optimizer(
     bert_param_optimizer = list(module.bert.named_parameters())
     crf_param_optimizer = list(module.crf.named_parameters())
     linear_param_optimizer = list(module.classifier.named_parameters())
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in bert_param_optimizer if not any(nd in n for nd in no_decay)],
-        'weight_decay': weight_decay, 'lr': lr},
-        {'params': [p for n, p in bert_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0,
-        'lr': lr},
-        {'params': [p for n, p in crf_param_optimizer if not any(nd in n for nd in no_decay)],
-        'weight_decay': weight_decay, 'lr': crf_lr},
-        {'params': [p for n, p in crf_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0,
-        'lr': crf_lr},
-
-        {'params': [p for n, p in linear_param_optimizer if not any(nd in n for nd in no_decay)],
-        'weight_decay': weight_decay, 'lr': crf_lr},
-        {'params': [p for n, p in linear_param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0,
-        'lr': crf_lr}
-    ]
-    optimizer = AdamW(optimizer_grouped_parameters,
-                      eps=eps,
-                      correct_bias=correct_bias)
+    optimizer_grouped_parameters = [{
+        'params':
+        [p for n, p in bert_param_optimizer if not any(nd in n for nd in no_decay)],
+        'weight_decay':
+        weight_decay,
+        'lr':
+        lr
+    }, {
+        'params': [p for n, p in bert_param_optimizer if any(nd in n for nd in no_decay)],
+        'weight_decay':
+        0.0,
+        'lr':
+        lr
+    }, {
+        'params':
+        [p for n, p in crf_param_optimizer if not any(nd in n for nd in no_decay)],
+        'weight_decay':
+        weight_decay,
+        'lr':
+        crf_lr
+    }, {
+        'params': [p for n, p in crf_param_optimizer if any(nd in n for nd in no_decay)],
+        'weight_decay':
+        0.0,
+        'lr':
+        crf_lr
+    }, {
+        'params':
+        [p for n, p in linear_param_optimizer if not any(nd in n for nd in no_decay)],
+        'weight_decay':
+        weight_decay,
+        'lr':
+        crf_lr
+    }, {
+        'params':
+        [p for n, p in linear_param_optimizer if any(nd in n for nd in no_decay)],
+        'weight_decay':
+        0.0,
+        'lr':
+        crf_lr
+    }]
+    optimizer = AdamW(optimizer_grouped_parameters, eps=eps, correct_bias=correct_bias)
 
     return optimizer
 
 
-def get_w2ner_model_optimizer(
-    dl_module,
-    lr: float = 1e-3,
-    bert_lr: float = 5e-6,
-    weight_decay=0.0
-):
+def get_w2ner_model_optimizer(dl_module,
+                              lr: float = 1e-3,
+                              bert_lr: float = 5e-6,
+                              weight_decay=0.0):
     bert_params = set(dl_module.bert.parameters())
     other_params = list(set(dl_module.parameters()) - bert_params)
     no_decay = ['bias', 'LayerNorm.weight']
     params = [
-        {'params': [p for n, p in dl_module.bert.named_parameters() if not any(nd in n for nd in no_decay)],
-         'lr': bert_lr,
-         'weight_decay': weight_decay},
-        {'params': [p for n, p in dl_module.bert.named_parameters() if any(nd in n for nd in no_decay)],
-         'lr': bert_lr,
-         'weight_decay': weight_decay},
-        {'params': other_params,
-         'lr': lr,
-         'weight_decay': weight_decay},
+        {
+            'params': [
+                p for n, p in dl_module.bert.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ],
+            'lr':
+            bert_lr,
+            'weight_decay':
+            weight_decay
+        },
+        {
+            'params': [
+                p for n, p in dl_module.bert.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
+            'lr':
+            bert_lr,
+            'weight_decay':
+            weight_decay
+        },
+        {
+            'params': other_params,
+            'lr': lr,
+            'weight_decay': weight_decay
+        },
     ]
 
     optimizer = AdamW(params, lr=lr, weight_decay=weight_decay)

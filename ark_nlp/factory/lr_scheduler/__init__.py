@@ -13,7 +13,8 @@ def get_scheduler(scheduler,
                   warmup_ratio: float = 0.06,
                   cosine_schedule_num_cycles: float = 0.5,
                   polynomial_decay_schedule_lr_end: float = 1e-7,
-                  polynomial_decay_schedule_power: float = 1.0):
+                  polynomial_decay_schedule_power: float = 1.0,
+                  **kwargs):
     """
     加载LR调度器
     Args:

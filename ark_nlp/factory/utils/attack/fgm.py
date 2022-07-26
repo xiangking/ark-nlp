@@ -2,8 +2,6 @@ import torch
 import warnings
 from torch.utils.data import DataLoader
 
-from ark_nlp.factory.optimizer import get_optimizer
-
 
 class FGM(object):
     """
@@ -36,11 +34,7 @@ class FGM(object):
         self.module = module
         self.backup = {}
 
-    def attack(
-        self,
-        epsilon=1.,
-        emb_name='word_embeddings'
-    ):
+    def attack(self, epsilon=1., emb_name='word_embeddings'):
         for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
                 self.backup[name] = param.data.clone()
@@ -49,10 +43,7 @@ class FGM(object):
                     r_at = epsilon * param.grad / norm
                     param.data.add_(r_at)
 
-    def restore(
-        self,
-        emb_name='word_embeddings'
-    ):
+    def restore(self, emb_name='word_embeddings'):
         for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
                 assert name in self.backup
@@ -61,19 +52,15 @@ class FGM(object):
 
 
 class FGMAttackMixin(object):
-
-    def _on_train_begin(
-            self,
-            train_data,
-            validation_data,
-            batch_size,
-            lr,
-            params,
-            shuffle,
-            num_workers=0,
-            train_to_device_cols=None,
-            **kwargs
-    ):
+    def _on_train_begin(self,
+                        train_data,
+                        validation_data,
+                        epochs,
+                        batch_size,
+                        shuffle,
+                        num_workers=0,
+                        train_to_device_cols=None,
+                        **kwargs):
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
             self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
@@ -90,17 +77,17 @@ class FGMAttackMixin(object):
         else:
             self.train_to_device_cols = train_to_device_cols
 
-        train_generator = DataLoader(
-            train_data,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            collate_fn=self._train_collate_fn
-        )
+        train_generator = DataLoader(train_data,
+                                     batch_size=batch_size,
+                                     shuffle=True,
+                                     num_workers=num_workers,
+                                     collate_fn=self._train_collate_fn)
         self.train_generator_lenth = len(train_generator)
 
-        self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
+        self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
+
+        self.set_scheduler(epochs, batch_size, **kwargs)
 
         self.module.train()
 
@@ -110,15 +97,13 @@ class FGMAttackMixin(object):
 
         return train_generator
 
-    def _on_backward(
-            self,
-            inputs,
-            outputs,
-            logits,
-            loss,
-            gradient_accumulation_steps=1,
-            **kwargs
-    ):
+    def _on_backward(self,
+                     inputs,
+                     outputs,
+                     logits,
+                     loss,
+                     gradient_accumulation_steps=1,
+                     **kwargs):
 
         # 如果GPU数量大于1
         if self.n_gpu > 1:

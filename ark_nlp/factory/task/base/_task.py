@@ -55,9 +55,9 @@ class Task(object):
         module,
         optimizer=None,
         loss_function=None,
+        scheduler=None,
         tokenizer=None,
         class_num=None,
-        scheduler=None,
         n_gpu=1,
         device=None,
         cuda_device=0,
@@ -102,7 +102,7 @@ class Task(object):
         if loss_function is None:
             self.loss_function = get_loss(self.default_loss_function)
         elif isinstance(loss_function, str) or isinstance(loss_function, object):
-            self.loss_function = get_loss(self.default_loss_function)
+            self.loss_function = get_loss(loss_function)
         else:
             raise ValueError("The loss function type does not exist")
 
@@ -122,9 +122,11 @@ class Task(object):
                     params[index][key] = self.optimizer.param_groups[index][key]
             self.optimizer.param_groups = params
 
+        # 当params未定义，且self.optimizer未被创建时, 自动根据module创建params
+        if params is None and not hasattr(self.optimizer, 'param_groups'):
+            params = [{"params": [p for p in self.module.parameters() if p.requires_grad]}]
+
         # 当optimizer还未被创建时，该部分代码负责创建optimizer
-        if params is None:
-            params = [{"params": [p for p in self.optimizer.parameters() if p.requires_grad]}]
         if self.optimizer is None:
             self.optimizer = get_optimizer(self.default_optimizer, params)
         if isinstance(self.optimizer, str) or callable(self.optimizer):
@@ -145,6 +147,8 @@ class Task(object):
             for param_group in self.optimizer.param_groups:
                 param_group['weight_decay'] = weight_decay
 
+        return self.optimizer
+
     def set_scheduler(
         self,
         epochs,
@@ -160,6 +164,8 @@ class Task(object):
                 warmup_step,
                 **kwargs
             )
+
+        return self.scheduler
 
     def fit(
         self,
@@ -289,7 +295,7 @@ class Task(object):
         self.module.train()
 
         self._on_epoch_begin_record(**kwargs)
-        
+
     def _on_epoch_begin_record(self, **kwargs):
         pass
 
@@ -603,7 +609,7 @@ class Task(object):
         if evaluate_save:
             if save_module_path is None:
                 if not os.path.exists('checkpoint'):
-                    os.path.exists('checkpoint')
+                    os.makedirs('checkpoint')
 
                 prefix = './checkpoint/' + str(self.module.__class__.__name__)
                 save_module_path = time.strftime(prefix + '_%m%d_%H%M%S.pth')
@@ -640,6 +646,12 @@ class Task(object):
             torch.save(self.module.state_dict(), save_path)
         else:
             raise ValueError("The save mode does not exist")
+
+    def _on_train_end(self, **kwargs):
+        pass
+
+    def _on_train_end_record(self, **kwargs):
+        pass
 
     def _train_collate_fn(self, batch):
         return default_collate(batch)
