@@ -38,23 +38,23 @@ class Task(object):
 
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        tokenizer (:obj:`class` or :obj:`None`, optional, defaults to None): 分词器
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        n_gpu (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: None
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
     def __init__(
         self,
         module,
-        optimizer,
-        loss_function,
+        optimizer=None,
+        loss_function=None,
         tokenizer=None,
         class_num=None,
         scheduler=None,
@@ -281,11 +281,17 @@ class Task(object):
 
         return train_generator
 
+    def _on_train_begin_record(self, **kwargs):
+        pass
+
     def _on_epoch_begin(self, **kwargs):
 
         self.module.train()
 
         self._on_epoch_begin_record(**kwargs)
+        
+    def _on_epoch_begin_record(self, **kwargs):
+        pass
 
     def _on_step_begin(
         self,
@@ -295,6 +301,9 @@ class Task(object):
         **kwargs
     ):
         self._on_step_begin_record(**kwargs)
+
+    def _on_step_begin_record(self, **kwargs):
+        pass
 
     def _get_module_inputs_on_train(
         self,
@@ -329,6 +338,9 @@ class Task(object):
         self._compute_loss_record(**kwargs)
 
         return logits, loss
+
+    def _compute_loss_record(self, **kwargs):
+        pass
 
     def _compute_loss(
         self,
@@ -430,6 +442,9 @@ class Task(object):
 
         self._on_step_end_record(**kwargs)
 
+    def _on_step_end_record(self, **kwargs):
+        pass
+
     def _on_epoch_end(
         self,
         epoch,
@@ -512,10 +527,7 @@ class Task(object):
         return evaluate_generator
 
     def _on_evaluate_begin_record(self, **kwargs):
-
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_example'] = 0
+        pass
 
     def _on_evaluate_epoch_begin(self, **kwargs):
 
@@ -524,6 +536,9 @@ class Task(object):
             self.ema.copy_to(self.module.parameters())
 
         self._on_evaluate_epoch_begin_record(**kwargs)
+
+    def _on_evaluate_epoch_begin_record(self, **kwargs):
+        pass
 
     def _get_module_inputs_on_eval(
         self,
@@ -599,6 +614,9 @@ class Task(object):
 
         if self.ema_decay:
             self.ema.restore(self.module.parameters())
+
+    def _on_evaluate_end_record(self, **kwargs):
+        pass
 
     def save(self, save_path: str, save_mode: str = 'pth'):
         """
