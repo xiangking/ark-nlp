@@ -58,10 +58,10 @@ class UnsupervisedSimCSEDataset(PairWiseSentenceClassificationDataset):
                 'token_type_ids_b': segment_ids_b
             }
 
-            features.append(feature)
-
             if 'label' in _row:
                 label_ids = self.cat2id[_row['label']]
                 feature['label_ids'] = label_ids
+
+            features.append(feature)
 
         return features
