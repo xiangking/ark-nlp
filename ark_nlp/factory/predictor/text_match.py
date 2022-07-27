@@ -84,7 +84,7 @@ class TMPredictor(object):
     ):
         if self.tokenizer.tokenizer_type == 'vanilla':
             return self._convert_to_vanilla_ids(text_a, text_b)
-        elif self.tokenizer.tokenizer_type == 'transfomer':
+        elif self.tokenizer.tokenizer_type == 'transformer':
             return self._convert_to_transfomer_ids(text_a, text_b)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text_a, text_b)

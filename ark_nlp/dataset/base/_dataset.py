@@ -169,7 +169,7 @@ class BaseDataset(Dataset):
         """
         if tokenizer.tokenizer_type == 'vanilla':
             features = self._convert_to_vanilla_ids(tokenizer)
-        elif tokenizer.tokenizer_type == 'transfomer':
+        elif tokenizer.tokenizer_type == 'transformer':
             features = self._convert_to_transfomer_ids(tokenizer)
         elif tokenizer.tokenizer_type == 'customized':
             features = self._convert_to_customized_ids(tokenizer)

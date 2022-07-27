@@ -149,9 +149,9 @@ class PairMergeSentenceClassificationDataset(BaseDataset):
         return features
 
 
-class TwinTowersSentenceClassificationDataset(BaseDataset):
+class PairWiseSentenceClassificationDataset(BaseDataset):
     """
-    用于双塔序列分类任务的Dataset，即句子对不组合，分开输入模型
+    用于双塔序列分类任务的Dataset, 即句子对不组合, 分开输入模型
 
     Args:
         data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
