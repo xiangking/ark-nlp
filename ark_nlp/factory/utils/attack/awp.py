@@ -21,13 +21,7 @@ class AWP(object):
         self.param_backup_eps = {}
         self.grad_backup = {}
 
-    def attack(
-        self,
-        epsilon=0.001,
-        alpha=1.0,
-        emb_name='weight',
-        is_first_attack=False
-    ):
+    def attack(self, epsilon=0.001, alpha=1.0, emb_name='weight', is_first_attack=False):
         if alpha == 0: return
         e = 1e-6
         for name, param in self.module.named_parameters():
@@ -47,12 +41,8 @@ class AWP(object):
                     r_at = alpha * param.grad / (norm1 + e) * (norm2 + e)
                     param.data.add_(r_at)
                     param.data = torch.min(
-                        torch.max(
-                            param.data,
-                            self.param_backup_eps[name][0]
-                        ),
-                        self.param_backup_eps[name][1]
-                    )
+                        torch.max(param.data, self.param_backup_eps[name][0]),
+                        self.param_backup_eps[name][1])
 
     def restore(self):
         for name, param in self.module.named_parameters():
@@ -74,18 +64,16 @@ class AWP(object):
 
 
 class AWPAttackMixin(object):
-    def _on_train_begin(
-            self,
-            train_data,
-            validation_data,
-            batch_size,
-            lr,
-            params,
-            shuffle,
-            num_workers=0,
-            train_to_device_cols=None,
-            **kwargs
-    ):
+    def _on_train_begin(self,
+                        train_data,
+                        validation_data,
+                        epochs,
+                        batch_size,
+                        shuffle,
+                        awp_k=3,
+                        num_workers=0,
+                        train_to_device_cols=None,
+                        **kwargs):
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
             self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
@@ -102,36 +90,34 @@ class AWPAttackMixin(object):
         else:
             self.train_to_device_cols = train_to_device_cols
 
-        train_generator = DataLoader(
-            train_data,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            collate_fn=self._train_collate_fn
-        )
+        train_generator = DataLoader(train_data,
+                                     batch_size=batch_size,
+                                     shuffle=True,
+                                     num_workers=num_workers,
+                                     collate_fn=self._train_collate_fn)
         self.train_generator_lenth = len(train_generator)
 
-        self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
+        self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
+
+        self.set_scheduler(epochs, batch_size, **kwargs)
 
         self.module.train()
 
         self.awp = AWP(self.module)
-        self.awp_k = 3
+        self.awp_k = awp_k
 
         self._on_train_begin_record(**kwargs)
 
         return train_generator
 
-    def _on_backward(
-            self,
-            inputs,
-            outputs,
-            logits,
-            loss,
-            gradient_accumulation_steps=1,
-            **kwargs
-    ):
+    def _on_backward(self,
+                     inputs,
+                     outputs,
+                     logits,
+                     loss,
+                     gradient_accumulation_steps=1,
+                     **kwargs):
 
         # 如果GPU数量大于1
         if self.n_gpu > 1:

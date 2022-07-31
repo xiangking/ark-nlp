@@ -281,15 +281,6 @@ class PRGCRETask(SequenceClassificationTask):
 
         return evaluate_generator
 
-    def _on_evaluate_begin_record(self, **kwargs):
-
-        self.evaluate_logs['correct_num'] = 0
-        self.evaluate_logs['predict_num'] = 0
-        self.evaluate_logs['gold_num'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_example'] = 0
-
     def _on_evaluate_step_end(
         self,
         inputs,

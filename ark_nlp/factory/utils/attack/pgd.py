@@ -2,8 +2,6 @@ import torch
 import warnings
 from torch.utils.data import DataLoader
 
-from ark_nlp.factory.optimizer import get_optimizer
-
 
 class PGD(object):
     """
@@ -43,13 +41,11 @@ class PGD(object):
         self.emb_backup = {}
         self.grad_backup = {}
 
-    def attack(
-        self,
-        epsilon=1.,
-        alpha=0.3,
-        emb_name='word_embeddings',
-        is_first_attack=False
-    ):
+    def attack(self,
+               epsilon=1.,
+               alpha=0.3,
+               emb_name='word_embeddings',
+               is_first_attack=False):
         # emb_name这个参数要换成你模型中embedding的参数名
         for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
@@ -85,20 +81,18 @@ class PGD(object):
             if param.requires_grad and param.grad is not None:
                 param.grad = self.grad_backup[name]
 
-                
+
 class PGDAttackMixin(object):
-    def _on_train_begin(
-            self,
-            train_data,
-            validation_data,
-            batch_size,
-            lr,
-            params,
-            shuffle,
-            num_workers=0,
-            train_to_device_cols=None,
-            **kwargs
-    ):
+    def _on_train_begin(self,
+                        train_data,
+                        validation_data,
+                        epochs,
+                        batch_size,
+                        shuffle,
+                        pgd_k=3,
+                        num_workers=0,
+                        train_to_device_cols=None,
+                        **kwargs):
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
             self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
@@ -115,36 +109,34 @@ class PGDAttackMixin(object):
         else:
             self.train_to_device_cols = train_to_device_cols
 
-        train_generator = DataLoader(
-            train_data,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            collate_fn=self._train_collate_fn
-        )
+        train_generator = DataLoader(train_data,
+                                     batch_size=batch_size,
+                                     shuffle=True,
+                                     num_workers=num_workers,
+                                     collate_fn=self._train_collate_fn)
         self.train_generator_lenth = len(train_generator)
 
-        self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
+        self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
+
+        self.set_scheduler(epochs, batch_size, **kwargs)
 
         self.module.train()
 
         self.pgd = PGD(self.module)
-        self.pgd_k = 3
+        self.pgd_k = pgd_k
 
         self._on_train_begin_record(**kwargs)
 
         return train_generator
 
-    def _on_backward(
-            self,
-            inputs,
-            outputs,
-            logits,
-            loss,
-            gradient_accumulation_steps=1,
-            **kwargs
-    ):
+    def _on_backward(self,
+                     inputs,
+                     outputs,
+                     logits,
+                     loss,
+                     gradient_accumulation_steps=1,
+                     **kwargs):
 
         # 如果GPU数量大于1
         if self.n_gpu > 1:
