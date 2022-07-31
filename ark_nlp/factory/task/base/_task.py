@@ -17,6 +17,7 @@
 
 
 import os
+import json
 import time
 import torch
 import warnings
@@ -34,18 +35,18 @@ from ark_nlp.factory.utils.ema import EMA
 
 class Task(object):
     """
-    所有Task类的基类，封装Task类通用的方法和属性
+    所有Task类的基类, 封装Task类通用的方法和属性
 
     Args:
         module: 深度学习模型
         optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
         loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
         tokenizer (object or None, optional): 分词器, 默认值为: None
         class_num (int or None, optional): 标签数目, 默认值为: None
-        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
-        n_gpu (int, optional): GPU数目, 默认值为: 1
+        gpu_num (int, optional): GPU数目, 默认值为: 1
         device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: None
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
         ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
@@ -58,13 +59,12 @@ class Task(object):
         scheduler=None,
         tokenizer=None,
         class_num=None,
-        n_gpu=1,
+        gpu_num=1,
         device=None,
         cuda_device=0,
         ema_decay=None,
         **kwargs
     ):
-        self.fit_counter = 0
         self.module = module
         self.tokenizer = tokenizer
 
@@ -74,7 +74,8 @@ class Task(object):
 
         self.class_num = class_num
 
-        self.n_gpu = n_gpu
+        # 设置device
+        self.gpu_num = gpu_num
         self.device = device
 
         if self.device is None:
@@ -88,9 +89,11 @@ class Task(object):
 
         self.module.to(self.device)
 
-        if self.n_gpu > 1:
+        # 多GPU设置
+        if self.gpu_num > 1:
             self.module = torch.nn.DataParallel(self.module)
 
+        # 设置EMA
         self.ema_decay = ema_decay
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
@@ -110,38 +113,38 @@ class Task(object):
 
     def set_optimizer(
         self,
-        lr=None,
-        eps=None,
+        learning_rate=None,
+        epsilon=None,
         weight_decay=None,
-        params=None
+        parameters=None
     ):
-        # 通过params对optimizer内的参数进行修改
-        if isinstance(self.optimizer, Optimizer) and not callable(self.optimizer) and params is not None:
+        # 通过parameters对optimizer内的参数进行修改
+        if isinstance(self.optimizer, Optimizer) and not callable(self.optimizer) and parameters is not None:
             for index, param_group in enumerate(self.optimizer.param_groups):
-                for key in (set(self.optimizer.param_groups[index].keys()) - set(params[index].keys())):
-                    params[index][key] = self.optimizer.param_groups[index][key]
-            self.optimizer.param_groups = params
+                for key in (set(self.optimizer.param_groups[index].keys()) - set(parameters[index].keys())):
+                    parameters[index][key] = self.optimizer.param_groups[index][key]
+            self.optimizer.param_groups = parameters
 
-        # 当params未定义，且self.optimizer未被创建时, 自动根据module创建params
-        if params is None and not hasattr(self.optimizer, 'param_groups'):
-            params = [{"params": [p for p in self.module.parameters() if p.requires_grad]}]
+        # 当parameters未定义，且self.optimizer未被创建时, 自动根据module创建parameters
+        if parameters is None and not hasattr(self.optimizer, 'param_groups'):
+            parameters = [{"params": [p for p in self.module.parameters() if p.requires_grad]}]
 
         # 当optimizer还未被创建时，该部分代码负责创建optimizer
         if self.optimizer is None:
-            self.optimizer = get_optimizer(self.default_optimizer, params)
+            self.optimizer = get_optimizer(self.default_optimizer, parameters)
         if isinstance(self.optimizer, str) or callable(self.optimizer):
-            self.optimizer = get_optimizer(self.optimizer, params)
+            self.optimizer = get_optimizer(self.optimizer, parameters)
         # 经过上述判断条件后仍然未创建optimizer, 则抛出相关创建异常
         if not isinstance(self.optimizer, Optimizer):
             raise ValueError("The optimizer type does not exist")
 
-        if lr is not None:
+        if learning_rate is not None:
             for param_group in self.optimizer.param_groups:
-                param_group['lr'] = lr
+                param_group['learning_rate'] = learning_rate
 
-        if eps is not None:
+        if epsilon is not None:
             for param_group in self.optimizer.param_groups:
-                param_group['eps'] = eps
+                param_group['epsilon'] = epsilon
 
         if weight_decay is not None:
             for param_group in self.optimizer.param_groups:
@@ -156,12 +159,11 @@ class Task(object):
         **kwargs
     ):
         if self.scheduler is not None:
-            warmup_step = self.train_generator_lenth * epochs
+            training_step_num = self.epoch_step_num * epochs
             self.scheduler = get_scheduler(
                 self.scheduler,
                 self.optimizer,
-                self.train_generator_lenth,
-                warmup_step,
+                training_step_num,
                 **kwargs
             )
 
@@ -172,7 +174,7 @@ class Task(object):
         train_data,
         validation_data=None,
         batch_size=32,
-        epochs=1,
+        epoch_num=1,
         gradient_accumulation_steps=1,
         **kwargs
     ):
@@ -180,18 +182,17 @@ class Task(object):
         训练方法
         
         Args:
-            train_data (:obj:`ark_nlp dataset`): 训练的batch文本
-            validation_data (:obj:`ark_nlp dataset`): 验证的batch文本
-            batch_size (:obj:`int`, optional, defaults to 32): batch大小
-            epochs (:obj:`int`, optional, defaults to 1): 训练轮数
-            gradient_accumulation_steps (:obj:`int`, optional, defaults to 1): 梯度累计数
+            train_data (ark_nlp dataset): 训练的batch文本
+            validation_data (ark_nlp dataset): 验证的batch文本
+            batch_size (int, optional): batch大小, 默认值为: 32
+            epoch_num (int, optional): 训练轮数, 默认值为: 1
+            gradient_accumulation_steps (int, optional): 梯度累计数, 默认值为: 1
             **kwargs (optional):
                 其他可选参数:
-                    lr (float or None, optional): 学习率, 默认值为: None
-                    eps (float or None, optional): 保持数值稳定性的短浮点类型值, 默认值为: None
+                    learning_rate (float or None, optional): 学习率, 默认值为: None
+                    epsilon (float or None, optional): 保持数值稳定性的短浮点类型值, 默认值为: None
                     weight_decay (float or None, optional): 权重衰减系数, 默认值为: None
-                    params (list or None, optional): 指定优化器需要优化的参数, 默认值为: None
-
+                    parameters (list or None, optional): 指定优化器需要优化的参数, 默认值为: None
         """  # noqa: ignore flake8"
 
         self.logs = defaultdict(int)
@@ -199,13 +200,14 @@ class Task(object):
         train_generator = self._on_train_begin(
             train_data,
             validation_data,
-            epochs,
+            epoch_num,
             batch_size,
             shuffle=True,
+            gradient_accumulation_steps=gradient_accumulation_steps,
             **kwargs
         )
 
-        for epoch in range(epochs):
+        for epoch in range(epoch_num):
 
             self._on_epoch_begin(**kwargs)
 
@@ -247,6 +249,7 @@ class Task(object):
         epochs,
         batch_size,
         shuffle,
+        gradient_accumulation_steps,
         num_workers=0,
         train_to_device_cols=None,
         **kwargs
@@ -274,7 +277,8 @@ class Task(object):
             num_workers=num_workers,
             collate_fn=self._train_collate_fn
         )
-        self.train_generator_lenth = len(train_generator)
+
+        self.epoch_step_num = len(train_generator) // gradient_accumulation_steps
 
         self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
@@ -370,7 +374,7 @@ class Task(object):
     ):
 
         # 如果GPU数量大于1
-        if self.n_gpu > 1:
+        if self.gpu_num > 1:
             loss = loss.mean()
         # 如果使用了梯度累积，除以累积的轮数
         if gradient_accumulation_steps > 1:
@@ -406,6 +410,7 @@ class Task(object):
         # 更新权值
         self.optimizer.step()
 
+        # EMA更新
         if self.ema_decay:
             self.ema.update(self.module.parameters())
 
@@ -436,14 +441,14 @@ class Task(object):
         outputs,
         loss,
         verbose=True,
-        show_step=100,
+        show_metric_step=100,
         **kwargs
     ):
 
-        if verbose and (step + 1) % show_step == 0:
+        if verbose and (step + 1) % show_metric_step == 0:
             print('[{}/{}],train loss is:{:.6f}'.format(
                 step,
-                self.train_generator_lenth,
+                self.epoch_step_num,
                 self.logs['epoch_loss'] / self.logs['epoch_step']))
 
         self._on_step_end_record(**kwargs)
@@ -473,12 +478,12 @@ class Task(object):
         验证方法
         
         Args:
-            validation_data (:obj:`ark_nlp dataset`): 训练的batch文本
-            evaluate_batch_size (:obj:`int`, optional, defaults to 32): 验证阶段batch大小
+            validation_data (ark_nlp dataset): 训练的batch文本
+            evaluate_batch_size (int, optional): 验证阶段batch大小, 默认值为16
             **kwargs (optional): 其他可选参数
         """  # noqa: ignore flake8"
 
-        self.evaluate_logs = dict()
+        self.evaluate_logs = defaultdict(int)
 
         evaluate_generator = self._on_evaluate_begin(
             validation_data,
@@ -509,7 +514,7 @@ class Task(object):
         validation_data,
         batch_size,
         shuffle,
-        num_workers=0,
+        worker_num=0,
         evaluate_to_device_cols=None,
         **kwargs
     ):
@@ -522,7 +527,7 @@ class Task(object):
             validation_data,
             batch_size=batch_size,
             shuffle=shuffle,
-            num_workers=num_workers,
+            num_workers=worker_num,
             collate_fn=self._evaluate_collate_fn
         )
 
@@ -593,11 +598,16 @@ class Task(object):
         self,
         validation_data,
         epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         **kwargs
     ):
-        if is_evaluate_print:
+        if evaluate_verbose:
             print('test loss is:{:.6f}'.format(self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step']))
+
+        self._on_evaluate_epoch_end_record(**kwargs)
+
+    def _on_evaluate_epoch_end_record(self, **kwargs):
+        pass
 
     def _on_evaluate_end(
         self,
@@ -636,10 +646,15 @@ class Task(object):
                 "pth"表示module会以torch.save的方式保存模型权重
                 默认值为: "pth"
         """  # noqa: ignore flake8"
+
+        if self.tokenizer is not None:
+            self.tokenizer.vocab.save_pretrained(save_path)
+        if self.cat2id is not None:
+            with open(os.path.join(save_path, 'cat2id.json'), 'w') as f:
+                json.dump(self.cat2id, f)
+
         if save_mode == 'huggingface':
             self.module.save_pretrained(save_path)
-            if self.tokenizer is not None:
-                self.tokenizer.vocab.save_pretrained(save_path)
         elif save_mode == 'pth':
             if not save_path.endswith('pth'):
                 save_path += '/' + time.strftime(str(self.module.__class__.__name__) + '_%m%d_%H%M%S.pth')
