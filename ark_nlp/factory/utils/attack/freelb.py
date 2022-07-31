@@ -2,8 +2,6 @@ import torch
 import warnings
 from torch.utils.data import DataLoader
 
-from ark_nlp.factory.optimizer import get_optimizer
-
 
 class FreeLB(object):
     """
@@ -19,19 +17,16 @@ class FreeLB(object):
         [1] https://github.com/zhuchen03/FreeLB
         [2] https://www.kaggle.com/code/tsaivincent/at-pure
     """
-
     def __init__(self, module):
         self.module = module
         self.emb_backup = {}
         self.grad_backup = {}
 
-    def attack(
-        self,
-        epsilon=1.,
-        alpha=0.3,
-        emb_name='word_embeddings',
-        is_first_attack=False
-    ):
+    def attack(self,
+               epsilon=1.,
+               alpha=0.3,
+               emb_name='word_embeddings',
+               is_first_attack=False):
         # emb_name这个参数要换成你模型中embedding的参数名
         for name, param in self.module.named_parameters():
             if param.requires_grad and emb_name in name:
@@ -70,18 +65,16 @@ class FreeLB(object):
 
 
 class FreeLBAttackMixin(object):
-    def _on_train_begin(
-            self,
-            train_data,
-            validation_data,
-            batch_size,
-            lr,
-            params,
-            shuffle,
-            num_workers=0,
-            train_to_device_cols=None,
-            **kwargs
-    ):
+    def _on_train_begin(self,
+                        train_data,
+                        validation_data,
+                        epochs,
+                        batch_size,
+                        shuffle,
+                        freelb_k=3,
+                        num_workers=0,
+                        train_to_device_cols=None,
+                        **kwargs):
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
             self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
@@ -98,36 +91,34 @@ class FreeLBAttackMixin(object):
         else:
             self.train_to_device_cols = train_to_device_cols
 
-        train_generator = DataLoader(
-            train_data,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            collate_fn=self._train_collate_fn
-        )
+        train_generator = DataLoader(train_data,
+                                     batch_size=batch_size,
+                                     shuffle=True,
+                                     num_workers=num_workers,
+                                     collate_fn=self._train_collate_fn)
         self.train_generator_lenth = len(train_generator)
 
-        self.optimizer = get_optimizer(self.optimizer, self.module, lr, params)
+        self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
+
+        self.set_scheduler(epochs, batch_size, **kwargs)
 
         self.module.train()
 
         self.freelb = FreeLB(self.module)
-        self.freelb_k = 3
+        self.freelb_k = freelb_k
 
         self._on_train_begin_record(**kwargs)
 
         return train_generator
 
-    def _on_backward(
-            self,
-            inputs,
-            outputs,
-            logits,
-            loss,
-            gradient_accumulation_steps=1,
-            **kwargs
-    ):
+    def _on_backward(self,
+                     inputs,
+                     outputs,
+                     logits,
+                     loss,
+                     gradient_accumulation_steps=1,
+                     **kwargs):
 
         # 如果GPU数量大于1
         if self.n_gpu > 1:
@@ -142,7 +133,7 @@ class FreeLBAttackMixin(object):
         for t in range(self.freelb_k):
             self.freelb.attack(is_first_attack=(t == 0))
 
-            if t == 0:   ###原论文是随机初始化，扰动过程中不包含初始的梯度
+            if t == 0:  ###原论文是随机初始化，扰动过程中不包含初始的梯度
                 self.optimizer.zero_grad()
 
             logits = self.module(**inputs)
@@ -151,7 +142,7 @@ class FreeLBAttackMixin(object):
 
             attck_loss.backward()
 
-        self.freelb.restore_grad() # add origin actual gradient, + cls_loss
+        self.freelb.restore_grad()  # add origin actual gradient, + cls_loss
         self.freelb.restore()
 
         self._on_backward_record(loss, **kwargs)
