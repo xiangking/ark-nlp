@@ -26,14 +26,14 @@ class PURERCPredictor(object):
     Args:
         module: 深度学习模型
         tokernizer: 分词器
-        cat2id (:obj:`dict`): 标签映射
+        cat2id (dict): 标签映射
     """  # noqa: ignore flake8"
 
     def __init__(
-            self,
-            module,
-            tokernizer,
-            cat2id
+        self,
+        module,
+        tokernizer,
+        cat2id
     ):
 
         self.module = module
@@ -151,39 +151,40 @@ class PURERCPredictor(object):
         return tensors
 
     def predict_one_sample(
-            self,
-            text='',
-            entities=list(),
-            topk=1,
-            return_label_name=True,
-            return_proba=False
+        self,
+        text='',
+        entities=None,
+        topk=None,
+        return_label_name=True,
+        return_proba=False
     ):
         """
         单样本预测
 
         Args:
-            text (:obj:`string`): 输入文本
-            topk (:obj:`int`, optional, defaults to 1): 返回TopK结果
-            return_label_name (:obj:`bool`, optional, defaults to True): 返回结果的标签ID转化成原始标签
-            return_proba (:obj:`bool`, optional, defaults to False): 返回结果是否带上预测的概率
+            text (string): 输入文本
+            entities (list): 实体抽取的结果, 默认值为: None
+            topk (int, optional): 返回TopK结果, 默认值为: None
+            return_label_name (bool, optional): 返回结果的标签ID转化成原始标签, 默认值为: True
+            return_proba (bool, optional): 返回结果是否带上预测的概率, 默认值为: False
         """  # noqa: ignore flake8"
 
-        if topk is None:
-            topk = len(self.cat2id) if len(self.cat2id) > 2 else 1
+        if entities is None: entities = list()
+        if topk is None: topk = len(self.cat2id) if len(self.cat2id) > 2 else 1
 
         features = self._get_input_ids(text, entities)
         self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            logit, entity_pair = self.module(**inputs)
+            logit = self.module(**inputs)
             logit = torch.nn.functional.softmax(logit, dim=1)
 
         probs, indices = logit.topk(topk, dim=1, sorted=True)
 
         preds = []
         probas = []
-        for prob, indice, entity_pair_ in zip(probs, indices, entity_pair[0]):
+        for prob, indice, entity_pair_ in zip(probs, indices, inputs['entity_pair'][0]):
 
             for pred_, proba_ in zip(indice.cpu().numpy(), prob.cpu().numpy().tolist()):
 

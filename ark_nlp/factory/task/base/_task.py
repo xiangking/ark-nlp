@@ -154,12 +154,12 @@ class Task(object):
 
     def set_scheduler(
         self,
-        epochs,
+        epoch_num,
         batch_size,
         **kwargs
     ):
         if self.scheduler is not None:
-            training_step_num = self.epoch_step_num * epochs
+            training_step_num = self.epoch_step_num * epoch_num
             self.scheduler = get_scheduler(
                 self.scheduler,
                 self.optimizer,
@@ -246,7 +246,7 @@ class Task(object):
         self,
         train_data,
         validation_data,
-        epochs,
+        epoch_num,
         batch_size,
         shuffle,
         gradient_accumulation_steps,
@@ -283,7 +283,7 @@ class Task(object):
         self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
-        self.set_scheduler(epochs, batch_size, **kwargs)
+        self.set_scheduler(epoch_num, batch_size, **kwargs)
 
         self.module.train()
 

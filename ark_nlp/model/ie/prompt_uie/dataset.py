@@ -25,12 +25,12 @@ class PromptUIEDataset(TokenClassificationDataset):
     用于通用信息抽取UIE任务的Dataset
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional): 数据类别, 默认值为: None
+        is_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        is_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
     """  # noqa: ignore flake8"
 
     def _convert_to_transfomer_ids(self, bert_tokenizer):

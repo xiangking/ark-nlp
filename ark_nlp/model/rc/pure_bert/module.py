@@ -12,7 +12,7 @@ class PUREBert(BertPreTrainedModel):
 
     Args:
         config: 模型的配置对象
-        use_rope (:obj:`bool`, optional, defaults to True): 是否使用相对位置编码
+        use_rope (bool, optional): 是否使用相对位置编码, 默认值为: True
 
     Reference:
         [1] A Frustratingly Easy Approach for Joint Entity and Relation Extraction
@@ -21,9 +21,9 @@ class PUREBert(BertPreTrainedModel):
 
     def __init__(self, config, use_rope=True):
         super(PUREBert, self).__init__(config)
-        self.bert = BertModel(config)  # transformers的写法，方便保存，加载模型
+        self.bert = BertModel(config)
 
-        self.linear_dim = int(config.hidden_size / config.num_attention_heads)  # 默认
+        self.linear_dim = int(config.hidden_size / config.num_attention_heads)
         self.linear = nn.Linear(config.hidden_size, self.linear_dim * 2)
 
         self.num_labels = config.num_labels
@@ -32,14 +32,13 @@ class PUREBert(BertPreTrainedModel):
         self.use_rope = use_rope
 
     def forward(
-            self,
-            input_ids,
-            attention_mask,
-            token_type_ids,
-            position_ids,
-            relations_idx,
-            entity_pair,
-            **kwargs
+        self,
+        input_ids,
+        attention_mask,
+        token_type_ids,
+        position_ids,
+        relations_idx,
+        **kwargs
     ):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask,
                             token_type_ids=token_type_ids, position_ids=position_ids)
@@ -87,4 +86,4 @@ class PUREBert(BertPreTrainedModel):
 
         out = self.classifier(torch.cat([sub_query, obj_key], dim=-1))
 
-        return out, entity_pair
+        return out

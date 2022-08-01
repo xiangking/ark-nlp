@@ -30,14 +30,15 @@ class PURERCTask(SequenceClassificationTask):
 
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
@@ -72,34 +73,6 @@ class PURERCTask(SequenceClassificationTask):
     def _evaluate_collate_fn(self, batch):
         return self._train_collate_fn(batch)
 
-    def _get_train_loss(
-        self,
-        inputs,
-        outputs,
-        **kwargs
-    ):
-        logits, entity_pair = outputs
-        # 计算损失
-        loss = self._compute_loss(inputs, logits, **kwargs)
-
-        self._compute_loss_record(**kwargs)
-
-        return logits, loss
-
-    def _get_evaluate_loss(
-        self,
-        inputs,
-        outputs,
-        verbose=True,
-        **kwargs
-    ):
-
-        logits, entity_pair = outputs
-        # 计算损失
-        loss = self._compute_loss(inputs, logits, **kwargs)
-
-        return logits, loss
-
     def _on_optimize_record(
         self,
         inputs,
@@ -122,7 +95,6 @@ class PURERCTask(SequenceClassificationTask):
         step,
         inputs,
         outputs,
-        logits,
         loss,
         verbose=True,
         show_step=100,
@@ -132,7 +104,7 @@ class PURERCTask(SequenceClassificationTask):
         if verbose and (step + 1) % show_step == 0:
             print('[{}/{}],train loss is:{:.6f},train evaluation is:{:.6f}'.format(
                 step,
-                self.train_generator_lenth,
+                self.epoch_step_num,
                 self.logs['epoch_loss'] / self.logs['epoch_step'],
                 self.logs['epoch_evaluation'] / self.logs['epoch_step']
                 )
@@ -154,11 +126,6 @@ class PURERCTask(SequenceClassificationTask):
                 self.logs['epoch_evaluation'] / self.logs['epoch_step']))
 
     def _on_evaluate_begin_record(self, **kwargs):
-
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_acc'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_example'] = 0
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
