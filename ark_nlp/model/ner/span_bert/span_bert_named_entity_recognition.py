@@ -120,16 +120,23 @@ class SpanNERTask(TokenClassificationTask):
         start_logits = logits[0]
         end_logits = logits[1]
 
-        start_pred = torch.argmax(start_logits, -1).cpu().numpy()[0][1:length+1]
-        end_pred = torch.argmax(end_logits, -1).cpu().numpy()[0][1:length+1]
+        start_score_list = torch.argmax(start_logits, -1).cpu().numpy()
+        end_score_list = torch.argmax(end_logits, -1).cpu().numpy()
+        
+        for index, (start_score, end_score) in enumerate(zip(start_score_list, end_score_list)):
+            start_score = start_score[1:length+1]
+            end_score = end_score[1:length+1] 
+            
+            S = []
+            for i, s_l in enumerate(start_score):
+                if s_l == 0:
+                    continue
+                for j, e_l in enumerate(end_score[i:]):
+                    if s_l == e_l:
+                        S.append((s_l, i, i + j))
+                        break
 
-        for i, s_l in enumerate(start_pred):
-            if s_l == 0:
-                continue
-            for j, e_l in enumerate(end_pred[i:]):
-                if s_l == e_l:
-                    S.append((s_l, i, i + j))
-                    break
+            self.metric.update(true_subject=inputs['label_ids'][index], pred_subject=S)
 
         self.metric.update(true_subject=inputs['label_ids'][0], pred_subject=S)
 
