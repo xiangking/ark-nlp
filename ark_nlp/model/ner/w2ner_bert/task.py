@@ -207,10 +207,6 @@ class W2NERTask(TokenClassificationTask):
 
     def _on_evaluate_begin_record(self, **kwargs):
 
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_example'] = 0
-
         self.evaluate_logs['rights'] = []
         self.evaluate_logs['founds'] = []
         self.evaluate_logs['origins'] = []

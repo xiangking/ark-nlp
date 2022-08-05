@@ -6,7 +6,7 @@ class FGM(object):
     基于FGM算法的攻击机制
 
     Args:
-        module (:obj:`torch.nn.Module`): 模型
+        module (torch.nn.Module): 模型
 
     Examples::
 
@@ -61,7 +61,7 @@ class PGD(object):
     基于PGD算法的攻击机制
 
     Args:
-        module (:obj:`torch.nn.Module`): 模型
+        module (torch.nn.Module): 模型
 
     Examples::
 

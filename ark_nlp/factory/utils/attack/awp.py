@@ -10,7 +10,7 @@ class AWP(object):
     基于AWP算法的攻击机制
 
     Args:
-        module (:obj:`torch.nn.Module`): 模型
+        module (torch.nn.Module): 模型
 
     Reference:
         [1] [Adversarial weight perturbation helps robust generalization](https://arxiv.org/abs/2004.05884)

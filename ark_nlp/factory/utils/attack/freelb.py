@@ -11,7 +11,7 @@ class FreeLB(object):
         原始论文: 第一次attack，使用随机初始化的扰动。我们使用初始的梯度值
 
     Args:
-        module (:obj:`torch.nn.Module`): 模型
+        module (torch.nn.Module): 模型
 
     Reference:
         [1] https://github.com/zhuchen03/FreeLB

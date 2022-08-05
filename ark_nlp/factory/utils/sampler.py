@@ -7,10 +7,10 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     从给定的不平衡数据集中采用torch.multinomial进行随机采样，暂时不可用于类似命名实体之类一个样本有多个标签的情况
 
     Args:
-        dataset (:obj:`ark_nlp dataset`): batch文本
-        indices (:obj:`list` or :obj:`None`, optional, defaults to None): 给定的数据集索引列表，默认为None，由dataset处生成
-        num_samples (:obj:`int` or :obj:`None`, optional, defaults to None): 需要的indices长度，默认为None，使用完整的indices长度
-        callback_get_label (:obj:`function`, optional, defaults to None): 自定义获取样本label的函数
+        dataset (ark_nlp dataset): batch文本
+        indices (list or None, optional, defaults to None): 给定的数据集索引列表, 默认值为: None
+        num_samples (int or None, optional, defaults to None): 需要的indices长度, 默认值为: None
+        callback_get_label (function, optional, defaults to None): 自定义获取样本label的函数, 默认值为: None
 
     Examples::
 
