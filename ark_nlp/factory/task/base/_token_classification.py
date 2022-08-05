@@ -60,4 +60,4 @@ class TokenClassificationTask(SequenceClassificationTask):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
-        self.evaluate_logs['input_lengths'] = []
+        self.evaluate_logs['sequence_length'] = []
