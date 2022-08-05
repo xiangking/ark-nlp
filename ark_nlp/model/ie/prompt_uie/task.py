@@ -104,15 +104,15 @@ class PromptUIETask(TokenClassificationTask):
         start_logits = logits[0]
         end_logits = logits[1]
 
-        start_pred = start_logits[0].cpu().numpy()
-        end_pred = end_logits[0].cpu().numpy()
+        start_pred = start_logits.cpu().numpy().tolist()
+        end_pred = end_logits.cpu().numpy().tolist()
 
-        start_scores = get_bool_ids_greater_than(start_pred)
-        end_scores = get_bool_ids_greater_than(end_pred)
+        start_score_list = get_bool_ids_greater_than(start_pred)
+        end_score_list = get_bool_ids_greater_than(end_pred)
 
-        S = get_span(start_scores, end_scores)
-
-        self.metric.update(true_subject=inputs['label_ids'][0], pred_subject=S)
+        for index, (start_score, end_score) in enumerate(zip(start_score_list, end_score_list)):
+            S = get_span(start_score, end_score)
+            self.metric.update(true_subject=inputs['label_ids'][index], pred_subject=S)
 
         self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
         self.evaluate_logs['eval_step'] += 1
