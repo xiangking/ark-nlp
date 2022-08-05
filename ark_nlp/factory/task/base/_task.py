@@ -493,12 +493,18 @@ class Task(object):
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            self.evaluate_logs['eval_loss'] += loss.item()
+            self.evaluate_logs['loss'] += loss.item()
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
+        self._on_evaluate_epoch_begin_record(inputs, outputs, logits, loss, **kwargs)
 
-        return None
+        return logits, loss
+
+    def _on_evaluate_epoch_begin_record(self, inputs, outputs, logits, loss, **kwargs):
+
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
+
+        return self.evaluate_logs
 
     def _get_evaluate_loss(self, inputs, outputs, verbose=True, **kwargs):
         if type(outputs) == tuple:
@@ -515,7 +521,7 @@ class Task(object):
 
     def _on_evaluate_epoch_end(self,
                                validation_data,
-                               epoch=1,
+                               epoch_num=1,
                                evaluate_verbose=True,
                                **kwargs):
         if evaluate_verbose:

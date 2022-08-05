@@ -41,9 +41,6 @@ class PromptMLMTask(SequenceClassificationTask):
             **kwargs (optional): 其他可选参数
         """  # noqa: ignore flake8"
 
-    def __init__(self, *args, **kwargs):
-        super(PromptMLMTask, self).__init__(*args, **kwargs)
-
     def _compute_loss(
         self,
         inputs,
@@ -51,7 +48,6 @@ class PromptMLMTask(SequenceClassificationTask):
         verbose=True,
         **kwargs
     ):
-
         labels = torch.squeeze(inputs['label_ids'].reshape(-1, 1))
         loss = self.loss_function(logits, labels)
 
@@ -59,15 +55,17 @@ class PromptMLMTask(SequenceClassificationTask):
 
     def _on_evaluate_begin_record(self, **kwargs):
 
-        self.evaluate_logs['labels'] = []
+        self.evaluate_logs['label'] = []
         self.evaluate_logs['logits'] = []
+
+        return self.evaluate_logs
 
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            self.evaluate_logs['eval_loss'] += loss.item()
+            self.evaluate_logs['loss'] += loss.item()
 
             labels = inputs['label_ids'].cpu()
 
@@ -77,19 +75,19 @@ class PromptMLMTask(SequenceClassificationTask):
             vocab_size = logits.shape[1]
             label_length = labels.shape[1]
 
-            # logits: [batch_size, label_lenght, vocab_size]
+            # logits: [batch_size, label_length, vocab_size]
             logits = logits.reshape([batch_size, -1, vocab_size]).numpy()
 
             # [label_num, label_length]
-            labels_ids = np.array(
+            label_ids = np.array(
                 [self.tokenizer.vocab.convert_tokens_to_ids(
-                    self.tokenizer.tokenize(_cat)) for _cat in self.cat2id])
+                    self.tokenizer.tokenize(category)) for category in self.cat2id])
 
-            preds = np.ones(shape=[batch_size, len(labels_ids)])
+            preds = np.ones(shape=[batch_size, len(label_ids)])
 
             for index in range(label_length):
 
-                preds *= logits[:, index, labels_ids[:, index]]
+                preds *= logits[:, index, label_ids[:, index]]
 
             preds = np.argmax(preds, axis=-1)
 
@@ -105,38 +103,38 @@ class PromptMLMTask(SequenceClassificationTask):
         self.evaluate_logs['labels'].append(label_indexs)
         self.evaluate_logs['logits'].append(preds)
 
-        self.evaluate_logs['eval_example'] += len(label_indexs)
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_acc'] += (label_indexs == preds).sum()
+        self.evaluate_logs['accuracy'] += (label_indexs == preds).sum()
+
+        self._on_evaluate_epoch_begin_record(inputs, outputs, logits, loss, **kwargs)
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        epoch_num=1,
+        evaluate_verbose=True,
         **kwargs
     ):
 
-        _labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
-        _preds = np.concatenate(self.evaluate_logs['logits'], axis=0)
+        labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
+        preds = np.concatenate(self.evaluate_logs['logits'], axis=0)
 
-        f1_score = sklearn_metrics.f1_score(_labels, _preds, average='macro')
+        f1_score = sklearn_metrics.f1_score(labels, preds, average='macro')
 
-        report_ = sklearn_metrics.classification_report(
-            _labels,
-            _preds,
-            labels=[_v for _k, _v in validation_data.cat2id.items()],
-            target_names=[str(_k) for _k, _v in validation_data.cat2id.items()]
+        report = sklearn_metrics.classification_report(
+            labels,
+            preds,
+            labels=[v for k, v in validation_data.cat2id.items()],
+            target_names=[str(k) for k, v in validation_data.cat2id.items()]
         )
 
-        confusion_matrix_ = sklearn_metrics.confusion_matrix(_labels, _preds)
+        confusion_matrix = sklearn_metrics.confusion_matrix(labels, preds)
 
-        if is_evaluate_print:
-            print('classification_report: \n', report_)
-            print('confusion_matrix_: \n', confusion_matrix_)
-            print('test loss is:{:.6f},test acc is:{:.6f},f1_score is:{:.6f}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                self.evaluate_logs['eval_acc'] / self.evaluate_logs['eval_example'],
+        if evaluate_verbose:
+            print('classification_report: \n', report)
+            print('confusion_matrix_: \n', confusion_matrix)
+            print('test loss is:{:.6f},test accuracy is:{:.6f},f1_score is:{:.6f}'.format(
+                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
+                self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
                 f1_score
                 )
             )

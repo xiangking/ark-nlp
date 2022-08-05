@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
 from ark_nlp.factory.utils import conlleval
@@ -40,64 +39,53 @@ class BIONERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def __init__(self, *args, **kwargs):
-
-        super(BIONERTask, self).__init__(*args, **kwargs)
-
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            self.evaluate_logs['eval_loss'] += loss.item()
+            self.evaluate_logs['loss'] += loss.item()
 
         self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
         self.evaluate_logs['logits'].append(logits.cpu())
-        self.evaluate_logs['input_lengths'].append(inputs['input_lengths'].cpu())
+        self.evaluate_logs['sequence_length'].append(inputs['sequence_length'].cpu())
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
+        self._on_evaluate_epoch_begin_record(inputs, outputs, logits, loss, **kwargs)
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch=1,
-        is_evaluate_print=True,
-        id2cat=None,
-        markup='bio',
-        **kwargs
-    ):
+        return logits, loss
 
+    def _on_evaluate_epoch_end(self,
+                               validation_data,
+                               epoch_num=1,
+                               evaluate_verbose=True,
+                               id2cat=None,
+                               markup='bio',
+                               **kwargs):
         if id2cat is None:
             id2cat = self.id2cat
 
-        self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
-        preds_ = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1).numpy().tolist()
-        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
-        input_lens_ = torch.cat(self.evaluate_logs['input_lengths'], dim=0).numpy()
+        self.metric = conlleval.SeqEntityScore(id2cat, markup=markup)
 
-        for index_, label_ in enumerate(labels_):
-            label_list_ = []
-            pred_list_ = []
-            for jndex_, _ in enumerate(label_):
-                if jndex_ == 0:
+        preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1).numpy().tolist()
+        labels = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
+        sequence_length_list = torch.cat(self.evaluate_logs['sequence_length'], dim=0).numpy().tolist()
+
+        for index, label in enumerate(labels):
+            label_list = []
+            pred_list = []
+            for jndex, _ in enumerate(label):
+                if jndex == 0:
                     continue
-                elif jndex_ == input_lens_[index_]-1:
-                    self.ner_metric.update(
-                        pred_paths=[pred_list_],
-                        label_paths=[label_list_]
-                    )
+                elif jndex == sequence_length_list[index] - 1:
+                    self.metric.update(pred_paths=[pred_list], label_paths=[label_list])
                     break
                 else:
-                    label_list_.append(labels_[index_][jndex_])
-                    pred_list_.append(preds_[index_][jndex_])
+                    label_list.append(labels[index][jndex])
+                    pred_list.append(preds[index][jndex])
 
-        eval_info, entity_info = self.ner_metric.result()
+        evaluate_infos, entity_infos = self.metric.result()
 
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                eval_info['acc'],
-                eval_info['recall'],
-                eval_info['f1'])
-            )
+        if evaluate_verbose:
+            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.
+                  format(self.evaluate_logs['loss'] / self.evaluate_logs['step'],
+                         evaluate_infos['acc'], evaluate_infos['recall'], evaluate_infos['f1']))

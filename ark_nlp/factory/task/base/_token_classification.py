@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
@@ -45,22 +44,13 @@ class TokenClassificationTask(SequenceClassificationTask):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
+    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
 
         active_loss = inputs['attention_mask'].view(-1) == 1
         active_logits = logits.view(-1, self.class_num)
         active_labels = torch.where(
-            active_loss,
-            inputs['label_ids'].view(-1),
-            torch.tensor(self.loss_function.ignore_index).type_as(inputs['label_ids']
-            )
-        )
+            active_loss, inputs['label_ids'].view(-1),
+            torch.tensor(self.loss_function.ignore_index).type_as(inputs['label_ids']))
 
         loss = self.loss_function(active_logits, active_labels)
 
