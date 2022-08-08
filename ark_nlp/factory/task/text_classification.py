@@ -40,10 +40,6 @@ class TCTask(SequenceClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def __init__(self, *args, **kwargs):
-
-        super(TCTask, self).__init__(*args, **kwargs)
-
     def _on_optimize_record(
         self,
         inputs,
@@ -107,7 +103,7 @@ class TCTask(SequenceClassificationTask):
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            self.evaluate_logs['eval_loss'] += loss.item()
+            self.evaluate_logs['loss'] += loss.item()
 
             labels = inputs['label_ids'].cpu()
             logits = logits.cpu()
@@ -117,9 +113,9 @@ class TCTask(SequenceClassificationTask):
         self.evaluate_logs['labels'].append(labels)
         self.evaluate_logs['logits'].append(logits)
 
-        self.evaluate_logs['eval_example'] += len(labels)
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_acc'] += torch.sum(preds == labels.data).item()
+        self.evaluate_logs['example_num'] += len(labels)
+        self.evaluate_logs['step'] += 1
+        self.evaluate_logs['accuracy'] += torch.sum(preds == labels.data).item()
 
     def _on_evaluate_epoch_end(
         self,

@@ -268,8 +268,6 @@ class Task(object):
 
         self.set_scheduler(epoch_num, batch_size, **kwargs)
 
-        self.module.train()
-
         self._on_train_begin_record(**kwargs)
 
         return train_generator
@@ -378,32 +376,51 @@ class Task(object):
 
         return self.logs
 
-    def _on_step_end(self,
-                     step,
-                     inputs,
-                     outputs,
-                     loss,
-                     verbose=True,
-                     show_metric_step=100,
-                     **kwargs):
-        if verbose and (step + 1) % show_metric_step == 0:
-            print('[{}/{}],train loss is:{:.6f}'.format(
-                step, self.epoch_step_num,
-                self.logs['epoch_loss'] / self.logs['epoch_step']))
+    def _on_step_end(self, **kwargs):
 
         self._on_step_end_record(**kwargs)
 
         return None
 
-    def _on_step_end_record(self, **kwargs):
+    def _on_step_end_record(self,
+                            step,
+                            inputs,
+                            outputs,
+                            loss,
+                            verbose=True,
+                            show_metric_step=100,
+                            **kwargs):
+
+        if verbose and (step + 1) % show_metric_step == 0:
+            print('[{}/{}],train loss is:{:.6f}'.format(
+                step, self.epoch_step_num,
+                self.logs['epoch_loss'] / self.logs['epoch_step']))
+
+        return self.logs
+
+    def _on_epoch_end(self, epoch, verbose, **kwargs):
+
+        self._on_epoch_end_record(epoch, verbose, **kwargs)
+
         return None
 
-    def _on_epoch_end(self, epoch, verbose=True, **kwargs):
+    def _on_epoch_end_record(self, epoch, verbose=True, **kwargs):
+
+        self.logs['epoch_loss'] = 0.0
+        self.logs['epoch_step'] = 0.0
+
         if verbose:
             print('epoch:[{}],train loss is:{:.6f} \n'.format(
                 epoch, self.logs['epoch_loss'] / self.logs['epoch_step']))
 
         return None
+
+    def _on_train_end(self, **kwargs):
+        self._on_train_end_record(**kwargs)
+        return None
+
+    def _on_train_end_record(self, **kwargs):
+        return self.logs
 
     def evaluate(self, validation_data, *, evaluate_batch_size=16, **kwargs):
         """
@@ -519,20 +536,21 @@ class Task(object):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(self,
-                               validation_data,
-                               epoch_num=1,
-                               evaluate_verbose=True,
-                               **kwargs):
-        if evaluate_verbose:
-            print('test loss is:{:.6f}'.format(self.evaluate_logs['eval_loss'] /
-                                               self.evaluate_logs['eval_step']))
+    def _on_evaluate_epoch_end(self, **kwargs):
 
         self._on_evaluate_epoch_end_record(**kwargs)
 
         return None
 
-    def _on_evaluate_epoch_end_record(self, **kwargs):
+    def _on_evaluate_epoch_end_record(self,
+                                      validation_data,
+                                      evaluate_verbose=True,
+                                      **kwargs):
+
+        if evaluate_verbose:
+            print('test loss is:{:.6f}'.format(self.evaluate_logs['eval_loss'] /
+                                               self.evaluate_logs['eval_step']))
+
         return self.evaluate_logs
 
     def _on_evaluate_end(self, evaluate_save=False, save_module_path=None, **kwargs):
@@ -585,13 +603,6 @@ class Task(object):
             raise ValueError("The save mode does not exist")
 
         return save_path
-
-    def _on_train_end(self, **kwargs):
-        self._on_train_end_record(**kwargs)
-        return None
-
-    def _on_train_end_record(self, **kwargs):
-        return self.logs
 
     def _train_collate_fn(self, batch):
         return default_collate(batch)

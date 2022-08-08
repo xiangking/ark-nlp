@@ -55,7 +55,7 @@ class PromptMLMTask(SequenceClassificationTask):
 
     def _on_evaluate_begin_record(self, **kwargs):
 
-        self.evaluate_logs['label'] = []
+        self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
 
         return self.evaluate_logs
