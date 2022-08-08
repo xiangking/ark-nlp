@@ -210,6 +210,7 @@ class CasRelRETask(SequenceClassificationTask):
                  evaluate_batch_size=1,
                  h_bar=0.5,
                  t_bar=0.5,
+                 show_example_step=11,
                  **kwargs):
         self.evaluate_logs = dict()
 
@@ -302,7 +303,7 @@ class CasRelRETask(SequenceClassificationTask):
 
                 correct_num += len(pred_triples & gold_triples)
 
-                if step_ < 11:
+                if step_ < show_example_step:
                     print('pred_triples: ', pred_triples)
                     print('gold_triples: ', gold_triples)
 
@@ -311,6 +312,7 @@ class CasRelRETask(SequenceClassificationTask):
 
                 inputs = test_data_prefetcher.next()
 
+        print("********** Evaluating Done **********")
         print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(
             correct_num, predict_num, gold_num))
 
@@ -327,14 +329,18 @@ class CasRelRETask(SequenceClassificationTask):
                            validation_data,
                            batch_size,
                            shuffle,
-                           num_workers=0,
+                           worker_num=0,
                            **kwargs):
 
         evaluate_generator = DataLoader(validation_data,
                                         batch_size=batch_size,
                                         shuffle=shuffle,
-                                        num_workers=num_workers,
+                                        num_workers=worker_num,
                                         collate_fn=self._evaluate_collate_fn)
+
+        if self.ema_decay:
+            self.ema.store(self.module.parameters())
+            self.ema.copy_to(self.module.parameters())
 
         self.module.eval()
 

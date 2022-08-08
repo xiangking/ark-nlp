@@ -56,7 +56,7 @@ class TokenClassificationTask(SequenceClassificationTask):
 
         return loss
 
-    def _on_evaluate_begin_record(self, **kwargs):
+    def _on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []

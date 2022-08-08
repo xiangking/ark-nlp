@@ -103,11 +103,7 @@ class SpanBertNERTask(TokenClassificationTask):
 
         self.metric = SpanMetrics(self.id2cat)
 
-        if self.ema_decay:
-            self.ema.store(self.module.parameters())
-            self.ema.copy_to(self.module.parameters())
-
-        self._on_epoch_begin_record(**kwargs)
+        return None
 
     def _on_evaluate_step_end(self, inputs, logits, **kwargs):
 
@@ -123,11 +119,11 @@ class SpanBertNERTask(TokenClassificationTask):
 
         start_score_list = torch.argmax(start_logits, -1).cpu().numpy()
         end_score_list = torch.argmax(end_logits, -1).cpu().numpy()
-        
+
         for index, (start_score, end_score) in enumerate(zip(start_score_list, end_score_list)):
             start_score = start_score[1:length+1]
             end_score = end_score[1:length+1] 
-            
+
             S = []
             for i, s_l in enumerate(start_score):
                 if s_l == 0:
@@ -137,17 +133,18 @@ class SpanBertNERTask(TokenClassificationTask):
                         S.append((s_l, i, i + j))
                         break
 
-        self.metric.update(true_subject=inputs['label_ids'][0], pred_subject=S)
+            self.metric.update(true_subject=inputs['label_ids'][index], pred_subject=S)
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
+        self.evaluate_logs['loss'] += loss.item()
+
+        return logits, loss
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         id2cat=None,
         **kwargs
     ):
@@ -156,11 +153,14 @@ class SpanBertNERTask(TokenClassificationTask):
             id2cat = self.id2cat
 
         with torch.no_grad():
-            eval_info, entity_info = self.metric.result()
+            evaluate_infos, entity_infos = self.metric.result()
 
-        if is_evaluate_print:
-            print('eval_info: ', eval_info)
-            print('entity_info: ', entity_info)
+        if evaluate_verbose:
+            print("********** Evaluating Done **********")
+            print('evaluation: ', evaluate_infos)
+            print('entity evaluation: ', entity_infos)
+
+        return None
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""

@@ -276,9 +276,11 @@ class PRGCRETask(SequenceClassificationTask):
             collate_fn=self._evaluate_collate_fn
         )
 
-        self.module.eval()
+        if self.ema_decay:
+            self.ema.store(self.module.parameters())
+            self.ema.copy_to(self.module.parameters())
 
-        self._on_evaluate_begin_record(**kwargs)
+        self.module.eval()
 
         return evaluate_generator
 
@@ -329,16 +331,17 @@ class PRGCRETask(SequenceClassificationTask):
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         **kwargs
     ):
 
-        metrics = get_metrics(
+        evaluation_metrics = get_metrics(
             self.evaluate_logs['correct_num'],
             self.evaluate_logs['predict_num'],
             self.evaluate_logs['gold_num']
         )
-        metrics_str = "; ".join("{}: {:05.3f}".format(k, v) for k, v in metrics.items())
+        evaluation_metrics = "; ".join("{}: {:05.3f}".format(k, v) for k, v in metrics.items())
 
-        print(metrics_str)
+        if evaluate_verbose:
+            print("********** Evaluating Done **********")
+            print(evaluation_metrics)

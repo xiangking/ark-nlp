@@ -45,17 +45,14 @@ class PromptUIETask(TokenClassificationTask):
     def _get_train_loss(self, inputs, outputs, **kwargs):
         loss = self._compute_loss(inputs, outputs, **kwargs)
 
-        self._compute_loss_record(**kwargs)
-
         return outputs, loss
 
     def _get_evaluate_loss(self, inputs, outputs, **kwargs):
         loss = self._compute_loss(inputs, outputs, **kwargs)
-        self._compute_loss_record(**kwargs)
 
         return outputs, loss
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def _compute_loss(self, inputs, logits, **kwargs):
         start_logits = logits[0]
         end_logits = logits[1]
 
@@ -88,11 +85,7 @@ class PromptUIETask(TokenClassificationTask):
 
         self.metric = SpanMetrics()
 
-        if self.ema_decay:
-            self.ema.store(self.module.parameters())
-            self.ema.copy_to(self.module.parameters())
-
-        self._on_epoch_begin_record(**kwargs)
+        return None
 
     def _on_evaluate_step_end(self, inputs, logits, **kwargs):
 
@@ -114,21 +107,19 @@ class PromptUIETask(TokenClassificationTask):
             S = get_span(start_score, end_score)
             self.metric.update(true_subject=inputs['label_ids'][index], pred_subject=S)
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
+        self.evaluate_logs['loss'] += loss.item()
 
     def _on_evaluate_epoch_end(self,
                                validation_data,
-                               epoch=1,
-                               is_evaluate_print=True,
+                               evaluate_verbose=True,
                                **kwargs):
 
-        with torch.no_grad():
-            eval_info = self.metric.result()
+        if evaluate_verbose:
+            print(self.metric.result())
 
-        if is_evaluate_print:
-            print('eval_info: ', eval_info)
+        return None
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""

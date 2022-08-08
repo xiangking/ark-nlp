@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 import numpy as np
 import sklearn.metrics as sklearn_metrics
@@ -41,19 +40,13 @@ class PromptMLMTask(SequenceClassificationTask):
             **kwargs (optional): 其他可选参数
         """  # noqa: ignore flake8"
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
+    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
         labels = torch.squeeze(inputs['label_ids'].reshape(-1, 1))
         loss = self.loss_function(logits, labels)
 
         return loss
 
-    def _on_evaluate_begin_record(self, **kwargs):
+    def _on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
@@ -79,9 +72,10 @@ class PromptMLMTask(SequenceClassificationTask):
             logits = logits.reshape([batch_size, -1, vocab_size]).numpy()
 
             # [label_num, label_length]
-            label_ids = np.array(
-                [self.tokenizer.vocab.convert_tokens_to_ids(
-                    self.tokenizer.tokenize(category)) for category in self.cat2id])
+            label_ids = np.array([
+                self.tokenizer.vocab.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(category)) for category in self.cat2id
+            ])
 
             preds = np.ones(shape=[batch_size, len(label_ids)])
 
@@ -93,8 +87,7 @@ class PromptMLMTask(SequenceClassificationTask):
 
             label_indexs = []
             for _label in labels.numpy():
-                _label = "".join(
-                    self.tokenizer.vocab.convert_ids_to_tokens(list(_label)))
+                _label = "".join(self.tokenizer.vocab.convert_ids_to_tokens(list(_label)))
 
                 label_indexs.append(self.cat2id[_label])
 
@@ -105,15 +98,12 @@ class PromptMLMTask(SequenceClassificationTask):
 
         self.evaluate_logs['accuracy'] += (label_indexs == preds).sum()
 
-        self._on_evaluate_epoch_begin_record(inputs, outputs, logits, loss, **kwargs)
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch_num=1,
-        evaluate_verbose=True,
-        **kwargs
-    ):
+        return logits, loss
+
+    def _on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
 
         labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
         preds = np.concatenate(self.evaluate_logs['logits'], axis=0)
@@ -124,17 +114,17 @@ class PromptMLMTask(SequenceClassificationTask):
             labels,
             preds,
             labels=[v for k, v in validation_data.cat2id.items()],
-            target_names=[str(k) for k, v in validation_data.cat2id.items()]
-        )
+            target_names=[str(k) for k, v in validation_data.cat2id.items()])
 
         confusion_matrix = sklearn_metrics.confusion_matrix(labels, preds)
 
         if evaluate_verbose:
-            print('classification_report: \n', report)
-            print('confusion_matrix_: \n', confusion_matrix)
-            print('test loss is:{:.6f},test accuracy is:{:.6f},f1_score is:{:.6f}'.format(
-                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
-                self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
-                f1_score
-                )
-            )
+            print("********** Evaluating Done **********")
+            print('evaluate classification_report: \n', report)
+            print('evaluate confusion_matrix_: \n', confusion_matrix)
+            print(
+                'evaluate loss is:{:.6f}, evaluate accuracy is:{:.6f}, evaluate f1_score is:{:.6f}'
+                .format(
+                    self.evaluate_logs['loss'] / self.evaluate_logs['step'],
+                    self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
+                    f1_score))

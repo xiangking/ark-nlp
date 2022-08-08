@@ -40,10 +40,6 @@ class TextLevelGCNTask(SequenceClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def __init__(self, *args, **kwargs):
-
-        super(TextLevelGCNTask, self).__init__(*args, **kwargs)
-
     def _train_collate_fn(
         self,
         batch

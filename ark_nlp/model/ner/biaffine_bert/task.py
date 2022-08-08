@@ -48,15 +48,13 @@ class BiaffineBertNERTask(TokenClassificationTask):
         **kwargs
     ):
 
-        span_label = inputs['label_ids'].view(size=(-1,))
-        span_logits = logits.view(size=(-1, self.class_num))
+        labels = inputs['label_ids'].view(size=(-1,))
 
-        span_loss = self.loss_function(span_logits, span_label.long())
+        loss = self.loss_function(logits.view(size=(-1, self.class_num)), labels.long())
 
-        span_mask = inputs['span_mask'].view(size=(-1,))
+        loss = loss * inputs['span_mask'].view(size=(-1,))
 
-        span_loss *= span_mask
-        loss = torch.sum(span_loss) / inputs['span_mask'].size()[0]
+        loss = torch.sum(loss) / inputs['span_mask'].size()[0]
 
         return loss
 
@@ -66,19 +64,20 @@ class BiaffineBertNERTask(TokenClassificationTask):
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
             logits = torch.nn.functional.softmax(logits, dim=-1)
-            self.evaluate_logs['eval_loss'] += loss.item()
+            self.evaluate_logs['loss'] += loss.item()
 
         self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
         self.evaluate_logs['logits'].append(logits.cpu())
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
+
+        return logits, loss
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         id2cat=None,
         **kwargs
     ):
@@ -88,16 +87,16 @@ class BiaffineBertNERTask(TokenClassificationTask):
 
         biaffine_metric = BiaffineSpanMetrics()
 
-        preds_ = torch.cat(self.evaluate_logs['logits'], dim=0)
-        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0)
+        preds = torch.cat(self.evaluate_logs['logits'], dim=0)
+        labels = torch.cat(self.evaluate_logs['labels'], dim=0)
 
         with torch.no_grad():
-            recall, precise, span_f1 = biaffine_metric(preds_, labels_)
+            recall, precision, f1 = biaffine_metric(preds, labels)
 
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                precise,
+        if evaluate_verbose:
+            print('evaluate loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
+                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
+                precision,
                 recall,
-                span_f1)
+                f1)
             )

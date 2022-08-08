@@ -41,18 +41,12 @@ class UnsupervisedSimCSETask(SequenceClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def __init__(self, *args, **kwargs):
-
-        super(UnsupervisedSimCSETask, self).__init__(*args, **kwargs)
-
     def _on_evaluate_begin_record(self, **kwargs):
 
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_example'] = 0
-
         self.evaluate_logs['labels'] = []
-        self.evaluate_logs['eval_sim'] = []
+        self.evaluate_logs['similarity'] = []
+
+        return self.evaluate_logs
 
     def _on_evaluate_step_end(
         self,
@@ -73,31 +67,33 @@ class UnsupervisedSimCSETask(SequenceClassificationTask):
             if show_evaluate_loss is True:
                 # compute loss
                 logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-                self.evaluate_logs['eval_loss'] += loss.item()
+                self.evaluate_logs['loss'] += loss.item()
 
             if 'label_ids' in inputs:
                 cosine_sim = self.module.cosine_sim(**inputs).cpu().numpy()
-                self.evaluate_logs['eval_sim'].append(cosine_sim)
+                self.evaluate_logs['similarity'].append(cosine_sim)
                 self.evaluate_logs['labels'].append(inputs['label_ids'].cpu().numpy())
 
-        self.evaluate_logs['eval_example'] += inputs['input_ids_a'].shape[0]
-        self.evaluate_logs['eval_step'] += 1
+        self.evaluate_logs['example_num'] += inputs['input_ids_a'].shape[0]
+        self.evaluate_logs['step'] += 1
+
+        return logits, loss
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         show_evaluate_loss=False,
         **kwargs
     ):
 
-        if is_evaluate_print:
+        if evaluate_verbose:
+            print("********** Evaluating Done **********")
             if 'labels' in self.evaluate_logs:
-                _sims = np.concatenate(self.evaluate_logs['eval_sim'], axis=0)
-                _labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
-                spearman_corr = stats.spearmanr(_labels, _sims).correlation
-                print('evaluate spearman corr is:{:.4f}'.format(spearman_corr))
+                sims = np.concatenate(self.evaluate_logs['similarity'], axis=0)
+                labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
+                spearman_corr = stats.spearmanr(labels, sims).correlation
+                print('spearman corr is:{:.4f}'.format(spearman_corr))
 
             if show_evaluate_loss is True:
-                print('evaluate loss is:{:.6f}'.format(self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step']))
+                print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] / self.evaluate_logs['step']))

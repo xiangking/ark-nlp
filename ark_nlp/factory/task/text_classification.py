@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 import sklearn.metrics as sklearn_metrics
 
@@ -40,63 +39,52 @@ class TCTask(SequenceClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _on_optimize_record(
-        self,
-        inputs,
-        outputs,
-        logits,
-        loss,
-        verbose=True,
-        **kwargs
-    ):
+    def _on_optimize_record(self, inputs, outputs, logits, loss, verbose=True, **kwargs):
         self.logs['global_step'] += 1
         self.logs['epoch_step'] += 1
 
         if verbose:
             with torch.no_grad():
                 _, preds = torch.max(logits, 1)
-                self.logs['epoch_evaluation'] += torch.sum(preds == inputs['label_ids']).item() / len(inputs['label_ids'])
+                self.logs['epoch_evaluation'] += torch.sum(
+                    preds == inputs['label_ids']).item() / len(inputs['label_ids'])
 
-    def _on_step_end(
-        self,
-        step,
-        inputs,
-        outputs,
-        logits,
-        loss,
-        verbose=True,
-        show_step=100,
-        **kwargs
-    ):
+    def _on_step_end_record(self,
+                            step,
+                            inputs,
+                            outputs,
+                            logits,
+                            loss,
+                            verbose=True,
+                            show_metric_step=100,
+                            **kwargs):
 
-        if verbose and (step + 1) % show_step == 0:
+        if verbose and (step + 1) % show_metric_step == 0:
             print('[{}/{}],train loss is:{:.6f},train evaluation is:{:.6f}'.format(
-                step,
-                self.train_generator_lenth,
-                self.logs['epoch_loss'] / self.logs['epoch_step'],
-                self.logs['epoch_evaluation'] / self.logs['epoch_step']
-                )
-            )
-
-        self._on_step_end_record(**kwargs)
-
-    def _on_epoch_end(
-        self,
-        epoch,
-        verbose=True,
-        **kwargs
-    ):
-
-        if verbose:
-            print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
-                epoch,
+                step, self.epoch_step_num,
                 self.logs['epoch_loss'] / self.logs['epoch_step'],
                 self.logs['epoch_evaluation'] / self.logs['epoch_step']))
 
-    def _on_evaluate_begin_record(self, **kwargs):
+        return self.logs
+
+    def _on_epoch_end_record(self, epoch, verbose=True, **kwargs):
+
+        if verbose:
+            print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
+                epoch, self.logs['epoch_loss'] / self.logs['epoch_step'],
+                self.logs['epoch_evaluation'] / self.logs['epoch_step']))
+
+        self.logs['epoch_loss'] = 0.0
+        self.logs['epoch_step'] = 0.0
+
+        return self.logs
+
+    def _on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
+
+        return self.evaluate_logs
 
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
@@ -117,33 +105,29 @@ class TCTask(SequenceClassificationTask):
         self.evaluate_logs['step'] += 1
         self.evaluate_logs['accuracy'] += torch.sum(preds == labels.data).item()
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch=1,
-        is_evaluate_print=True,
-        **kwargs
-    ):
+        return logits, loss
 
-        _labels = torch.cat(self.evaluate_logs['labels'], dim=0)
-        _preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1)
+    def _on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
 
-        f1_score = sklearn_metrics.f1_score(_labels, _preds, average='macro')
+        labels = torch.cat(self.evaluate_logs['labels'], dim=0)
+        preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1)
 
-        report_ = sklearn_metrics.classification_report(
-            _labels,
-            _preds,
-            target_names=[str(_category) for _category in validation_data.categories]
-        )
+        f1_score = sklearn_metrics.f1_score(labels, preds, average='macro')
 
-        confusion_matrix_ = sklearn_metrics.confusion_matrix(_labels, _preds)
+        report = sklearn_metrics.classification_report(
+            labels,
+            preds,
+            target_names=[str(_category) for _category in validation_data.categories])
 
-        if is_evaluate_print:
-            print('classification_report: \n', report_)
-            print('confusion_matrix_: \n', confusion_matrix_)
-            print('test loss is:{:.6f},test acc is:{:.6f},f1_score is:{:.6f}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                self.evaluate_logs['eval_acc'] / self.evaluate_logs['eval_example'],
-                f1_score
-                )
-            )
+        confusion_matrix = sklearn_metrics.confusion_matrix(labels, preds)
+
+        if evaluate_verbose:
+            print("********** Evaluating Done **********")
+            print('classification_report: \n', report)
+            print('confusion_matrix: \n', confusion_matrix)
+            print(
+                'loss is:{:.6f}, accuracy is:{:.6f}, f1_score is:{:.6f}'
+                .format(
+                    self.evaluate_logs['loss'] / self.evaluate_logs['step'],
+                    self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
+                    f1_score))

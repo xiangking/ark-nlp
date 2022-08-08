@@ -97,7 +97,7 @@ class SpanMetrics(object):
                 found = found_counter.get(type_, 0)
                 right = right_counter.get(type_, 0)
                 recall, precision, f1 = self.compute(origin, found, right)
-                class_info[type_] = {"acc": round(precision, 4), 'recall': round(recall, 4), 'f1': round(f1, 4)}
+                class_info[type_] = {"precision": round(precision, 4), 'recall': round(recall, 4), 'f1-score': round(f1, 4)}
 
         origin = len(self.origins)
         found = len(self.founds)
@@ -105,9 +105,9 @@ class SpanMetrics(object):
         recall, precision, f1 = self.compute(origin, found, right)
 
         if self.id2label is None:
-            return {'acc': precision, 'recall': recall, 'f1': f1}
+            return {'precision': precision, 'recall': recall, 'f1-score': f1}
         else:
-            return {'acc': precision, 'recall': recall, 'f1': f1}, class_info
+            return {'precision': precision, 'recall': recall, 'f1-score': f1}, class_info
 
     def update(self, true_subject, pred_subject):
         self.origins.extend(true_subject)

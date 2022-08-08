@@ -71,12 +71,6 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
 
         return loss
 
-    def _on_evaluate_begin_record(self, **kwargs):
-
-        self.evaluate_logs['labels'] = []
-        self.evaluate_logs['logits'] = []
-        self.evaluate_logs['input_lengths'] = []
-
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
@@ -91,15 +85,14 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
             self.evaluate_logs['numerate'] += numerate
             self.evaluate_logs['denominator'] += denominator
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
+        self.evaluate_logs['loss'] += loss.item()
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         id2cat=None,
         **kwargs
     ):
@@ -107,9 +100,10 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
         if id2cat is None:
             id2cat = self.id2cat
 
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
+        if evaluate_verbose:
+            print("********** Evaluating Done **********")
+            print('loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
+                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
                 self.evaluate_logs['numerate'],
                 self.evaluate_logs['denominator'],
                 2*self.evaluate_logs['numerate']/self.evaluate_logs['denominator'])

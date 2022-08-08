@@ -30,6 +30,7 @@ def convert_index_to_text(index, type):
     text = text + "-#-{}".format(type)
     return text
 
+
 def decode(outputs, entities, length):
     ent_r, ent_p, ent_c = [], [], []
     for index, (instance, ent_set, l) in enumerate(zip(outputs, entities, length)):
@@ -77,10 +78,9 @@ def decode(outputs, entities, length):
         ent_p.extend(predicts)
         for x in predicts:
             if x in ent_set:
-                # ent_c += 1
                 ent_c.append(x)
+
     return ent_c, ent_p, ent_r
-    # return ent_c, ent_p, ent_r
 
 
 class SeqEntityScore(object):
@@ -125,6 +125,7 @@ class SeqEntityScore(object):
         :param label_paths:
         :param pred_paths:
         :return:
+
         Example:
             >>> labels_paths = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
             >>> pred_paths = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
@@ -135,7 +136,6 @@ class SeqEntityScore(object):
             self.origins.extend(label_entities)
             self.founds.extend(pre_entities)
             self.rights.extend([pre_entity for pre_entity in pre_entities if pre_entity in label_entities])
-
 
 
 class W2NERTask(TokenClassificationTask):
@@ -205,7 +205,7 @@ class W2NERTask(TokenClassificationTask):
 
         return loss
 
-    def _on_evaluate_begin_record(self, **kwargs):
+    def _on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['rights'] = []
         self.evaluate_logs['founds'] = []
@@ -226,19 +226,17 @@ class W2NERTask(TokenClassificationTask):
             self.evaluate_logs['founds'].extend(founds)
             self.evaluate_logs['origins'].extend(origins)
 
-            self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-            self.evaluate_logs['eval_step'] += 1
-            self.evaluate_logs['eval_loss'] += loss.item()
+            self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+            self.evaluate_logs['step'] += 1
+            self.evaluate_logs['loss'] += loss.item()
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         id2cat=None,
         **kwargs
     ):
-
         if id2cat is None:
             id2cat = self.id2cat
 
@@ -248,12 +246,11 @@ class W2NERTask(TokenClassificationTask):
         self.ner_metric.founds = self.evaluate_logs['founds']
         self.ner_metric.origins = self.evaluate_logs['origins']
 
-        eval_info, entity_info = self.ner_metric.result()
+        evaluate_infos, entity_infos = self.ner_metric.result()
 
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                eval_info['acc'],
-                eval_info['recall'],
-                eval_info['f1'])
-            )
+        if evaluate_verbose:
+            print("********** Evaluating Done **********")
+            print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
+                                          self.evaluate_logs['step']))
+            print('evaluation: ', evaluate_infos)
+            print('entity evaluation: ', entity_infos)

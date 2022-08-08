@@ -90,18 +90,20 @@ class PURERCTask(SequenceClassificationTask):
                 _, preds = torch.max(logits, 1)
                 self.logs['epoch_evaluation'] += torch.sum(preds == inputs['label_ids']).item() / len(inputs['label_ids'])
 
-    def _on_step_end(
+        return self.logs
+
+    def _on_step_end_record(
         self,
         step,
         inputs,
         outputs,
         loss,
         verbose=True,
-        show_step=100,
+        show_metric_step=100,
         **kwargs
     ):
 
-        if verbose and (step + 1) % show_step == 0:
+        if verbose and (step + 1) % show_metric_step == 0:
             print('[{}/{}],train loss is:{:.6f},train evaluation is:{:.6f}'.format(
                 step,
                 self.epoch_step_num,
@@ -110,22 +112,24 @@ class PURERCTask(SequenceClassificationTask):
                 )
             )
 
-        self._on_step_end_record(**kwargs)
-
-    def _on_epoch_end(
+    def _on_epoch_end_record(
         self,
         epoch,
         verbose=True,
         **kwargs
     ):
-
         if verbose:
             print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
                 epoch,
                 self.logs['epoch_loss'] / self.logs['epoch_step'],
                 self.logs['epoch_evaluation'] / self.logs['epoch_step']))
 
-    def _on_evaluate_begin_record(self, **kwargs):
+        self.logs['epoch_loss'] = 0.0
+        self.logs['epoch_step'] = 0.0
+
+        return self.logs
+
+    def _on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
@@ -135,7 +139,7 @@ class PURERCTask(SequenceClassificationTask):
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            self.evaluate_logs['eval_loss'] += loss.item()
+            self.evaluate_logs['loss'] += loss.item()
 
             labels = inputs['label_ids'].cpu()
             logits = logits.cpu()
@@ -145,37 +149,39 @@ class PURERCTask(SequenceClassificationTask):
         self.evaluate_logs['labels'].append(labels)
         self.evaluate_logs['logits'].append(logits)
 
-        self.evaluate_logs['eval_example'] += len(labels)
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_acc'] += torch.sum(preds == labels.data).item()
+        self.evaluate_logs['example_num'] += len(labels)
+        self.evaluate_logs['step'] += 1
+        self.evaluate_logs['accuracy'] += torch.sum(preds == labels.data).item()
+
+        return logits, loss
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         **kwargs
     ):
 
-        _labels = torch.cat(self.evaluate_logs['labels'], dim=0)
-        _preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1)
+        labels = torch.cat(self.evaluate_logs['labels'], dim=0)
+        preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1)
 
-        f1_score = sklearn_metrics.f1_score(_labels, _preds, average='macro')
+        f1_score = sklearn_metrics.f1_score(labels, preds, average='macro')
 
         report_ = sklearn_metrics.classification_report(
-            _labels,
-            _preds,
+            labels,
+            preds,
             target_names=[str(_category) for _category in validation_data.categories]
         )
 
-        confusion_matrix_ = sklearn_metrics.confusion_matrix(_labels, _preds)
+        confusion_matrix_ = sklearn_metrics.confusion_matrix(labels, preds)
 
-        if is_evaluate_print:
+        if evaluate_verbose:
+            print("********** Evaluating Done **********")
             print('classification_report: \n', report_)
             print('confusion_matrix_: \n', confusion_matrix_)
-            print('test loss is:{:.6f},test acc is:{:.6f},f1_score is:{:.6f}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                self.evaluate_logs['eval_acc'] / self.evaluate_logs['eval_example'],
+            print('loss is:{:.6f}, accuracy is:{:.6f}, f1_score is:{:.6f}'.format(
+                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
+                self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
                 f1_score
                 )
             )

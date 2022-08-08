@@ -66,17 +66,18 @@ class CrfBertNERTask(TokenClassificationTask):
 
         self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
         self.evaluate_logs['logits'].append(tags.cpu())
-        self.evaluate_logs['input_lengths'].append(inputs['input_lengths'].cpu())
+        self.evaluate_logs['sequence_length'].append(inputs['sequence_length'].cpu())
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
+        self.evaluate_logs['loss'] += loss.item()
+
+        return logits, loss
 
     def _on_evaluate_epoch_end(
         self,
         validation_data,
-        epoch=1,
-        is_evaluate_print=True,
+        evaluate_verbose=True,
         id2cat=None,
         markup='bio',
         **kwargs
@@ -107,12 +108,13 @@ class CrfBertNERTask(TokenClassificationTask):
                     label_list_.append(labels_[index_][jndex_])
                     pred_list_.append(preds_[index_][jndex_])
 
-        eval_info, entity_info = self.ner_metric.result()
+        evaluate_infos, entity_infos = self.ner_metric.result()
 
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                eval_info['acc'],
-                eval_info['recall'],
-                eval_info['f1'])
-            )
+        if evaluate_verbose:
+            print('evaluate loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
+                                                   self.evaluate_logs['step']))
+            print(evaluate_infos)
+
+            print(entity_infos)
+
+        return None

@@ -50,13 +50,13 @@ class BIONERTask(TokenClassificationTask):
         self.evaluate_logs['logits'].append(logits.cpu())
         self.evaluate_logs['sequence_length'].append(inputs['sequence_length'].cpu())
 
-        self._on_evaluate_epoch_begin_record(inputs, outputs, logits, loss, **kwargs)
+        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
+        self.evaluate_logs['step'] += 1
 
         return logits, loss
 
     def _on_evaluate_epoch_end(self,
                                validation_data,
-                               epoch_num=1,
                                evaluate_verbose=True,
                                id2cat=None,
                                markup='bio',
@@ -66,9 +66,11 @@ class BIONERTask(TokenClassificationTask):
 
         self.metric = conlleval.SeqEntityScore(id2cat, markup=markup)
 
-        preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1).numpy().tolist()
+        preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0),
+                             -1).numpy().tolist()
         labels = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
-        sequence_length_list = torch.cat(self.evaluate_logs['sequence_length'], dim=0).numpy().tolist()
+        sequence_length_list = torch.cat(self.evaluate_logs['sequence_length'],
+                                         dim=0).numpy().tolist()
 
         for index, label in enumerate(labels):
             label_list = []
@@ -86,6 +88,10 @@ class BIONERTask(TokenClassificationTask):
         evaluate_infos, entity_infos = self.metric.result()
 
         if evaluate_verbose:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.
-                  format(self.evaluate_logs['loss'] / self.evaluate_logs['step'],
-                         evaluate_infos['acc'], evaluate_infos['recall'], evaluate_infos['f1']))
+            print("********** Evaluating Done **********")
+            print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
+                                          self.evaluate_logs['step']))
+            print(evaluate_infos)
+            print(entity_infos)
+
+        return None

@@ -174,7 +174,8 @@ class SeqEntityScore(object):
         found = len(self.founds)
         right = len(self.rights)
         recall, precision, f1 = self.compute(origin, found, right)
-        return {'acc': precision, 'recall': recall, 'f1': f1}, class_info
+
+        return {'precision': precision, 'recall': recall, 'f1-score': f1}, class_info
 
     def update(self, label_paths, pred_paths):
         '''

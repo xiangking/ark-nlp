@@ -315,7 +315,7 @@ class Task(object):
 
         return logits, loss
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def _compute_loss(self, inputs, logits, **kwargs):
         loss = self.loss_function(logits, inputs['label_ids'])
 
         return loss
@@ -376,9 +376,9 @@ class Task(object):
 
         return self.logs
 
-    def _on_step_end(self, **kwargs):
+    def _on_step_end(self, *arg, **kwargs):
 
-        self._on_step_end_record(**kwargs)
+        self._on_step_end_record(*arg, **kwargs)
 
         return None
 
@@ -386,6 +386,7 @@ class Task(object):
                             step,
                             inputs,
                             outputs,
+                            logits,
                             loss,
                             verbose=True,
                             show_metric_step=100,
@@ -398,20 +399,20 @@ class Task(object):
 
         return self.logs
 
-    def _on_epoch_end(self, epoch, verbose, **kwargs):
+    def _on_epoch_end(self, epoch, **kwargs):
 
-        self._on_epoch_end_record(epoch, verbose, **kwargs)
+        self._on_epoch_end_record(epoch, **kwargs)
 
         return None
 
     def _on_epoch_end_record(self, epoch, verbose=True, **kwargs):
 
-        self.logs['epoch_loss'] = 0.0
-        self.logs['epoch_step'] = 0.0
-
         if verbose:
             print('epoch:[{}],train loss is:{:.6f} \n'.format(
                 epoch, self.logs['epoch_loss'] / self.logs['epoch_step']))
+
+        self.logs['epoch_loss'] = 0.0
+        self.logs['epoch_step'] = 0.0
 
         return None
 
@@ -474,27 +475,16 @@ class Task(object):
                                         num_workers=worker_num,
                                         collate_fn=self._evaluate_collate_fn)
 
-        self.module.eval()
-
-        self._on_evaluate_begin_record(**kwargs)
-
-        return evaluate_generator
-
-    def _on_evaluate_begin_record(self, **kwargs):
-        return self.evaluate_logs
-
-    def _on_evaluate_epoch_begin(self, **kwargs):
-
         if self.ema_decay:
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
 
-        self._on_evaluate_epoch_begin_record(**kwargs)
+        self.module.eval()
 
+        return evaluate_generator
+
+    def _on_evaluate_epoch_begin(self, **kwargs):
         return None
-
-    def _on_evaluate_epoch_begin_record(self, **kwargs):
-        return self.evaluate_logs
 
     def _get_module_inputs_on_evaluate(self, inputs, **kwargs):
         for col in self.evaluate_to_device_cols:
@@ -512,16 +502,10 @@ class Task(object):
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
             self.evaluate_logs['loss'] += loss.item()
 
-        self._on_evaluate_epoch_begin_record(inputs, outputs, logits, loss, **kwargs)
-
-        return logits, loss
-
-    def _on_evaluate_epoch_begin_record(self, inputs, outputs, logits, loss, **kwargs):
-
         self.evaluate_logs['example_num'] += len(inputs['label_ids'])
         self.evaluate_logs['step'] += 1
 
-        return self.evaluate_logs
+        return logits, loss
 
     def _get_evaluate_loss(self, inputs, outputs, verbose=True, **kwargs):
         if type(outputs) == tuple:
@@ -536,22 +520,13 @@ class Task(object):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(self, **kwargs):
-
-        self._on_evaluate_epoch_end_record(**kwargs)
-
-        return None
-
-    def _on_evaluate_epoch_end_record(self,
-                                      validation_data,
-                                      evaluate_verbose=True,
-                                      **kwargs):
+    def _on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
 
         if evaluate_verbose:
-            print('test loss is:{:.6f}'.format(self.evaluate_logs['eval_loss'] /
-                                               self.evaluate_logs['eval_step']))
-
-        return self.evaluate_logs
+            print("********** Evaluating Done **********")
+            print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
+                                          self.evaluate_logs['step']))
+        return None
 
     def _on_evaluate_end(self, evaluate_save=False, save_module_path=None, **kwargs):
         if evaluate_save:
@@ -564,15 +539,16 @@ class Task(object):
 
             torch.save(self.module.state_dict(), save_module_path)
 
-        self._on_evaluate_end_record()
-
         if self.ema_decay:
             self.ema.restore(self.module.parameters())
 
         return None
 
-    def _on_evaluate_end_record(self, **kwargs):
-        return self.evaluate_logs
+    def _train_collate_fn(self, batch):
+        return default_collate(batch)
+
+    def _evaluate_collate_fn(self, batch):
+        return default_collate(batch)
 
     def save(self, save_path: str, save_mode: str = 'pth'):
         """
@@ -603,9 +579,3 @@ class Task(object):
             raise ValueError("The save mode does not exist")
 
         return save_path
-
-    def _train_collate_fn(self, batch):
-        return default_collate(batch)
-
-    def _evaluate_collate_fn(self, batch):
-        return default_collate(batch)
