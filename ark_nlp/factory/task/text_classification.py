@@ -117,17 +117,15 @@ class TCTask(SequenceClassificationTask):
         report = sklearn_metrics.classification_report(
             labels,
             preds,
-            target_names=[str(_category) for _category in validation_data.categories])
+            target_names=[str(category) for category in validation_data.categories])
 
         confusion_matrix = sklearn_metrics.confusion_matrix(labels, preds)
 
         if evaluate_verbose:
-            print("********** Evaluating Done **********")
+            print("********** Evaluating Done **********\n")
             print('classification_report: \n', report)
             print('confusion_matrix: \n', confusion_matrix)
-            print(
-                'loss is:{:.6f}, accuracy is:{:.6f}, f1_score is:{:.6f}'
-                .format(
-                    self.evaluate_logs['loss'] / self.evaluate_logs['step'],
-                    self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
-                    f1_score))
+            print('loss is: {:.6f}, accuracy is: {:.6f}, f1_score is: {:.6f}'.format(
+                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
+                self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
+                f1_score))

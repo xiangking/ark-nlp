@@ -90,7 +90,7 @@ class CrfBertNERTask(TokenClassificationTask):
 
         preds_ = torch.cat(self.evaluate_logs['logits'], dim=0).numpy().tolist()
         labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
-        input_lens_ = torch.cat(self.evaluate_logs['input_lengths'], dim=0).numpy()
+        input_lens_ = torch.cat(self.evaluate_logs['sequence_length'], dim=0).numpy()
 
         for index_, label_ in enumerate(labels_):
             label_list_ = []
@@ -111,6 +111,7 @@ class CrfBertNERTask(TokenClassificationTask):
         evaluate_infos, entity_infos = self.ner_metric.result()
 
         if evaluate_verbose:
+            print("********** Evaluating Done **********")
             print('evaluate loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
                                                    self.evaluate_logs['step']))
             print(evaluate_infos)

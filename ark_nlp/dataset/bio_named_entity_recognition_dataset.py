@@ -62,13 +62,13 @@ class BIONERDataset(TokenClassificationDataset):
             input_ids = bert_tokenizer.sequence_to_ids(tokens)
 
             input_ids, input_mask, segment_ids = input_ids
-            input_length = len(tokens)
+            sequence_length = len(tokens)
 
             feature = {
                 'input_ids': input_ids,
                 'attention_mask': input_mask,
                 'token_type_ids': segment_ids,
-                'input_lengths': input_length
+                'sequence_length': sequence_length
             }
 
             if not self.is_test:

@@ -36,39 +36,40 @@ class PGD(object):
     Reference:
         [1]  https://zhuanlan.zhihu.com/p/91269728
     """
-    def __init__(self, module):
+    def __init__(self, module, pgd_epsilon=1., pgd_alpha=0.3, pgd_emb_name='word_embeddings',):
         self.module = module
+
+        self.epsilon = pgd_epsilon
+        self.alpha = pgd_alpha
+        self.emb_name = pgd_emb_name
+
         self.emb_backup = {}
         self.grad_backup = {}
 
-    def attack(self,
-               epsilon=1.,
-               alpha=0.3,
-               emb_name='word_embeddings',
-               is_first_attack=False):
+    def attack(self, is_first_attack=False):
         # emb_name这个参数要换成你模型中embedding的参数名
         for name, param in self.module.named_parameters():
-            if param.requires_grad and emb_name in name:
+            if param.requires_grad and self.emb_name in name:
                 if is_first_attack:
                     self.emb_backup[name] = param.data.clone()
                 norm = torch.norm(param.grad)
                 if norm != 0 and not torch.isnan(norm):
-                    r_at = alpha * param.grad / norm
+                    r_at = self.alpha * param.grad / norm
                     param.data.add_(r_at)
-                    param.data = self.project(name, param.data, epsilon)
+                    param.data = self.project(name, param.data, self.epsilon)
 
-    def restore(self, emb_name='word_embeddings'):
+    def restore(self):
         # emb_name这个参数要换成你模型中embedding的参数名
         for name, param in self.module.named_parameters():
-            if param.requires_grad and emb_name in name:
+            if param.requires_grad and self.emb_name in name:
                 assert name in self.emb_backup
                 param.data = self.emb_backup[name]
         self.emb_backup = {}
 
-    def project(self, param_name, param_data, epsilon):
+    def project(self, param_name, param_data):
         r = param_data - self.emb_backup[param_name]
-        if torch.norm(r) > epsilon:
-            r = epsilon * r / torch.norm(r)
+        if torch.norm(r) > self.epsilon:
+            r = self.epsilon * r / torch.norm(r)
         return self.emb_backup[param_name] + r
 
     def backup_grad(self):
@@ -86,12 +87,13 @@ class PGDAttackMixin(object):
     def _on_train_begin(self,
                         train_data,
                         validation_data,
-                        epochs,
+                        epoch_num,
                         batch_size,
                         shuffle,
-                        pgd_k=3,
-                        num_workers=0,
+                        gradient_accumulation_step,
+                        worker_num=0,
                         train_to_device_cols=None,
+                        pgd_k=3,
                         **kwargs):
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
@@ -104,6 +106,7 @@ class PGDAttackMixin(object):
             else:
                 warnings.warn("The class_num is None.")
 
+        # 获取获取放置到GPU的变量名称列表
         if train_to_device_cols is None:
             self.train_to_device_cols = train_data.to_device_cols
         else:
@@ -112,16 +115,15 @@ class PGDAttackMixin(object):
         train_generator = DataLoader(train_data,
                                      batch_size=batch_size,
                                      shuffle=True,
-                                     num_workers=num_workers,
+                                     num_workers=worker_num,
                                      collate_fn=self._train_collate_fn)
-        self.train_generator_lenth = len(train_generator)
+
+        self.epoch_step_num = len(train_generator) // gradient_accumulation_step
 
         self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
-        self.set_scheduler(epochs, batch_size, **kwargs)
-
-        self.module.train()
+        self.set_scheduler(epoch_num, batch_size, **kwargs)
 
         self.pgd = PGD(self.module)
         self.pgd_k = pgd_k
@@ -135,15 +137,15 @@ class PGDAttackMixin(object):
                      outputs,
                      logits,
                      loss,
-                     gradient_accumulation_steps=1,
+                     gradient_accumulation_step=1,
                      **kwargs):
-
         # 如果GPU数量大于1
-        if self.n_gpu > 1:
+        if self.gpu_num > 1:
             loss = loss.mean()
+
         # 如果使用了梯度累积，除以累积的轮数
-        if gradient_accumulation_steps > 1:
-            loss = loss / gradient_accumulation_steps
+        if gradient_accumulation_step > 1:
+            loss = loss / gradient_accumulation_step
 
         loss.backward()
 

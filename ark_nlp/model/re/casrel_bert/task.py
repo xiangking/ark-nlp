@@ -15,6 +15,7 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
+from email.policy import default
 import torch
 import numpy as np
 
@@ -121,24 +122,24 @@ class CasRelRETask(SequenceClassificationTask):
         }
 
     def fit(self,
-            train_data=None,
+            train_data,
             validation_data=None,
-            lr=False,
-            params=None,
+            *,
             batch_size=32,
-            epochs=1,
-            gradient_accumulation_steps=1,
+            epoch_num=1,
+            gradient_accumulation_step=1,
             **kwargs):
         self.logs = defaultdict(int)
 
         train_generator = self._on_train_begin(train_data,
                                                validation_data,
-                                               epochs,
+                                               epoch_num,
                                                batch_size,
                                                shuffle=True,
+                                               gradient_accumulation_step=gradient_accumulation_step,
                                                **kwargs)
 
-        for epoch in range(epochs):
+        for epoch in range(epoch_num):
 
             train_data_prefetcher, inputs = self._on_epoch_begin(
                 train_generator, **kwargs)
@@ -160,7 +161,7 @@ class CasRelRETask(SequenceClassificationTask):
                 loss = self._on_backward(inputs, outputs, logits, loss, **kwargs)
 
                 # optimize
-                if (step + 1) % gradient_accumulation_steps == 0:
+                if (step + 1) % gradient_accumulation_step == 0:
 
                     # optimize
                     self._on_optimize(inputs, outputs, logits, loss, **kwargs)
@@ -195,8 +196,6 @@ class CasRelRETask(SequenceClassificationTask):
         # 计算损失
         loss = self._compute_loss(inputs, outputs, **kwargs)
 
-        self._compute_loss_record(**kwargs)
-
         return outputs, loss
 
     def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
@@ -207,12 +206,13 @@ class CasRelRETask(SequenceClassificationTask):
 
     def evaluate(self,
                  validation_data,
+                 *,
                  evaluate_batch_size=1,
                  h_bar=0.5,
                  t_bar=0.5,
                  show_example_step=11,
                  **kwargs):
-        self.evaluate_logs = dict()
+        self.evaluate_logs = defaultdict(int)
 
         evaluate_generator = self._on_evaluate_begin(validation_data,
                                                      evaluate_batch_size,
@@ -343,7 +343,5 @@ class CasRelRETask(SequenceClassificationTask):
             self.ema.copy_to(self.module.parameters())
 
         self.module.eval()
-
-        self._on_evaluate_begin_record(**kwargs)
 
         return evaluate_generator

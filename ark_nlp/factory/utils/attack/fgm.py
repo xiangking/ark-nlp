@@ -30,22 +30,24 @@ class FGM(object):
     Reference:
         [1]  https://zhuanlan.zhihu.com/p/91269728
     """
-    def __init__(self, module):
+    def __init__(self, module, fgm_epsilon=1, fgm_emb_name='word_embeddings'):
         self.module = module
+        self.epsilon = fgm_epsilon
+        self.emb_name = fgm_emb_name
         self.backup = {}
 
-    def attack(self, epsilon=1., emb_name='word_embeddings'):
+    def attack(self,):
         for name, param in self.module.named_parameters():
-            if param.requires_grad and emb_name in name:
+            if param.requires_grad and self.emb_name in name:
                 self.backup[name] = param.data.clone()
                 norm = torch.norm(param.grad)
                 if norm != 0 and not torch.isnan(norm):
-                    r_at = epsilon * param.grad / norm
+                    r_at = self.epsilon * param.grad / norm
                     param.data.add_(r_at)
 
-    def restore(self, emb_name='word_embeddings'):
+    def restore(self,):
         for name, param in self.module.named_parameters():
-            if param.requires_grad and emb_name in name:
+            if param.requires_grad and self.emb_name in name:
                 assert name in self.backup
                 param.data = self.backup[name]
         self.backup = {}
@@ -55,10 +57,11 @@ class FGMAttackMixin(object):
     def _on_train_begin(self,
                         train_data,
                         validation_data,
-                        epochs,
+                        epoch_num,
                         batch_size,
                         shuffle,
-                        num_workers=0,
+                        gradient_accumulation_step,
+                        worker_num=0,
                         train_to_device_cols=None,
                         **kwargs):
         if hasattr(train_data, 'id2cat'):
@@ -72,6 +75,7 @@ class FGMAttackMixin(object):
             else:
                 warnings.warn("The class_num is None.")
 
+        # 获取获取放置到GPU的变量名称列表
         if train_to_device_cols is None:
             self.train_to_device_cols = train_data.to_device_cols
         else:
@@ -80,18 +84,17 @@ class FGMAttackMixin(object):
         train_generator = DataLoader(train_data,
                                      batch_size=batch_size,
                                      shuffle=True,
-                                     num_workers=num_workers,
+                                     num_workers=worker_num,
                                      collate_fn=self._train_collate_fn)
-        self.train_generator_lenth = len(train_generator)
+
+        self.epoch_step_num = len(train_generator) // gradient_accumulation_step
 
         self.set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
-        self.set_scheduler(epochs, batch_size, **kwargs)
+        self.set_scheduler(epoch_num, batch_size, **kwargs)
 
-        self.module.train()
-
-        self.fgm = FGM(self.module)
+        self.fgm = FGM(self.module, **kwargs)
 
         self._on_train_begin_record(**kwargs)
 
@@ -102,15 +105,15 @@ class FGMAttackMixin(object):
                      outputs,
                      logits,
                      loss,
-                     gradient_accumulation_steps=1,
+                     gradient_accumulation_step=1,
                      **kwargs):
-
         # 如果GPU数量大于1
-        if self.n_gpu > 1:
+        if self.gpu_num > 1:
             loss = loss.mean()
+
         # 如果使用了梯度累积，除以累积的轮数
-        if gradient_accumulation_steps > 1:
-            loss = loss / gradient_accumulation_steps
+        if gradient_accumulation_step > 1:
+            loss = loss / gradient_accumulation_step
 
         loss.backward()
 

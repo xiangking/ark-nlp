@@ -205,8 +205,6 @@ class PRGCRETask(SequenceClassificationTask):
         # 计算损失
         loss = self._compute_loss(inputs, outputs, **kwargs)
 
-        self._compute_loss_record(**kwargs)
-
         return outputs, loss
 
     def _compute_loss(
@@ -340,7 +338,7 @@ class PRGCRETask(SequenceClassificationTask):
             self.evaluate_logs['predict_num'],
             self.evaluate_logs['gold_num']
         )
-        evaluation_metrics = "; ".join("{}: {:05.3f}".format(k, v) for k, v in metrics.items())
+        evaluation_metrics = "; ".join("{}: {:05.3f}".format(k, v) for k, v in evaluation_metrics.items())
 
         if evaluate_verbose:
             print("********** Evaluating Done **********")

@@ -67,7 +67,7 @@ class Task(object):
 
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.set_loss_function(loss_function)
+        self._set_loss_function(loss_function)
 
         self.class_num = class_num
 
@@ -95,7 +95,7 @@ class Task(object):
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
 
-    def set_loss_function(self, loss_function):
+    def _set_loss_function(self, loss_function):
         if loss_function is None:
             self.loss_function = get_loss(self.default_loss_function)
         elif isinstance(loss_function, str) or isinstance(loss_function, object):
@@ -105,7 +105,7 @@ class Task(object):
 
         return self.loss_function
 
-    def set_optimizer(self,
+    def _set_optimizer(self,
                       learning_rate=None,
                       epsilon=None,
                       weight_decay=None,
@@ -149,7 +149,7 @@ class Task(object):
 
         return self.optimizer
 
-    def set_scheduler(self, epoch_num, batch_size, **kwargs):
+    def _set_scheduler(self, epoch_num, batch_size, **kwargs):
         if self.scheduler is not None:
             training_step_num = self.epoch_step_num * epoch_num
             self.scheduler = get_scheduler(self.scheduler, self.optimizer,
@@ -263,10 +263,10 @@ class Task(object):
 
         self.epoch_step_num = len(train_generator) // gradient_accumulation_step
 
-        self.set_optimizer(**kwargs)
+        self._set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
-        self.set_scheduler(epoch_num, batch_size, **kwargs)
+        self._set_scheduler(epoch_num, batch_size, **kwargs)
 
         self._on_train_begin_record(**kwargs)
 
@@ -523,7 +523,7 @@ class Task(object):
     def _on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
 
         if evaluate_verbose:
-            print("********** Evaluating Done **********")
+            print("********** Evaluating Done **********\n")
             print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
                                           self.evaluate_logs['step']))
         return None

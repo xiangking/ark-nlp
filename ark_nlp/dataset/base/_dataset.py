@@ -206,17 +206,17 @@ class BaseDataset(Dataset):
         return len(self.dataset)
 
     @property
-    def dataset_analysis(self):
+    def dataset_report(self):
 
-        _result = defaultdict(list)
-        for _row in self.dataset:
-            for _col in self.dataset_cols:
-                if type(_row[_col]) == str:
-                    _result[_col].append(len(_row[_col]))
+        result = defaultdict(list)
+        for row in self.dataset:
+            for col_name in self.dataset_cols:
+                if type(row[col_name]) == str:
+                    result[col_name].append(len(row[col_name]))
 
-        _report = pd.DataFrame(_result).describe()
+        report_df = pd.DataFrame(result).describe()
 
-        return _report
+        return report_df
 
     def __getitem__(self, index):
         return self.dataset[index]

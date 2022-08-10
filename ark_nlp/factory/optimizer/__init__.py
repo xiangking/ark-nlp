@@ -8,7 +8,8 @@ from torch.optim import LBFGS
 from torch.optim import RMSprop
 from torch.optim import Rprop
 from torch.optim import SGD
-from transformers import AdamW
+from torch.optim import AdamW
+
 
 all_optimizers_dict = dict(adadelta=Adadelta,
                            adagrad=Adagrad,
@@ -46,9 +47,8 @@ def get_default_optimizer(module, module_name='bert', **kwargs):
 
 def get_default_bert_optimizer(
     module,
-    lr: float = 3e-5,
-    eps: float = 1e-6,
-    correct_bias: bool = True,
+    learning_rate: float = 3e-5,
+    epsilon: float = 1e-6,
     weight_decay: float = 1e-3,
 ):
     no_decay = ["bias", "LayerNorm.weight"]
@@ -69,19 +69,17 @@ def get_default_bert_optimizer(
         },
     ]
     optimizer = AdamW(optimizer_grouped_parameters,
-                      lr=lr,
-                      eps=eps,
-                      correct_bias=correct_bias,
+                      lr=learning_rate,
+                      eps=epsilon,
                       weight_decay=weight_decay)
     return optimizer
 
 
 def get_default_crf_bert_optimizer(
     module,
-    lr: float = 2e-5,
-    crf_lr: float = 2e-3,
-    eps: float = 1e-6,
-    correct_bias: bool = True,
+    learning_rate: float = 2e-5,
+    crf_learning_rate: float = 2e-3,
+    epsilon: float = 1e-6,
     weight_decay: float = 1e-2,
 ):
     no_decay = ["bias", "LayerNorm.weight"]
@@ -94,49 +92,49 @@ def get_default_crf_bert_optimizer(
         'weight_decay':
         weight_decay,
         'lr':
-        lr
+        learning_rate
     }, {
         'params': [p for n, p in bert_param_optimizer if any(nd in n for nd in no_decay)],
         'weight_decay':
         0.0,
         'lr':
-        lr
+        learning_rate
     }, {
         'params':
         [p for n, p in crf_param_optimizer if not any(nd in n for nd in no_decay)],
         'weight_decay':
         weight_decay,
         'lr':
-        crf_lr
+        crf_learning_rate
     }, {
         'params': [p for n, p in crf_param_optimizer if any(nd in n for nd in no_decay)],
         'weight_decay':
         0.0,
         'lr':
-        crf_lr
+        crf_learning_rate
     }, {
         'params':
         [p for n, p in linear_param_optimizer if not any(nd in n for nd in no_decay)],
         'weight_decay':
         weight_decay,
         'lr':
-        crf_lr
+        crf_learning_rate
     }, {
         'params':
         [p for n, p in linear_param_optimizer if any(nd in n for nd in no_decay)],
         'weight_decay':
         0.0,
         'lr':
-        crf_lr
+        crf_learning_rate
     }]
-    optimizer = AdamW(optimizer_grouped_parameters, eps=eps, correct_bias=correct_bias)
+    optimizer = AdamW(optimizer_grouped_parameters, eps=epsilon)
 
     return optimizer
 
 
 def get_w2ner_model_optimizer(dl_module,
-                              lr: float = 1e-3,
-                              bert_lr: float = 5e-6,
+                              learning_rate: float = 1e-3,
+                              bert_learning_rate: float = 5e-6,
                               weight_decay=0.0):
     bert_params = set(dl_module.bert.parameters())
     other_params = list(set(dl_module.parameters()) - bert_params)
@@ -148,7 +146,7 @@ def get_w2ner_model_optimizer(dl_module,
                 if not any(nd in n for nd in no_decay)
             ],
             'lr':
-            bert_lr,
+            bert_learning_rate,
             'weight_decay':
             weight_decay
         },
@@ -158,17 +156,17 @@ def get_w2ner_model_optimizer(dl_module,
                 if any(nd in n for nd in no_decay)
             ],
             'lr':
-            bert_lr,
+            bert_learning_rate,
             'weight_decay':
             weight_decay
         },
         {
             'params': other_params,
-            'lr': lr,
+            'lr': learning_rate,
             'weight_decay': weight_decay
         },
     ]
 
-    optimizer = AdamW(params, lr=lr, weight_decay=weight_decay)
+    optimizer = AdamW(params, lr=learning_rate, weight_decay=weight_decay)
 
     return optimizer
