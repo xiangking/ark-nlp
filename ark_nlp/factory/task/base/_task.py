@@ -105,11 +105,7 @@ class Task(object):
 
         return self.loss_function
 
-    def _set_optimizer(self,
-                      learning_rate=None,
-                      epsilon=None,
-                      weight_decay=None,
-                      parameters=None):
+    def _set_optimizer(self, learning_rate=None, epsilon=None, weight_decay=None, parameters=None):
         # 通过parameters对optimizer内的参数进行修改
         if isinstance(
                 self.optimizer,
