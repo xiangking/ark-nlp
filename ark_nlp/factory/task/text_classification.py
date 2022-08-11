@@ -39,7 +39,7 @@ class TCTask(SequenceClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _on_optimize_record(self, inputs, outputs, logits, loss, verbose=True, **kwargs):
+    def on_optimize_record(self, inputs, logits, verbose=True, **kwargs):
         self.logs['global_step'] += 1
         self.logs['epoch_step'] += 1
 
@@ -49,15 +49,9 @@ class TCTask(SequenceClassificationTask):
                 self.logs['epoch_evaluation'] += torch.sum(
                     preds == inputs['label_ids']).item() / len(inputs['label_ids'])
 
-    def _on_step_end_record(self,
-                            step,
-                            inputs,
-                            outputs,
-                            logits,
-                            loss,
-                            verbose=True,
-                            show_metric_step=100,
-                            **kwargs):
+        return self.logs
+
+    def on_step_end_record(self, step, verbose=True, show_metric_step=100, **kwargs):
 
         if verbose and (step + 1) % show_metric_step == 0:
             print('[{}/{}],train loss is:{:.6f},train evaluation is:{:.6f}'.format(
@@ -67,7 +61,7 @@ class TCTask(SequenceClassificationTask):
 
         return self.logs
 
-    def _on_epoch_end_record(self, epoch, verbose=True, **kwargs):
+    def on_epoch_end_record(self, epoch, verbose=True, **kwargs):
 
         if verbose:
             print('epoch:[{}],train loss is:{:.6f},train evaluation is:{:.6f} \n'.format(
@@ -79,14 +73,14 @@ class TCTask(SequenceClassificationTask):
 
         return self.logs
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
 
-        return self.evaluate_logs
+        return None
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -107,7 +101,7 @@ class TCTask(SequenceClassificationTask):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
+    def on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
 
         labels = torch.cat(self.evaluate_logs['labels'], dim=0)
         preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0), -1)

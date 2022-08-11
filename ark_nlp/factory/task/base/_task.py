@@ -47,6 +47,7 @@ class Task(object):
         device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
         cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
         ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
+        callbacks (list or None, optional): 回调函数列表, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
@@ -61,6 +62,7 @@ class Task(object):
                  device=None,
                  cuda_device=0,
                  ema_decay=None,
+                 callbacks=None,
                  **kwargs):
         self.module = module
         self.tokenizer = tokenizer
@@ -95,6 +97,9 @@ class Task(object):
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
 
+        # 设置callbacks
+        self.callbacks = [] if callbacks is None else [callback() for callback in callbacks]
+
     def _set_loss_function(self, loss_function):
         if loss_function is None:
             self.loss_function = get_loss(self.default_loss_function)
@@ -105,7 +110,12 @@ class Task(object):
 
         return self.loss_function
 
-    def _set_optimizer(self, learning_rate=None, epsilon=None, weight_decay=None, parameters=None):
+    def _set_optimizer(self,
+                       learning_rate=None,
+                       epsilon=None,
+                       weight_decay=None,
+                       parameters=None,
+                       **kwargs):
         # 通过parameters对optimizer内的参数进行修改
         if isinstance(
                 self.optimizer,
@@ -145,7 +155,7 @@ class Task(object):
 
         return self.optimizer
 
-    def _set_scheduler(self, epoch_num, batch_size, **kwargs):
+    def _set_scheduler(self, epoch_num, **kwargs):
         if self.scheduler is not None:
             training_step_num = self.epoch_step_num * epoch_num
             self.scheduler = get_scheduler(self.scheduler, self.optimizer,
@@ -157,8 +167,8 @@ class Task(object):
             train_data,
             validation_data=None,
             *,
-            batch_size=32,
             epoch_num=1,
+            batch_size=32,
             gradient_accumulation_step=1,
             **kwargs):
         """
@@ -167,11 +177,13 @@ class Task(object):
         Args:
             train_data (ark_nlp dataset): 训练的batch文本
             validation_data (ark_nlp dataset): 验证的batch文本
-            batch_size (int, optional): batch大小, 默认值为: 32
             epoch_num (int, optional): 训练轮数, 默认值为: 1
+            batch_size (int, optional): batch大小, 默认值为: 32
             gradient_accumulation_step (int, optional): 梯度累计数, 默认值为: 1
             **kwargs (optional):
                 其他可选参数:
+                    worker_num (int, optional): 并行训练的worker数, Windows下暂不支持设为大于0, 默认值为: 0
+                    train_to_device_cols (list or None, optional): 训练数据集中需要转移到指定device的列名, 默认值为: None
                     learning_rate (float or None, optional): 学习率, 默认值为: None
                     epsilon (float or None, optional): 保持数值稳定性的短浮点类型值, 默认值为: None
                     weight_decay (float or None, optional): 权重衰减系数, 默认值为: None
@@ -179,15 +191,11 @@ class Task(object):
         """  # noqa: ignore flake8"
 
         self.logs = defaultdict(int)
+        kwargs['epoch_num'] = epoch_num
+        kwargs['batch_size'] = batch_size
+        kwargs['gradient_accumulation_step'] = gradient_accumulation_step
 
-        train_generator = self._on_train_begin(
-            train_data,
-            validation_data,
-            epoch_num,
-            batch_size,
-            shuffle=True,
-            gradient_accumulation_step=gradient_accumulation_step,
-            **kwargs)
+        train_generator = self._on_train_begin(train_data, validation_data, **kwargs)
 
         for epoch in range(epoch_num):
 
@@ -224,16 +232,52 @@ class Task(object):
 
         self._on_train_end(**kwargs)
 
-    def _on_train_begin(self,
-                        train_data,
-                        validation_data,
-                        epoch_num,
-                        batch_size,
-                        shuffle,
-                        gradient_accumulation_step,
-                        worker_num=0,
-                        train_to_device_cols=None,
-                        **kwargs):
+    def _on_train_begin(self, train_data, validation_data, **kwargs):
+        kwargs['train_data'] = train_data
+        kwargs['validation_data'] = validation_data
+
+        self.prepare_train_begin(**kwargs)
+
+        train_generator = self.on_train_begin(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_train_begin') and callable(callback.on_train_begin):
+                callback.on_train_begin(**kwargs)
+
+        self.finish_train_begin(**kwargs)
+
+        self.prepare_train_begin_record(**kwargs)
+
+        self.on_train_begin_record(**kwargs)
+
+        self.finish_train_begin_record(**kwargs)
+
+        return train_generator
+
+    def prepare_train_begin(self, **kwargs):
+        return None
+
+    def finish_train_begin(self, **kwargs):
+        return None
+
+    def prepare_train_begin_record(self, **kwargs):
+        return self.logs
+
+    def on_train_begin_record(self, **kwargs):
+        return self.logs
+
+    def finish_train_begin_record(self, **kwargs):
+        return self.logs
+
+    def on_train_begin(self,
+                       train_data,
+                       epoch_num,
+                       batch_size,
+                       gradient_accumulation_step,
+                       worker_num=0,
+                       train_to_device_cols=None,
+                       **kwargs):
+        # 设置 self.id2cat 和 self.cat2id
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
             self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
@@ -245,7 +289,7 @@ class Task(object):
             else:
                 warnings.warn("The class_num is None.")
 
-        # 获取获取放置到GPU的变量名称列表
+        # 获s获取放置到GPU的变量名称列表
         if train_to_device_cols is None:
             self.train_to_device_cols = train_data.to_device_cols
         else:
@@ -262,34 +306,100 @@ class Task(object):
         self._set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
-        self._set_scheduler(epoch_num, batch_size, **kwargs)
-
-        self._on_train_begin_record(**kwargs)
+        self._set_scheduler(epoch_num, **kwargs)
 
         return train_generator
 
-    def _on_train_begin_record(self, **kwargs):
-        return None
-
     def _on_epoch_begin(self, **kwargs):
 
-        self.module.train()
-        self._on_epoch_begin_record(**kwargs)
+        self.prepare_epoch_begin(**kwargs)
+
+        self.on_epoch_begin(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_epoch_begin') and callable(callback.on_epoch_begin):
+                callback.on_epoch_begin(**kwargs)
+
+        self.finish_epoch_begin(**kwargs)
+
+        self.prepare_epoch_begin_record(**kwargs)
+
+        self.on_epoch_begin_record(**kwargs)
+
+        self.finish_epoch_begin_record(**kwargs)
 
         return None
 
-    def _on_epoch_begin_record(self, **kwargs):
+    def prepare_epoch_begin(self, **kwargs):
+        return None
+
+    def finish_epoch_begin(self, **kwargs):
+        return None
+
+    def prepare_epoch_begin_record(self, **kwargs):
+        return self.logs
+
+    def on_epoch_begin_record(self, **kwargs):
+        return self.logs
+
+    def finish_epoch_begin_record(self, **kwargs):
+        return self.logs
+
+    def on_epoch_begin(self, **kwargs):
+        self.module.train()
+
         return None
 
     def _on_step_begin(self, epoch, step, inputs, **kwargs):
-        self._on_step_begin_record(**kwargs)
+        kwargs['epoch'] = epoch
+        kwargs['step'] = step
+        kwargs['inputs'] = inputs
+
+        self.prepare_step_begin(**kwargs)
+
+        self.on_step_begin(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_step_begin') and callable(callback.on_step_begin):
+                callback.on_step_begin(**kwargs)
+
+        self.finish_step_begin(**kwargs)
+
+        self.prepare_step_begin_record(**kwargs)
+
+        self.on_step_begin_record(**kwargs)
+
+        self.finish_step_begin_record(**kwargs)
 
         return None
 
-    def _on_step_begin_record(self, **kwargs):
+    def prepare_step_begin(self, **kwargs):
+        return None
+
+    def finish_step_begin(self, **kwargs):
+        return None
+
+    def prepare_step_begin_record(self, **kwargs):
+        return self.logs
+
+    def on_step_begin_record(self, **kwargs):
+        return self.logs
+
+    def finish_step_begin_record(self, **kwargs):
+        return self.logs
+
+    def on_step_begin(self, **kwargs):
         return None
 
     def _get_module_inputs_on_train(self, inputs, **kwargs):
+        """模型输入处理阶段"""
+        kwargs['inputs'] = inputs
+        inputs = self.get_module_inputs_on_train(**kwargs)
+
+        return inputs
+
+    def get_module_inputs_on_train(self, inputs, **kwargs):
+        """模型输入处理方法"""
         for col in self.train_to_device_cols:
             if type(inputs[col]) is torch.Tensor:
                 inputs[col] = inputs[col].to(self.device)
@@ -299,6 +409,16 @@ class Task(object):
         return inputs
 
     def _get_train_loss(self, inputs, outputs, **kwargs):
+        """获取训练阶段损失阶段"""
+        kwargs['inputs'] = inputs
+        kwargs['outputs'] = outputs
+
+        logits, loss = self.get_train_loss(**kwargs)
+
+        return logits, loss
+
+    def get_train_loss(self, inputs, outputs, **kwargs):
+        """获取训练阶段损失的方法"""
         if type(outputs) == tuple:
             if len(outputs) > 2:
                 logits, loss, *_ = outputs
@@ -307,22 +427,59 @@ class Task(object):
         else:
             logits = outputs
             # 计算损失
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self.compute_loss(inputs, logits, **kwargs)
 
         return logits, loss
 
-    def _compute_loss(self, inputs, logits, **kwargs):
+    def compute_loss(self, inputs, logits, **kwargs):
+        """计算损失的方法"""
         loss = self.loss_function(logits, inputs['label_ids'])
 
         return loss
 
-    def _on_backward(self,
-                     inputs,
-                     outputs,
-                     logits,
-                     loss,
-                     gradient_accumulation_step=1,
-                     **kwargs):
+    def _on_backward(self, inputs, outputs, logits, loss, **kwargs):
+        kwargs['inputs'] = inputs
+        kwargs['outputs'] = outputs
+        kwargs['logits'] = logits
+        kwargs['loss'] = loss
+
+        self.prepare_backward(**kwargs)
+
+        self.on_backward(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_backward') and callable(callback.on_backward):
+                callback.on_backward(**kwargs)
+
+        self.finish_backward(**kwargs)
+
+        self.prepare_backward_record(**kwargs)
+
+        self.on_backward_record(**kwargs)
+
+        self.finish_backward_record(**kwargs)
+
+        return loss
+
+    def prepare_backward(self, **kwargs):
+        return None
+
+    def finish_backward(self, **kwargs):
+        return None
+
+    def prepare_backward_record(self, **kwargs):
+        return self.logs
+
+    def on_backward_record(self, loss, **kwargs):
+        self.logs['global_loss'] += loss.item()
+        self.logs['epoch_loss'] += loss.item()
+
+        return self.logs
+
+    def finish_backward_record(self, **kwargs):
+        return self.logs
+
+    def on_backward(self, loss, gradient_accumulation_step=1, **kwargs):
         # 如果GPU数量大于1
         if self.gpu_num > 1:
             loss = loss.mean()
@@ -333,17 +490,52 @@ class Task(object):
 
         loss.backward()
 
-        self._on_backward_record(loss, **kwargs)
-
         return loss
 
-    def _on_backward_record(self, loss, **kwargs):
-        self.logs['global_loss'] += loss.item()
-        self.logs['epoch_loss'] += loss.item()
+    def _on_optimize(self, inputs, outputs, logits, loss, **kwargs):
+
+        kwargs['inputs'] = inputs
+        kwargs['outputs'] = outputs
+        kwargs['logits'] = logits
+        kwargs['loss'] = loss
+
+        self.prepare_optimize(**kwargs)
+
+        self.on_optimize(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_optimize') and callable(callback.on_optimize):
+                callback.on_optimize(**kwargs)
+
+        self.finish_optimize(**kwargs)
+
+        self.prepare_optimize_record(**kwargs)
+
+        self.on_optimize_record(**kwargs)
+
+        self.finish_optimize_record(**kwargs)
+
+        return self.optimizer
+
+    def prepare_optimize(self, **kwargs):
+        return None
+
+    def finish_optimize(self, **kwargs):
+        return None
+
+    def prepare_optimize_record(self, **kwargs):
+        return self.logs
+
+    def on_optimize_record(self, **kwargs):
+        self.logs['global_step'] += 1
+        self.logs['epoch_step'] += 1
 
         return self.logs
 
-    def _on_optimize(self, inputs, outputs, logits, loss, grad_clip=None, **kwargs):
+    def finish_optimize_record(self, **kwargs):
+        return self.logs
+
+    def on_optimize(self, grad_clip=None, **kwargs):
         # 梯度裁剪
         if grad_clip is not None:
             torch.nn.utils.clip_grad_norm_(self.module.parameters(), grad_clip)
@@ -362,31 +554,50 @@ class Task(object):
         # 清空梯度
         self.optimizer.zero_grad()
 
-        self._on_optimize_record(inputs, outputs, logits, loss, **kwargs)
-
         return self.optimizer
 
-    def _on_optimize_record(self, inputs, outputs, logits, loss, **kwargs):
-        self.logs['global_step'] += 1
-        self.logs['epoch_step'] += 1
+    def _on_step_end(self, step, inputs, outputs, logits, loss, **kwargs):
 
-        return self.logs
+        kwargs['step'] = step
+        kwargs['inputs'] = inputs
+        kwargs['outputs'] = outputs
+        kwargs['logits'] = logits
+        kwargs['loss'] = loss
 
-    def _on_step_end(self, *arg, **kwargs):
+        self.prepare_step_end(**kwargs)
 
-        self._on_step_end_record(*arg, **kwargs)
+        self.on_step_end(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_step_end') and callable(callback.on_step_end):
+                callback.on_step_end(**kwargs)
+
+        self.finish_step_end(**kwargs)
+
+        self.prepare_step_end_record(**kwargs)
+
+        self.on_step_end_record(**kwargs)
+
+        self.finish_step_end_record(**kwargs)
 
         return None
 
-    def _on_step_end_record(self,
-                            step,
-                            inputs,
-                            outputs,
-                            logits,
-                            loss,
-                            verbose=True,
-                            show_metric_step=100,
-                            **kwargs):
+    def prepare_step_end(self, **kwargs):
+        return None
+
+    def finish_step_end(self, **kwargs):
+        return None
+
+    def prepare_step_end_record(self, **kwargs):
+        return self.logs
+
+    def finish_step_end_record(self, **kwargs):
+        return self.logs
+
+    def on_step_end(self, **kwargs):
+        return self.logs
+
+    def on_step_end_record(self, step, verbose=True, show_metric_step=100, **kwargs):
 
         if verbose and (step + 1) % show_metric_step == 0:
             print('[{}/{}],train loss is:{:.6f}'.format(
@@ -397,11 +608,42 @@ class Task(object):
 
     def _on_epoch_end(self, epoch, **kwargs):
 
-        self._on_epoch_end_record(epoch, **kwargs)
+        kwargs['epoch'] = epoch
+
+        self.prepare_epoch_end(**kwargs)
+
+        self.on_epoch_end(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_epoch_end') and callable(callback.on_epoch_end):
+                callback.on_epoch_end(**kwargs)
+
+        self.finish_epoch_end(**kwargs)
+
+        self.prepare_epoch_end_record(**kwargs)
+
+        self.on_epoch_end_record(**kwargs)
+
+        self.finish_epoch_end_record(**kwargs)
 
         return None
 
-    def _on_epoch_end_record(self, epoch, verbose=True, **kwargs):
+    def prepare_epoch_end(self, **kwargs):
+        return None
+
+    def finish_epoch_end(self, **kwargs):
+        return None
+
+    def prepare_epoch_end_record(self, **kwargs):
+        return self.logs
+
+    def finish_epoch_end_record(self, **kwargs):
+        return self.logs
+
+    def on_epoch_end(self, **kwargs):
+        return None
+
+    def on_epoch_end_record(self, epoch, verbose=True, **kwargs):
 
         if verbose:
             print('epoch:[{}],train loss is:{:.6f} \n'.format(
@@ -410,14 +652,45 @@ class Task(object):
         self.logs['epoch_loss'] = 0.0
         self.logs['epoch_step'] = 0.0
 
-        return None
+        return self.logs
 
     def _on_train_end(self, **kwargs):
-        self._on_train_end_record(**kwargs)
+
+        self.prepare_train_end(**kwargs)
+
+        self.on_train_end(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_train_end') and callable(callback.on_train_end):
+                callback.on_train_end(**kwargs)
+
+        self.finish_train_end(**kwargs)
+
+        self.prepare_train_end_record(**kwargs)
+
+        self.on_train_end_record(**kwargs)
+
+        self.finish_train_end_record(**kwargs)
+
         return None
 
-    def _on_train_end_record(self, **kwargs):
+    def prepare_train_end(self, **kwargs):
+        return None
+
+    def finish_train_end(self, **kwargs):
+        return None
+
+    def prepare_train_end_record(self, **kwargs):
         return self.logs
+
+    def on_train_end_record(self, **kwargs):
+        return self.logs
+
+    def finish_train_end_record(self, **kwargs):
+        return self.logs
+
+    def on_train_end(self, **kwargs):
+        return None
 
     def evaluate(self, validation_data, *, evaluate_batch_size=16, **kwargs):
         """
@@ -431,9 +704,7 @@ class Task(object):
 
         self.evaluate_logs = defaultdict(int)
 
-        evaluate_generator = self._on_evaluate_begin(validation_data,
-                                                     evaluate_batch_size,
-                                                     shuffle=False,
+        evaluate_generator = self._on_evaluate_begin(validation_data, evaluate_batch_size,
                                                      **kwargs)
 
         with torch.no_grad():
@@ -453,23 +724,47 @@ class Task(object):
 
         self._on_evaluate_end(**kwargs)
 
-    def _on_evaluate_begin(self,
-                           validation_data,
-                           batch_size,
-                           shuffle,
-                           worker_num=0,
-                           evaluate_to_device_cols=None,
-                           **kwargs):
+    def _on_evaluate_begin(self, validation_data, batch_size, **kwargs):
+
+        kwargs['validation_data'] = validation_data
+        kwargs['batch_size'] = batch_size
+
+        self.prepare_evaluate_begin(**kwargs)
+
+        generator = self.on_evaluate_begin(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_evaluate_begin') and callable(
+                    callback.on_evaluate_begin):
+                callback.on_evaluate_begin(**kwargs)
+
+        self.finish_evaluate_begin(**kwargs)
+
+        return generator
+
+    def prepare_evaluate_begin(self, **kwargs):
+        return None
+
+    def finish_evaluate_begin(self, **kwargs):
+        return None
+
+    def on_evaluate_begin(self,
+                          validation_data,
+                          batch_size,
+                          shuffle=False,
+                          worker_num=0,
+                          evaluate_to_device_cols=None,
+                          **kwargs):
         if evaluate_to_device_cols is None:
             self.evaluate_to_device_cols = validation_data.to_device_cols
         else:
             self.evaluate_to_device_cols = evaluate_to_device_cols
 
-        evaluate_generator = DataLoader(validation_data,
-                                        batch_size=batch_size,
-                                        shuffle=shuffle,
-                                        num_workers=worker_num,
-                                        collate_fn=self._evaluate_collate_fn)
+        generator = DataLoader(validation_data,
+                               batch_size=batch_size,
+                               shuffle=shuffle,
+                               num_workers=worker_num,
+                               collate_fn=self._evaluate_collate_fn)
 
         if self.ema_decay:
             self.ema.store(self.module.parameters())
@@ -477,12 +772,40 @@ class Task(object):
 
         self.module.eval()
 
-        return evaluate_generator
+        return generator
 
     def _on_evaluate_epoch_begin(self, **kwargs):
+
+        self.prepare_evaluate_epoch_begin(**kwargs)
+
+        self.on_evaluate_epoch_begin(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_evaluate_epoch_begin') and callable(
+                    callback.on_evaluate_epoch_begin):
+                callback.on_evaluate_epoch_begin(**kwargs)
+
+        self.finish_evaluate_epoch_begin(**kwargs)
+
+        return None
+
+    def prepare_evaluate_epoch_begin(self, **kwargs):
+        return None
+
+    def finish_evaluate_epoch_begin(self, **kwargs):
+        return None
+
+    def on_evaluate_epoch_begin(self, **kwargs):
         return None
 
     def _get_module_inputs_on_evaluate(self, inputs, **kwargs):
+
+        kwargs['inputs'] = inputs
+        inputs = self.get_module_inputs_on_evaluate(self, **kwargs)
+
+        return inputs
+
+    def get_module_inputs_on_evaluate(self, inputs, **kwargs):
         for col in self.evaluate_to_device_cols:
             if type(inputs[col]) is torch.Tensor:
                 inputs[col] = inputs[col].to(self.device)
@@ -492,6 +815,30 @@ class Task(object):
         return inputs
 
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+
+        kwargs['inputs'] = inputs
+        kwargs['outputs'] = outputs
+
+        self.prepare_evaluate_step_end(**kwargs)
+
+        logits, loss = self.on_evaluate_step_end(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_evaluate_step_end') and callable(
+                    callback.on_evaluate_step_end):
+                callback.on_evaluate_step_end(**kwargs)
+
+        self.finish_evaluate_step_end(**kwargs)
+
+        return logits, loss
+
+    def prepare_evaluate_step_end(self, **kwargs):
+        return None
+
+    def finish_evaluate_step_end(self, **kwargs):
+        return None
+
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -503,7 +850,16 @@ class Task(object):
 
         return logits, loss
 
-    def _get_evaluate_loss(self, inputs, outputs, verbose=True, **kwargs):
+    def _get_evaluate_loss(self, inputs, outputs, **kwargs):
+
+        kwargs['inputs'] = inputs
+        kwargs['outputs'] = outputs
+
+        logits, loss = self.get_evaluate_loss(**kwargs)
+
+        return logits, loss
+
+    def get_evaluate_loss(self, inputs, outputs, **kwargs):
         if type(outputs) == tuple:
             if len(outputs) > 2:
                 logits, loss, *_ = outputs
@@ -512,19 +868,51 @@ class Task(object):
         else:
             logits = outputs
             # 计算损失
-            loss = self._compute_loss(inputs, logits, **kwargs)
+            loss = self.compute_loss(inputs, logits, **kwargs)
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
+    def _on_evaluate_epoch_end(self, validation_data, **kwargs):
+
+        kwargs['validation_data'] = validation_data
+
+        self.prepare_evaluate_epoch_end(**kwargs)
+
+        self.on_evaluate_epoch_end(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_evaluate_epoch_end') and callable(
+                    callback.on_evaluate_epoch_end):
+                callback.on_evaluate_epoch_end(**kwargs)
+
+        self.finish_evaluate_epoch_end(**kwargs)
+
+        return None
+
+    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
 
         if evaluate_verbose:
             print("********** Evaluating Done **********\n")
             print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
                                           self.evaluate_logs['step']))
+        return self.evaluate_logs
+
+    def _on_evaluate_end(self, **kwargs):
+
+        self.prepare_evaluate_end(**kwargs)
+
+        self.on_evaluate_end(**kwargs)
+
+        for callback in self.callbacks:
+            if hasattr(callback, 'on_evaluate_end') and callable(
+                    callback.on_evaluate_end):
+                callback.on_evaluate_end(**kwargs)
+
+        self.finish_evaluate_end(**kwargs)
+
         return None
 
-    def _on_evaluate_end(self, evaluate_save=False, save_module_path=None, **kwargs):
+    def on_evaluate_end(self, evaluate_save=False, save_module_path=None, **kwargs):
         if evaluate_save:
             if save_module_path is None:
                 if not os.path.exists('checkpoint'):
