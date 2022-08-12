@@ -98,7 +98,9 @@ class Task(object):
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
 
         # 设置callbacks
-        self.callbacks = [] if callbacks is None else [callback() for callback in callbacks]
+        self.callbacks = [] if callbacks is None else [
+            callback() for callback in callbacks
+        ]
 
     def _set_loss_function(self, loss_function):
         if loss_function is None:
@@ -724,10 +726,10 @@ class Task(object):
 
         self._on_evaluate_end(**kwargs)
 
-    def _on_evaluate_begin(self, validation_data, batch_size, **kwargs):
+    def _on_evaluate_begin(self, validation_data, evaluate_batch_size, **kwargs):
 
         kwargs['validation_data'] = validation_data
-        kwargs['batch_size'] = batch_size
+        kwargs['evaluate_batch_size'] = evaluate_batch_size
 
         self.prepare_evaluate_begin(**kwargs)
 
@@ -750,7 +752,7 @@ class Task(object):
 
     def on_evaluate_begin(self,
                           validation_data,
-                          batch_size,
+                          evaluate_batch_size,
                           shuffle=False,
                           worker_num=0,
                           evaluate_to_device_cols=None,
@@ -761,7 +763,7 @@ class Task(object):
             self.evaluate_to_device_cols = evaluate_to_device_cols
 
         generator = DataLoader(validation_data,
-                               batch_size=batch_size,
+                               batch_size=evaluate_batch_size,
                                shuffle=shuffle,
                                num_workers=worker_num,
                                collate_fn=self._evaluate_collate_fn)
@@ -801,7 +803,7 @@ class Task(object):
     def _get_module_inputs_on_evaluate(self, inputs, **kwargs):
 
         kwargs['inputs'] = inputs
-        inputs = self.get_module_inputs_on_evaluate(self, **kwargs)
+        inputs = self.get_module_inputs_on_evaluate(**kwargs)
 
         return inputs
 
@@ -889,6 +891,12 @@ class Task(object):
 
         return None
 
+    def prepare_evaluate_epoch_end(self, **kwargs):
+        return None
+
+    def finish_evaluate_epoch_end(self, **kwargs):
+        return None
+
     def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
 
         if evaluate_verbose:
@@ -910,6 +918,12 @@ class Task(object):
 
         self.finish_evaluate_end(**kwargs)
 
+        return None
+
+    def prepare_evaluate_end(self, **kwargs):
+        return None
+
+    def finish_evaluate_end(self, **kwargs):
         return None
 
     def on_evaluate_end(self, evaluate_save=False, save_module_path=None, **kwargs):
