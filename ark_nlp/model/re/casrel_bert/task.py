@@ -15,13 +15,13 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-from email.policy import default
+
 import torch
 import numpy as np
 
 from collections import defaultdict
 from torch.utils.data import DataLoader
-from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
+from ark_nlp.factory.task.base import SequenceClassificationTask
 
 
 def to_tup(triple_list):
@@ -29,32 +29,6 @@ def to_tup(triple_list):
     for triple in triple_list:
         ret.append(tuple([triple[0], triple[3], triple[4]]))
     return ret
-
-
-class DataPreFetcher(object):
-    def __init__(self, loader, device):
-        self.loader = iter(loader)
-        self.stream = torch.cuda.Stream()
-        self.device = device
-        self.preload()
-
-    def preload(self):
-        try:
-            self.next_data = next(self.loader)
-        except StopIteration:
-            self.next_data = None
-            return
-        with torch.cuda.stream(self.stream):
-            for k, v in self.next_data.items():
-                if isinstance(v, torch.Tensor):
-                    self.next_data[k] = self.next_data[k].to(self.device,
-                                                             non_blocking=True)
-
-    def next(self):
-        torch.cuda.current_stream().wait_stream(self.stream)
-        data = self.next_data
-        self.preload()
-        return data
 
 
 class CasRelRETask(SequenceClassificationTask):
@@ -121,84 +95,16 @@ class CasRelRETask(SequenceClassificationTask):
             'token_mapping': token_mapping
         }
 
-    def fit(self,
-            train_data,
-            validation_data=None,
-            *,
-            batch_size=32,
-            epoch_num=1,
-            gradient_accumulation_step=1,
-            **kwargs):
-        self.logs = defaultdict(int)
-
-        train_generator = self._on_train_begin(train_data,
-                                               validation_data,
-                                               epoch_num,
-                                               batch_size,
-                                               shuffle=True,
-                                               gradient_accumulation_step=gradient_accumulation_step,
-                                               **kwargs)
-
-        for epoch in range(epoch_num):
-
-            train_data_prefetcher, inputs = self._on_epoch_begin(
-                train_generator, **kwargs)
-
-            step = 0
-
-            while inputs is not None:
-
-                self._on_step_begin(epoch, step, inputs, **kwargs)
-
-                inputs = self._get_module_inputs_on_train(inputs, **kwargs)
-
-                # forward
-                outputs = self.module(**inputs)
-
-                # 计算损失
-                logits, loss = self._get_train_loss(inputs, outputs, **kwargs)
-
-                loss = self._on_backward(inputs, outputs, logits, loss, **kwargs)
-
-                # optimize
-                if (step + 1) % gradient_accumulation_step == 0:
-
-                    # optimize
-                    self._on_optimize(inputs, outputs, logits, loss, **kwargs)
-
-                # setp evaluate
-                self._on_step_end(step, inputs, outputs, logits, loss, **kwargs)
-
-                step += 1
-
-                inputs = train_data_prefetcher.next()
-
-            self._on_epoch_end(epoch, **kwargs)
-
-            if validation_data is not None:
-                self.evaluate(validation_data, **kwargs)
-
-    def _on_epoch_begin(self, train_generator, **kwargs):
-
-        train_data_prefetcher = DataPreFetcher(train_generator, self.module.device)
-        inputs = train_data_prefetcher.next()
-
-        self.module.train()
-
-        self._on_epoch_begin_record(**kwargs)
-
-        return train_data_prefetcher, inputs
-
-    def _get_module_inputs_on_train(self, inputs, **kwargs):
+    def get_module_inputs_on_train(self, inputs, **kwargs):
         return inputs
 
-    def _get_train_loss(self, inputs, outputs, **kwargs):
+    def get_train_loss(self, inputs, outputs, **kwargs):
         # 计算损失
-        loss = self._compute_loss(inputs, outputs, **kwargs)
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def compute_loss(self, inputs, logits, **kwargs):
 
         loss = self.loss_function(logits, inputs)
 
@@ -216,18 +122,18 @@ class CasRelRETask(SequenceClassificationTask):
 
         evaluate_generator = self._on_evaluate_begin(validation_data,
                                                      evaluate_batch_size,
-                                                     shuffle=False,
                                                      **kwargs)
 
-        test_data_prefetcher = DataPreFetcher(evaluate_generator, self.module.device)
-        inputs = test_data_prefetcher.next()
         correct_num, predict_num, gold_num = 0, 0, 0
         step_ = 0
 
         with torch.no_grad():
-            while inputs is not None:
 
-                step_ += 1
+            self._on_evaluate_epoch_begin(**kwargs)
+
+            for step, inputs in enumerate(evaluate_generator):
+
+                inputs = self._get_module_inputs_on_evaluate(inputs, **kwargs)
 
                 token_ids = inputs['input_ids']
                 token_mapping = inputs['token_mapping'][0]
@@ -310,8 +216,6 @@ class CasRelRETask(SequenceClassificationTask):
                 predict_num += len(pred_triples)
                 gold_num += len(gold_triples)
 
-                inputs = test_data_prefetcher.next()
-
         print("********** Evaluating Done **********")
         print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(
             correct_num, predict_num, gold_num))
@@ -324,24 +228,3 @@ class CasRelRETask(SequenceClassificationTask):
                                                                f1_score))
 
         return precision, recall, f1_score
-
-    def _on_evaluate_begin(self,
-                           validation_data,
-                           batch_size,
-                           shuffle,
-                           worker_num=0,
-                           **kwargs):
-
-        evaluate_generator = DataLoader(validation_data,
-                                        batch_size=batch_size,
-                                        shuffle=shuffle,
-                                        num_workers=worker_num,
-                                        collate_fn=self._evaluate_collate_fn)
-
-        if self.ema_decay:
-            self.ema.store(self.module.parameters())
-            self.ema.copy_to(self.module.parameters())
-
-        self.module.eval()
-
-        return evaluate_generator

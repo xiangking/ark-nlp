@@ -211,7 +211,7 @@ class Task(object):
                 inputs = self._get_module_inputs_on_train(inputs, **kwargs)
 
                 # forward
-                outputs = self.module(**inputs)
+                outputs = self._get_module_outputs_on_train(inputs, **kwargs)
 
                 # 计算损失
                 logits, loss = self._get_train_loss(inputs, outputs, **kwargs)
@@ -409,6 +409,16 @@ class Task(object):
                 warnings.warn(f"The {col} is not Tensor.\n")
 
         return inputs
+
+    def _get_module_outputs_on_train(self, inputs, **kwargs):
+
+        kwargs['inputs'] = inputs
+        outputs = self.get_module_outputs_on_train(**kwargs)
+
+        return outputs
+
+    def get_module_outputs_on_train(self, inputs, **kwargs):
+        return self.module(**inputs)
 
     def _get_train_loss(self, inputs, outputs, **kwargs):
         """获取训练阶段损失阶段"""
@@ -718,7 +728,7 @@ class Task(object):
                 inputs = self._get_module_inputs_on_evaluate(inputs, **kwargs)
 
                 # forward
-                outputs = self.module(**inputs)
+                outputs = self._get_module_outputs_on_evaluate(inputs, **kwargs)
 
                 self._on_evaluate_step_end(inputs, outputs, **kwargs)
 
@@ -815,6 +825,16 @@ class Task(object):
                 warnings.warn(f"The {col} is not Tensor.\n")
 
         return inputs
+
+    def _get_module_outputs_on_evaluate(self, inputs, **kwargs):
+
+        kwargs['inputs'] = inputs
+        outputs = self.get_module_outputs_on_evaluate(**kwargs)
+
+        return outputs
+
+    def get_module_outputs_on_evaluate(self, inputs, **kwargs):
+        return self.module(**inputs)
 
     def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 

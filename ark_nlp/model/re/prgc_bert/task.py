@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 import numpy as np
 import torch.nn as nn
@@ -89,7 +88,11 @@ def get_chunks(seq, tags):
     return chunks
 
 
-def tag_mapping_corres(predict_tags, pre_corres, pre_rels=None, label2idx_sub=None, label2idx_obj=None):
+def tag_mapping_corres(predict_tags,
+                       pre_corres,
+                       pre_rels=None,
+                       label2idx_sub=None,
+                       label2idx_obj=None):
     """
     Args:
         predict_tags: np.array, (xi, 2, max_sen_len)
@@ -160,9 +163,11 @@ class PRGCRETask(SequenceClassificationTask):
         """将InputFeatures转换为Tensor"""
 
         input_ids = torch.tensor([f['input_ids'] for f in batch], dtype=torch.long)
-        attention_mask = torch.tensor([f['attention_mask'] for f in batch], dtype=torch.long)
+        attention_mask = torch.tensor([f['attention_mask'] for f in batch],
+                                      dtype=torch.long)
         seq_tags = torch.tensor([f['seq_tags'] for f in batch], dtype=torch.long)
-        poten_relations = torch.tensor([f['potential_rels'] for f in batch], dtype=torch.long)
+        poten_relations = torch.tensor([f['potential_rels'] for f in batch],
+                                       dtype=torch.long)
         corres_tags = torch.tensor([f['corres_tags'] for f in batch], dtype=torch.long)
         rel_tags = torch.tensor([f['rel_tags'] for f in batch], dtype=torch.long)
         token_mapping = [f['token_mapping'] for f in batch]
@@ -183,7 +188,8 @@ class PRGCRETask(SequenceClassificationTask):
         """将InputFeatures转换为Tensor"""
 
         input_ids = torch.tensor([f['input_ids'] for f in features], dtype=torch.long)
-        attention_mask = torch.tensor([f['attention_mask'] for f in features], dtype=torch.long)
+        attention_mask = torch.tensor([f['attention_mask'] for f in features],
+                                      dtype=torch.long)
         triples = [f['triples'] for f in features]
         token_mapping = [f['token_mapping'] for f in features]
 
@@ -196,23 +202,13 @@ class PRGCRETask(SequenceClassificationTask):
 
         return tensors
 
-    def _get_train_loss(
-        self,
-        inputs,
-        outputs,
-        **kwargs
-    ):
+    def get_train_loss(self, inputs, outputs, **kwargs):
         # 计算损失
-        loss = self._compute_loss(inputs, outputs, **kwargs)
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        **kwargs
-    ):
+    def compute_loss(self, inputs, logits, **kwargs):
         batch_size, _ = inputs['input_ids'].size()
 
         output_sub, output_obj, corres_pred, rel_pred = logits
@@ -225,9 +221,11 @@ class PRGCRETask(SequenceClassificationTask):
         # sequence label loss
         loss_func = nn.CrossEntropyLoss(reduction='none')
         loss_seq_sub = (loss_func(output_sub.view(-1, self.module.seq_tag_size),
-                                  inputs['seq_tags'][:, 0, :].reshape(-1)) * attention_mask).sum() / attention_mask.sum()
+                                  inputs['seq_tags'][:, 0, :].reshape(-1)) *
+                        attention_mask).sum() / attention_mask.sum()
         loss_seq_obj = (loss_func(output_obj.view(-1, self.module.seq_tag_size),
-                                  inputs['seq_tags'][:, 1, :].reshape(-1)) * attention_mask).sum() / attention_mask.sum()
+                                  inputs['seq_tags'][:, 1, :].reshape(-1)) *
+                        attention_mask).sum() / attention_mask.sum()
         loss_seq = (loss_seq_sub + loss_seq_obj) / 2
         # init
         loss_matrix, loss_rel = torch.tensor(0), torch.tensor(0)
@@ -238,8 +236,8 @@ class PRGCRETask(SequenceClassificationTask):
 
         loss_func = nn.BCEWithLogitsLoss(reduction='none')
 
-        loss_matrix = (loss_func(corres_pred,
-                                 corres_tags.float()) * corres_mask).sum() / corres_mask.sum()
+        loss_matrix = (loss_func(corres_pred, corres_tags.float()) *
+                       corres_mask).sum() / corres_mask.sum()
 
         loss_func = nn.BCEWithLogitsLoss(reduction='mean')
         loss_rel = loss_func(rel_pred, inputs['rel_tags'].float())
@@ -248,15 +246,13 @@ class PRGCRETask(SequenceClassificationTask):
 
         return loss
 
-    def _on_evaluate_begin(
-        self,
-        validation_data,
-        batch_size,
-        shuffle,
-        num_workers=0,
-        evaluate_to_device_cols=None,
-        **kwargs
-    ):
+    def on_evaluate_begin(self,
+                          validation_data,
+                          evaluate_batch_size,
+                          shuffle=False,
+                          worker_num=0,
+                          evaluate_to_device_cols=None,
+                          **kwargs):
 
         self.evaluate_id2sublabel = validation_data.sublabel2id
         self.evaluate_id2oblabel = validation_data.oblabel2id
@@ -266,13 +262,11 @@ class PRGCRETask(SequenceClassificationTask):
         else:
             self.evaluate_to_device_cols = evaluate_to_device_cols
 
-        evaluate_generator = DataLoader(
-            validation_data,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=num_workers,
-            collate_fn=self._evaluate_collate_fn
-        )
+        generator = DataLoader(validation_data,
+                               batch_size=evaluate_batch_size,
+                               shuffle=shuffle,
+                               num_workers=worker_num,
+                               collate_fn=self._evaluate_collate_fn)
 
         if self.ema_decay:
             self.ema.store(self.module.parameters())
@@ -280,15 +274,9 @@ class PRGCRETask(SequenceClassificationTask):
 
         self.module.eval()
 
-        return evaluate_generator
+        return generator
 
-    def _on_evaluate_step_end(
-        self,
-        inputs,
-        logits,
-        corres_threshold=0.5,
-        **kwargs
-    ):
+    def on_evaluate_step_end(self, inputs, logits, corres_threshold=0.5, **kwargs):
 
         batch_size, _ = inputs['input_ids'].size()
 
@@ -296,16 +284,19 @@ class PRGCRETask(SequenceClassificationTask):
 
         pred_seq_sub = torch.argmax(torch.softmax(output_sub, dim=-1), dim=-1)
         pred_seq_obj = torch.argmax(torch.softmax(output_obj, dim=-1), dim=-1)
-        pred_seqs = torch.cat([pred_seq_sub.unsqueeze(1), pred_seq_obj.unsqueeze(1)], dim=1)
+        pred_seqs = torch.cat([pred_seq_sub.unsqueeze(1),
+                               pred_seq_obj.unsqueeze(1)],
+                              dim=1)
 
         mask_tmp1 = inputs['attention_mask'].unsqueeze(-1)
         mask_tmp2 = inputs['attention_mask'].unsqueeze(1)
         corres_mask = mask_tmp1 * mask_tmp2
 
         corres_pred = torch.sigmoid(corres_pred) * corres_mask
-        pre_corres = torch.where(corres_pred > corres_threshold,
-                                         torch.ones(corres_pred.size(), device=corres_pred.device),
-                                         torch.zeros(corres_pred.size(), device=corres_pred.device))
+        pre_corres = torch.where(
+            corres_pred > corres_threshold,
+            torch.ones(corres_pred.size(), device=corres_pred.device),
+            torch.zeros(corres_pred.size(), device=corres_pred.device))
 
         pred_seqs = pred_seqs.detach().cpu().numpy()
         pre_corres = pre_corres.detach().cpu().numpy()
@@ -316,29 +307,25 @@ class PRGCRETask(SequenceClassificationTask):
         xi_index.insert(0, 0)
 
         for idx in range(batch_size):
-            pre_triples = tag_mapping_corres(predict_tags=pred_seqs[xi_index[idx]:xi_index[idx + 1]],
-                                             pre_corres=pre_corres[idx],
-                                             pre_rels=pred_rels[xi_index[idx]:xi_index[idx + 1]],
-                                             label2idx_sub=self.evaluate_id2sublabel,
-                                             label2idx_obj=self.evaluate_id2oblabel)
+            pre_triples = tag_mapping_corres(
+                predict_tags=pred_seqs[xi_index[idx]:xi_index[idx + 1]],
+                pre_corres=pre_corres[idx],
+                pre_rels=pred_rels[xi_index[idx]:xi_index[idx + 1]],
+                label2idx_sub=self.evaluate_id2sublabel,
+                label2idx_obj=self.evaluate_id2oblabel)
 
-            self.evaluate_logs['correct_num'] += len(set(pre_triples) & set(inputs['triples'][idx]))
+            self.evaluate_logs['correct_num'] += len(
+                set(pre_triples) & set(inputs['triples'][idx]))
             self.evaluate_logs['predict_num'] += len(set(pre_triples))
             self.evaluate_logs['gold_num'] += len(set(inputs['triples'][idx]))
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        evaluate_verbose=True,
-        **kwargs
-    ):
+    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
 
-        evaluation_metrics = get_metrics(
-            self.evaluate_logs['correct_num'],
-            self.evaluate_logs['predict_num'],
-            self.evaluate_logs['gold_num']
-        )
-        evaluation_metrics = "; ".join("{}: {:05.3f}".format(k, v) for k, v in evaluation_metrics.items())
+        evaluation_metrics = get_metrics(self.evaluate_logs['correct_num'],
+                                         self.evaluate_logs['predict_num'],
+                                         self.evaluate_logs['gold_num'])
+        evaluation_metrics = "; ".join("{}: {:05.3f}".format(k, v)
+                                       for k, v in evaluation_metrics.items())
 
         if evaluate_verbose:
             print("********** Evaluating Done **********")
