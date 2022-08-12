@@ -42,17 +42,17 @@ class PromptUIETask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _get_train_loss(self, inputs, outputs, **kwargs):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
+    def get_train_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _get_evaluate_loss(self, inputs, outputs, **kwargs):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
+    def get_evaluate_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(self, inputs, logits, **kwargs):
+    def compute_loss(self, inputs, logits, **kwargs):
         start_logits = logits[0]
         end_logits = logits[1]
 
@@ -81,13 +81,13 @@ class PromptUIETask(TokenClassificationTask):
 
         return loss
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.metric = SpanMetrics()
 
         return None
 
-    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+    def on_evaluate_step_end(self, inputs, logits, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -103,7 +103,8 @@ class PromptUIETask(TokenClassificationTask):
         start_score_list = get_bool_ids_greater_than(start_pred)
         end_score_list = get_bool_ids_greater_than(end_pred)
 
-        for index, (start_score, end_score) in enumerate(zip(start_score_list, end_score_list)):
+        for index, (start_score,
+                    end_score) in enumerate(zip(start_score_list, end_score_list)):
             S = get_span(start_score, end_score)
             self.metric.update(true_subject=inputs['label_ids'][index], pred_subject=S)
 
@@ -111,10 +112,7 @@ class PromptUIETask(TokenClassificationTask):
         self.evaluate_logs['step'] += 1
         self.evaluate_logs['loss'] += loss.item()
 
-    def _on_evaluate_epoch_end(self,
-                               validation_data,
-                               evaluate_verbose=True,
-                               **kwargs):
+    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
 
         if evaluate_verbose:
             print(self.metric.result())

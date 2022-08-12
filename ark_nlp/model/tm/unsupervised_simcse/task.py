@@ -41,14 +41,14 @@ class UnsupervisedSimCSETask(SequenceClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['similarity'] = []
 
         return self.evaluate_logs
 
-    def _on_evaluate_step_end(
+    def on_evaluate_step_end(
         self,
         inputs,
         outputs,
@@ -77,9 +77,8 @@ class UnsupervisedSimCSETask(SequenceClassificationTask):
         self.evaluate_logs['example_num'] += inputs['input_ids_a'].shape[0]
         self.evaluate_logs['step'] += 1
 
-    def _on_evaluate_epoch_end(
+    def on_evaluate_epoch_end(
         self,
-        validation_data,
         evaluate_verbose=True,
         show_evaluate_loss=False,
         **kwargs

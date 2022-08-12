@@ -44,7 +44,7 @@ class TokenClassificationTask(SequenceClassificationTask):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def compute_loss(self, inputs, logits, verbose=True, **kwargs):
 
         active_loss = inputs['attention_mask'].view(-1) == 1
         active_logits = logits.view(-1, self.class_num)
@@ -56,7 +56,7 @@ class TokenClassificationTask(SequenceClassificationTask):
 
         return loss
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []

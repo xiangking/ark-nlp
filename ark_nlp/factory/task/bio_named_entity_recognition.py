@@ -39,7 +39,7 @@ class BIONERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -55,12 +55,11 @@ class BIONERTask(TokenClassificationTask):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(self,
-                               validation_data,
-                               evaluate_verbose=True,
-                               id2cat=None,
-                               markup='bio',
-                               **kwargs):
+    def on_evaluate_epoch_end(self,
+                              evaluate_verbose=True,
+                              id2cat=None,
+                              markup='bio',
+                              **kwargs):
         if id2cat is None:
             id2cat = self.id2cat
 
@@ -88,7 +87,7 @@ class BIONERTask(TokenClassificationTask):
         evaluate_infos, entity_infos = self.metric.result()
 
         if evaluate_verbose:
-            print("********** Evaluating Done **********")
+            print("********** Evaluating Done **********\n")
             print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
                                           self.evaluate_logs['step']))
             print(evaluate_infos)

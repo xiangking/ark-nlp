@@ -21,7 +21,6 @@ from collections import Counter
 from torch.utils.data._utils.collate import default_collate
 from ark_nlp.factory.utils import conlleval
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
-from torch.utils.data._utils.collate import default_collate
 
 
 def convert_index_to_text(index, type):
@@ -100,7 +99,6 @@ class SeqEntityScore(object):
         precision = 0 if found == 0 else (right / found)
         f1 = 0. if recall + precision == 0 else (2 * precision * recall) / (precision +
                                                                             recall)
-
         return recall, precision, f1
 
     def result(self):
@@ -200,7 +198,7 @@ class W2NERTask(TokenClassificationTask):
     def _evaluate_collate_fn(self, batch):
         return self._train_collate_fn(batch)
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def compute_loss(self, inputs, logits, **kwargs):
         active_loss = inputs['grid_mask2d'].view(-1) == 1
         active_logits = logits.reshape(-1, self.class_num)
         active_labels = torch.where(
@@ -210,13 +208,13 @@ class W2NERTask(TokenClassificationTask):
 
         return loss
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['rights'] = []
         self.evaluate_logs['founds'] = []
         self.evaluate_logs['origins'] = []
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -236,11 +234,7 @@ class W2NERTask(TokenClassificationTask):
             self.evaluate_logs['step'] += 1
             self.evaluate_logs['loss'] += loss.item()
 
-    def _on_evaluate_epoch_end(self,
-                               validation_data,
-                               evaluate_verbose=True,
-                               id2cat=None,
-                               **kwargs):
+    def on_evaluate_epoch_end(self, evaluate_verbose=True, id2cat=None, **kwargs):
         if id2cat is None:
             id2cat = self.id2cat
 

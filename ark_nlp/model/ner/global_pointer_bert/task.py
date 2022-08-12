@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
 from torch.utils.data._utils.collate import default_collate
@@ -60,18 +59,12 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
     def _evaluate_collate_fn(self, batch):
         return self._train_collate_fn(batch)
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
+    def compute_loss(self, inputs, logits, **kwargs):
         loss = self.loss_function(logits, inputs['label_ids'])
 
         return loss
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
 
@@ -79,9 +72,7 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
 
             numerate, denominator = conlleval.global_pointer_f1_score(
-                inputs['label_ids'].cpu(),
-                logits.cpu()
-            )
+                inputs['label_ids'].cpu(), logits.cpu())
             self.evaluate_logs['numerate'] += numerate
             self.evaluate_logs['denominator'] += denominator
 
@@ -89,13 +80,7 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
         self.evaluate_logs['step'] += 1
         self.evaluate_logs['loss'] += loss.item()
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        evaluate_verbose=True,
-        id2cat=None,
-        **kwargs
-    ):
+    def _on_evaluate_epoch_end(self, evaluate_verbose=True, id2cat=None, **kwargs):
 
         if id2cat is None:
             id2cat = self.id2cat
@@ -104,7 +89,5 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
             print("********** Evaluating Done **********")
             print('loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
                 self.evaluate_logs['loss'] / self.evaluate_logs['step'],
-                self.evaluate_logs['numerate'],
-                self.evaluate_logs['denominator'],
-                2*self.evaluate_logs['numerate']/self.evaluate_logs['denominator'])
-            )
+                self.evaluate_logs['numerate'], self.evaluate_logs['denominator'],
+                2 * self.evaluate_logs['numerate'] / self.evaluate_logs['denominator']))

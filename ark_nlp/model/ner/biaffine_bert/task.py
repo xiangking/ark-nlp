@@ -40,11 +40,10 @@ class BiaffineBertNERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _compute_loss(
+    def compute_loss(
         self,
         inputs,
         logits,
-        verbose=True,
         **kwargs
     ):
 
@@ -58,7 +57,7 @@ class BiaffineBertNERTask(TokenClassificationTask):
 
         return loss
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -74,9 +73,8 @@ class BiaffineBertNERTask(TokenClassificationTask):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(
+    def on_evaluate_epoch_end(
         self,
-        validation_data,
         evaluate_verbose=True,
         id2cat=None,
         **kwargs

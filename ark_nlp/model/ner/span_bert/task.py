@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
 from ark_nlp.factory.utils import conlleval
@@ -42,36 +41,17 @@ class SpanBertNERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _get_train_loss(
-        self,
-        inputs,
-        outputs,
-        **kwargs
-    ):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
-
-        self._compute_loss_record(**kwargs)
+    def get_train_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _get_evaluate_loss(
-        self,
-        inputs,
-        outputs,
-        **kwargs
-    ):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
-        self._compute_loss_record(**kwargs)
+    def get_evaluate_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
+    def compute_loss(self, inputs, logits, **kwargs):
         start_logits = logits[0]
         end_logits = logits[1]
 
@@ -86,26 +66,20 @@ class SpanBertNERTask(TokenClassificationTask):
         active_start_labels = inputs['start_label_ids'].long().view(-1)[active_loss]
         active_end_labels = inputs['end_label_ids'].long().view(-1)[active_loss]
 
-        start_loss = self.loss_function(
-            active_start_logits,
-            active_start_labels
-        )
-        end_loss = self.loss_function(
-            active_end_logits,
-            active_end_labels
-        )
+        start_loss = self.loss_function(active_start_logits, active_start_labels)
+        end_loss = self.loss_function(active_end_logits, active_end_labels)
 
         loss = start_loss + end_loss
 
         return loss
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.metric = SpanMetrics(self.id2cat)
 
         return None
 
-    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+    def on_evaluate_step_end(self, inputs, logits, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -120,9 +94,10 @@ class SpanBertNERTask(TokenClassificationTask):
         start_score_list = torch.argmax(start_logits, -1).cpu().numpy()
         end_score_list = torch.argmax(end_logits, -1).cpu().numpy()
 
-        for index, (start_score, end_score) in enumerate(zip(start_score_list, end_score_list)):
-            start_score = start_score[1:length+1]
-            end_score = end_score[1:length+1] 
+        for index, (start_score,
+                    end_score) in enumerate(zip(start_score_list, end_score_list)):
+            start_score = start_score[1:length + 1]
+            end_score = end_score[1:length + 1]
 
             S = []
             for i, s_l in enumerate(start_score):
@@ -141,13 +116,7 @@ class SpanBertNERTask(TokenClassificationTask):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        evaluate_verbose=True,
-        id2cat=None,
-        **kwargs
-    ):
+    def on_evaluate_epoch_end(self, evaluate_verbose=True, id2cat=None, **kwargs):
 
         if id2cat is None:
             id2cat = self.id2cat
@@ -166,8 +135,10 @@ class SpanBertNERTask(TokenClassificationTask):
         """将InputFeatures转换为Tensor"""
 
         input_ids = torch.tensor([f['input_ids'] for f in batch], dtype=torch.long)
-        attention_mask = torch.tensor([f['attention_mask'] for f in batch], dtype=torch.long)
-        token_type_ids = torch.tensor([f['token_type_ids'] for f in batch], dtype=torch.long)
+        attention_mask = torch.tensor([f['attention_mask'] for f in batch],
+                                      dtype=torch.long)
+        token_type_ids = torch.tensor([f['token_type_ids'] for f in batch],
+                                      dtype=torch.long)
         start_label_ids = torch.cat([f['start_label_ids'] for f in batch])
         end_label_ids = torch.cat([f['end_label_ids'] for f in batch])
         label_ids = [f['label_ids'] for f in batch]

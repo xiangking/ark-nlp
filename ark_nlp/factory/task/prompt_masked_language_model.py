@@ -40,20 +40,20 @@ class PromptMLMTask(SequenceClassificationTask):
             **kwargs (optional): 其他可选参数
         """  # noqa: ignore flake8"
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def compute_loss(self, inputs, logits, **kwargs):
         labels = torch.squeeze(inputs['label_ids'].reshape(-1, 1))
         loss = self.loss_function(logits, labels)
 
         return loss
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
 
         return self.evaluate_logs
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -103,7 +103,7 @@ class PromptMLMTask(SequenceClassificationTask):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
+    def on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
 
         labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
         preds = np.concatenate(self.evaluate_logs['logits'], axis=0)

@@ -73,12 +73,10 @@ class PURERCTask(SequenceClassificationTask):
     def _evaluate_collate_fn(self, batch):
         return self._train_collate_fn(batch)
 
-    def _on_optimize_record(
+    def on_optimize_record(
         self,
         inputs,
-        outputs,
         logits,
-        loss,
         verbose=True,
         **kwargs
     ):
@@ -92,12 +90,9 @@ class PURERCTask(SequenceClassificationTask):
 
         return self.logs
 
-    def _on_step_end_record(
+    def on_step_end_record(
         self,
         step,
-        inputs,
-        outputs,
-        loss,
         verbose=True,
         show_metric_step=100,
         **kwargs
@@ -112,7 +107,7 @@ class PURERCTask(SequenceClassificationTask):
                 )
             )
 
-    def _on_epoch_end_record(
+    def on_epoch_end_record(
         self,
         epoch,
         verbose=True,
@@ -129,12 +124,12 @@ class PURERCTask(SequenceClassificationTask):
 
         return self.logs
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
+    def on_evaluate_epoch_begin(self, **kwargs):
 
         self.evaluate_logs['labels'] = []
         self.evaluate_logs['logits'] = []
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -155,7 +150,7 @@ class PURERCTask(SequenceClassificationTask):
 
         return logits, loss
 
-    def _on_evaluate_epoch_end(
+    def on_evaluate_epoch_end(
         self,
         validation_data,
         evaluate_verbose=True,
