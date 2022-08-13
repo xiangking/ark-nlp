@@ -15,12 +15,10 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 import numpy as np
 
 from collections import defaultdict
-from torch.utils.data import DataLoader
 from ark_nlp.factory.task.base import SequenceClassificationTask
 
 
@@ -96,6 +94,18 @@ class CasRelRETask(SequenceClassificationTask):
         }
 
     def get_module_inputs_on_train(self, inputs, **kwargs):
+        """模型输入处理方法"""
+        for col in inputs.keys():
+            if type(inputs[col]) is torch.Tensor:
+                inputs[col] = inputs[col].to(self.device)
+
+        return inputs
+
+    def get_module_inputs_on_evaluate(self, inputs, **kwargs):
+        for col in inputs.keys():
+            if type(inputs[col]) is torch.Tensor:
+                inputs[col] = inputs[col].to(self.device)
+
         return inputs
 
     def get_train_loss(self, inputs, outputs, **kwargs):
@@ -110,22 +120,20 @@ class CasRelRETask(SequenceClassificationTask):
 
         return loss
 
-    def evaluate(self,
-                 validation_data,
-                 *,
-                 evaluate_batch_size=1,
-                 h_bar=0.5,
-                 t_bar=0.5,
-                 show_example_step=11,
-                 **kwargs):
+    def evaluate(self, validation_data, **kwargs):
+        """
+        验证方法
+        
+        Args:
+            validation_data (ark_nlp dataset): 训练的batch文本
+            evaluate_batch_size (int, optional): 验证阶段batch大小, 默认值为16
+            **kwargs (optional): 其他可选参数
+        """  # noqa: ignore flake8"
+
         self.evaluate_logs = defaultdict(int)
+        kwargs['evaluate_batch_size'] = 1
 
-        evaluate_generator = self._on_evaluate_begin(validation_data,
-                                                     evaluate_batch_size,
-                                                     **kwargs)
-
-        correct_num, predict_num, gold_num = 0, 0, 0
-        step_ = 0
+        evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
 
         with torch.no_grad():
 
@@ -135,96 +143,124 @@ class CasRelRETask(SequenceClassificationTask):
 
                 inputs = self._get_module_inputs_on_evaluate(inputs, **kwargs)
 
-                token_ids = inputs['input_ids']
-                token_mapping = inputs['token_mapping'][0]
-                mask = inputs['attention_mask']
+                # forward
+                outputs = self._get_module_outputs_on_evaluate(inputs, **kwargs)
 
-                encoded_text = self.module.bert(token_ids, mask)[0]
+                self._on_evaluate_step_end(step, inputs, outputs, **kwargs)
 
-                pred_sub_heads, pred_sub_tails = self.module.get_subs(encoded_text)
-                sub_heads, sub_tails = np.where(
-                    pred_sub_heads.cpu()[0] > h_bar)[0], np.where(
-                        pred_sub_tails.cpu()[0] > t_bar)[0]
+            self._on_evaluate_epoch_end(validation_data, **kwargs)
 
-                subjects = []
-                for sub_head in sub_heads:
-                    sub_tail = sub_tails[sub_tails >= sub_head]
-                    if len(sub_tail) > 0:
+        self._on_evaluate_end(**kwargs)
 
-                        sub_tail = sub_tail[0]
-                        subject = ''.join([
-                            token_mapping[index_] if index_ < len(token_mapping) else ''
-                            for index_ in range(sub_head - 1, sub_tail)
-                        ])
+    def get_module_outputs_on_evaluate(self, inputs, **kwargs):
 
-                        if subject == '':
-                            continue
-                        subjects.append((subject, sub_head, sub_tail))
+        with torch.no_grad():
+            encoded_text = self.module.bert(inputs['input_ids'],
+                                            inputs['attention_mask'])[0]
+            pred_sub_heads, pred_sub_tails = self.module.get_subs(encoded_text)
 
-                if subjects:
-                    triple_list = []
-                    repeated_encoded_text = encoded_text.repeat(len(subjects), 1, 1)
-                    sub_head_mapping = torch.Tensor(len(subjects), 1,
-                                                    encoded_text.size(1)).zero_()
-                    sub_tail_mapping = torch.Tensor(len(subjects), 1,
-                                                    encoded_text.size(1)).zero_()
-                    for subject_idx, subject in enumerate(subjects):
-                        sub_head_mapping[subject_idx][0][subject[1]] = 1
-                        sub_tail_mapping[subject_idx][0][subject[2]] = 1
-                    sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
-                    sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
+        return encoded_text, pred_sub_heads, pred_sub_tails
 
-                    pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(
-                        sub_head_mapping, sub_tail_mapping, repeated_encoded_text)
-                    for subject_idx, subject in enumerate(subjects):
-                        sub = subject[0]
+    def on_evaluate_step_end(self,
+                             step,
+                             inputs,
+                             outputs,
+                             h_bar=0.5,
+                             t_bar=0.5,
+                             show_example_step=11,
+                             **kwargs):
 
-                        obj_heads, obj_tails = np.where(
-                            pred_obj_heads.cpu()[subject_idx] > h_bar), np.where(
-                                pred_obj_tails.cpu()[subject_idx] > t_bar)
-                        for obj_head, rel_head in zip(*obj_heads):
-                            for obj_tail, rel_tail in zip(*obj_tails):
-                                if obj_head <= obj_tail and rel_head == rel_tail:
-                                    rel = self.id2cat[int(rel_head)]
-                                    obj = ''.join([
-                                        token_mapping[index_]
-                                        if index_ < len(token_mapping) else ''
-                                        for index_ in range(obj_head - 1, obj_tail)
-                                    ])
+        encoded_text, pred_sub_heads, pred_sub_tails = outputs
+        token_mapping = inputs['token_mapping'][0]
 
-                                    triple_list.append((sub, rel, obj))
-                                    break
-                    triple_set = set()
-                    for s, r, o in triple_list:
-                        if o == '' or s == '':
-                            continue
-                        triple_set.add((s, r, o))
-                    pred_list = list(triple_set)
-                else:
-                    pred_list = []
+        with torch.no_grad():
+            sub_heads, sub_tails = np.where(pred_sub_heads.cpu()[0] > h_bar)[0], np.where(
+                pred_sub_tails.cpu()[0] > t_bar)[0]
 
-                pred_triples = set(pred_list)
+            subjects = []
+            for sub_head in sub_heads:
+                sub_tail = sub_tails[sub_tails >= sub_head]
+                if len(sub_tail) > 0:
 
-                gold_triples = set(to_tup(inputs['label_ids'][0]))
+                    sub_tail = sub_tail[0]
+                    subject = ''.join([
+                        token_mapping[index_] if index_ < len(token_mapping) else ''
+                        for index_ in range(sub_head - 1, sub_tail)
+                    ])
 
-                correct_num += len(pred_triples & gold_triples)
+                    if subject == '':
+                        continue
+                    subjects.append((subject, sub_head, sub_tail))
 
-                if step_ < show_example_step:
-                    print('pred_triples: ', pred_triples)
-                    print('gold_triples: ', gold_triples)
+            if subjects:
+                triple_list = []
+                repeated_encoded_text = encoded_text.repeat(len(subjects), 1, 1)
+                sub_head_mapping = torch.Tensor(len(subjects), 1,
+                                                encoded_text.size(1)).zero_()
+                sub_tail_mapping = torch.Tensor(len(subjects), 1,
+                                                encoded_text.size(1)).zero_()
+                for subject_idx, subject in enumerate(subjects):
+                    sub_head_mapping[subject_idx][0][subject[1]] = 1
+                    sub_tail_mapping[subject_idx][0][subject[2]] = 1
+                sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
+                sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
 
-                predict_num += len(pred_triples)
-                gold_num += len(gold_triples)
+                pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(
+                    sub_head_mapping, sub_tail_mapping, repeated_encoded_text)
+                for subject_idx, subject in enumerate(subjects):
+                    sub = subject[0]
 
-        print("********** Evaluating Done **********")
-        print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(
-            correct_num, predict_num, gold_num))
+                    obj_heads, obj_tails = np.where(
+                        pred_obj_heads.cpu()[subject_idx] > h_bar), np.where(
+                            pred_obj_tails.cpu()[subject_idx] > t_bar)
+                    for obj_head, rel_head in zip(*obj_heads):
+                        for obj_tail, rel_tail in zip(*obj_tails):
+                            if obj_head <= obj_tail and rel_head == rel_tail:
+                                rel = self.id2cat[int(rel_head)]
+                                obj = ''.join([
+                                    token_mapping[index_]
+                                    if index_ < len(token_mapping) else ''
+                                    for index_ in range(obj_head - 1, obj_tail)
+                                ])
 
-        precision = correct_num / (predict_num + 1e-10)
-        recall = correct_num / (gold_num + 1e-10)
-        f1_score = 2 * precision * recall / (precision + recall + 1e-10)
+                                triple_list.append((sub, rel, obj))
+                                break
+                triple_set = set()
+                for s, r, o in triple_list:
+                    if o == '' or s == '':
+                        continue
+                    triple_set.add((s, r, o))
+                pred_list = list(triple_set)
+            else:
+                pred_list = []
 
-        print("precision: {}, recall: {}, f1_score: {}".format(precision, recall,
-                                                               f1_score))
+            pred_triples = set(pred_list)
 
-        return precision, recall, f1_score
+            gold_triples = set(to_tup(inputs['label_ids'][0]))
+
+            self.evaluate_logs['correct_num'] += len(pred_triples & gold_triples)
+
+            if step < show_example_step:
+                print('pred_triples: ', pred_triples)
+                print('gold_triples: ', gold_triples)
+
+            self.evaluate_logs['predict_num'] += len(pred_triples)
+            self.evaluate_logs['gold_num'] += len(gold_triples)
+
+    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
+
+        if evaluate_verbose:
+
+            precision = self.evaluate_logs['correct_num'] / (
+                self.evaluate_logs['predict_num'] + 1e-10)
+            recall = self.evaluate_logs['correct_num'] / (self.evaluate_logs['gold_num'] +
+                                                          1e-10)
+            f1_score = 2 * precision * recall / (precision + recall + 1e-10)
+
+            print("********** Evaluating Done **********")
+            print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(
+                self.evaluate_logs['correct_num'], self.evaluate_logs['predict_num'],
+                self.evaluate_logs['gold_num']))
+
+            print("precision: {}, recall: {}, f1_score: {}".format(
+                precision, recall, f1_score))

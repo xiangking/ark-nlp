@@ -715,9 +715,9 @@ class Task(object):
         """  # noqa: ignore flake8"
 
         self.evaluate_logs = defaultdict(int)
+        kwargs['evaluate_batch_size'] = evaluate_batch_size
 
-        evaluate_generator = self._on_evaluate_begin(validation_data, evaluate_batch_size,
-                                                     **kwargs)
+        evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
 
         with torch.no_grad():
 
@@ -730,16 +730,15 @@ class Task(object):
                 # forward
                 outputs = self._get_module_outputs_on_evaluate(inputs, **kwargs)
 
-                self._on_evaluate_step_end(inputs, outputs, **kwargs)
+                self._on_evaluate_step_end(step, inputs, outputs, **kwargs)
 
             self._on_evaluate_epoch_end(validation_data, **kwargs)
 
         self._on_evaluate_end(**kwargs)
 
-    def _on_evaluate_begin(self, validation_data, evaluate_batch_size, **kwargs):
+    def _on_evaluate_begin(self, validation_data, **kwargs):
 
         kwargs['validation_data'] = validation_data
-        kwargs['evaluate_batch_size'] = evaluate_batch_size
 
         self.prepare_evaluate_begin(**kwargs)
 
@@ -836,14 +835,15 @@ class Task(object):
     def get_module_outputs_on_evaluate(self, inputs, **kwargs):
         return self.module(**inputs)
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def _on_evaluate_step_end(self, step, inputs, outputs, **kwargs):
 
+        kwargs['step'] = step
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
 
         self.prepare_evaluate_step_end(**kwargs)
 
-        logits, loss = self.on_evaluate_step_end(**kwargs)
+        self.on_evaluate_step_end(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_evaluate_step_end') and callable(
@@ -852,7 +852,7 @@ class Task(object):
 
         self.finish_evaluate_step_end(**kwargs)
 
-        return logits, loss
+        return None
 
     def prepare_evaluate_step_end(self, **kwargs):
         return None
@@ -870,7 +870,7 @@ class Task(object):
         self.evaluate_logs['example_num'] += len(inputs['label_ids'])
         self.evaluate_logs['step'] += 1
 
-        return logits, loss
+        return None
 
     def _get_evaluate_loss(self, inputs, outputs, **kwargs):
 
