@@ -19,12 +19,10 @@ import os
 import json
 import time
 import torch
-import warnings
 
 from tqdm import tqdm
 from collections import defaultdict
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.optimizer import get_optimizer
@@ -238,15 +236,19 @@ class Task(object):
         kwargs['train_data'] = train_data
         kwargs['validation_data'] = validation_data
 
-        self.prepare_train_begin(**kwargs)
+        kwargs = self.prepare_train_begin(**kwargs)
 
         train_generator = self.on_train_begin(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_train_begin') and callable(callback.on_train_begin):
-                callback.on_train_begin(**kwargs)
+                callback.on_train_begin(module=self.module,
+                                        tokenizer=self.tokenizer,
+                                        optimizer=self.optimizer,
+                                        scheduler=self.scheduler,
+                                        **kwargs)
 
-        self.finish_train_begin(**kwargs)
+        kwargs = self.finish_train_begin(**kwargs)
 
         self.prepare_train_begin_record(**kwargs)
 
@@ -257,10 +259,13 @@ class Task(object):
         return train_generator
 
     def prepare_train_begin(self, **kwargs):
+        return kwargs
+
+    def on_train_begin(self, **kwargs):
         return None
 
     def finish_train_begin(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_train_begin_record(self, **kwargs):
         return self.logs
@@ -271,58 +276,21 @@ class Task(object):
     def finish_train_begin_record(self, **kwargs):
         return self.logs
 
-    def on_train_begin(self,
-                       train_data,
-                       epoch_num,
-                       batch_size,
-                       gradient_accumulation_step,
-                       worker_num=0,
-                       train_to_device_cols=None,
-                       **kwargs):
-        # 设置 self.id2cat 和 self.cat2id
-        if hasattr(train_data, 'id2cat'):
-            self.id2cat = train_data.id2cat
-            self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
-
-        # 在初始化时会有class_num参数，若在初始化时不指定，则在训练阶段从训练集获取信息
-        if self.class_num is None:
-            if hasattr(train_data, 'class_num'):
-                self.class_num = train_data.class_num
-            else:
-                warnings.warn("The class_num is None.")
-
-        # 获s获取放置到GPU的变量名称列表
-        if train_to_device_cols is None:
-            self.train_to_device_cols = train_data.to_device_cols
-        else:
-            self.train_to_device_cols = train_to_device_cols
-
-        train_generator = DataLoader(train_data,
-                                     batch_size=batch_size,
-                                     shuffle=True,
-                                     num_workers=worker_num,
-                                     collate_fn=self._train_collate_fn)
-
-        self.epoch_step_num = len(train_generator) // gradient_accumulation_step
-
-        self._set_optimizer(**kwargs)
-        self.optimizer.zero_grad()
-
-        self._set_scheduler(epoch_num, **kwargs)
-
-        return train_generator
-
     def _on_epoch_begin(self, **kwargs):
 
-        self.prepare_epoch_begin(**kwargs)
+        kwargs = self.prepare_epoch_begin(**kwargs)
 
         self.on_epoch_begin(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_epoch_begin') and callable(callback.on_epoch_begin):
-                callback.on_epoch_begin(**kwargs)
+                callback.on_epoch_begin(module=self.module,
+                                        tokenizer=self.tokenizer,
+                                        optimizer=self.optimizer,
+                                        scheduler=self.scheduler,
+                                        **kwargs)
 
-        self.finish_epoch_begin(**kwargs)
+        kwargs = self.finish_epoch_begin(**kwargs)
 
         self.prepare_epoch_begin_record(**kwargs)
 
@@ -333,10 +301,13 @@ class Task(object):
         return None
 
     def prepare_epoch_begin(self, **kwargs):
+        return kwargs
+
+    def on_epoch_begin(self, **kwargs):
         return None
 
     def finish_epoch_begin(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_epoch_begin_record(self, **kwargs):
         return self.logs
@@ -347,25 +318,24 @@ class Task(object):
     def finish_epoch_begin_record(self, **kwargs):
         return self.logs
 
-    def on_epoch_begin(self, **kwargs):
-        self.module.train()
-
-        return None
-
     def _on_step_begin(self, epoch, step, inputs, **kwargs):
         kwargs['epoch'] = epoch
         kwargs['step'] = step
         kwargs['inputs'] = inputs
 
-        self.prepare_step_begin(**kwargs)
+        kwargs = self.prepare_step_begin(**kwargs)
 
         self.on_step_begin(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_step_begin') and callable(callback.on_step_begin):
-                callback.on_step_begin(**kwargs)
+                callback.on_step_begin(module=self.module,
+                                       tokenizer=self.tokenizer,
+                                       optimizer=self.optimizer,
+                                       scheduler=self.scheduler,
+                                       **kwargs)
 
-        self.finish_step_begin(**kwargs)
+        kwargs = self.finish_step_begin(**kwargs)
 
         self.prepare_step_begin_record(**kwargs)
 
@@ -376,10 +346,13 @@ class Task(object):
         return None
 
     def prepare_step_begin(self, **kwargs):
+        return kwargs
+
+    def on_step_begin(self, **kwargs):
         return None
 
     def finish_step_begin(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_step_begin_record(self, **kwargs):
         return self.logs
@@ -390,9 +363,6 @@ class Task(object):
     def finish_step_begin_record(self, **kwargs):
         return self.logs
 
-    def on_step_begin(self, **kwargs):
-        return None
-
     def _get_module_inputs_on_train(self, inputs, **kwargs):
         """模型输入处理阶段"""
         kwargs['inputs'] = inputs
@@ -400,15 +370,8 @@ class Task(object):
 
         return inputs
 
-    def get_module_inputs_on_train(self, inputs, **kwargs):
-        """模型输入处理方法"""
-        for col in self.train_to_device_cols:
-            if type(inputs[col]) is torch.Tensor:
-                inputs[col] = inputs[col].to(self.device)
-            else:
-                warnings.warn(f"The {col} is not Tensor.\n")
-
-        return inputs
+    def get_module_inputs_on_train(self, **kwargs):
+        return None
 
     def _get_module_outputs_on_train(self, inputs, **kwargs):
 
@@ -429,25 +392,11 @@ class Task(object):
 
         return logits, loss
 
-    def get_train_loss(self, inputs, outputs, **kwargs):
-        """获取训练阶段损失的方法"""
-        if type(outputs) == tuple:
-            if len(outputs) > 2:
-                logits, loss, *_ = outputs
-            else:
-                logits, loss = outputs
-        else:
-            logits = outputs
-            # 计算损失
-            loss = self.compute_loss(inputs, logits, **kwargs)
+    def get_train_loss(self, **kwargs):
+        return None, None
 
-        return logits, loss
-
-    def compute_loss(self, inputs, logits, **kwargs):
-        """计算损失的方法"""
-        loss = self.loss_function(logits, inputs['label_ids'])
-
-        return loss
+    def compute_loss(self, **kwargs):
+        return None
 
     def _on_backward(self, inputs, outputs, logits, loss, **kwargs):
         kwargs['inputs'] = inputs
@@ -455,15 +404,19 @@ class Task(object):
         kwargs['logits'] = logits
         kwargs['loss'] = loss
 
-        self.prepare_backward(**kwargs)
+        kwargs = self.prepare_backward(**kwargs)
 
         self.on_backward(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_backward') and callable(callback.on_backward):
-                callback.on_backward(**kwargs)
+                callback.on_backward(module=self.module,
+                                     tokenizer=self.tokenizer,
+                                     optimizer=self.optimizer,
+                                     scheduler=self.scheduler,
+                                     **kwargs)
 
-        self.finish_backward(**kwargs)
+        kwargs = self.finish_backward(**kwargs)
 
         self.prepare_backward_record(**kwargs)
 
@@ -474,35 +427,22 @@ class Task(object):
         return loss
 
     def prepare_backward(self, **kwargs):
+        return kwargs
+
+    def on_backward(self, **kwargs):
         return None
 
     def finish_backward(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_backward_record(self, **kwargs):
         return self.logs
 
     def on_backward_record(self, loss, **kwargs):
-        self.logs['global_loss'] += loss.item()
-        self.logs['epoch_loss'] += loss.item()
-
         return self.logs
 
     def finish_backward_record(self, **kwargs):
         return self.logs
-
-    def on_backward(self, loss, gradient_accumulation_step=1, **kwargs):
-        # 如果GPU数量大于1
-        if self.gpu_num > 1:
-            loss = loss.mean()
-
-        # 如果使用了梯度累积，除以累积的轮数
-        if gradient_accumulation_step > 1:
-            loss = loss / gradient_accumulation_step
-
-        loss.backward()
-
-        return loss
 
     def _on_optimize(self, inputs, outputs, logits, loss, **kwargs):
 
@@ -511,15 +451,19 @@ class Task(object):
         kwargs['logits'] = logits
         kwargs['loss'] = loss
 
-        self.prepare_optimize(**kwargs)
+        kwargs = self.prepare_optimize(**kwargs)
 
         self.on_optimize(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_optimize') and callable(callback.on_optimize):
-                callback.on_optimize(**kwargs)
+                callback.on_optimize(module=self.module,
+                                     tokenizer=self.tokenizer,
+                                     optimizer=self.optimizer,
+                                     scheduler=self.scheduler,
+                                     **kwargs)
 
-        self.finish_optimize(**kwargs)
+        kwargs = self.finish_optimize(**kwargs)
 
         self.prepare_optimize_record(**kwargs)
 
@@ -530,43 +474,22 @@ class Task(object):
         return self.optimizer
 
     def prepare_optimize(self, **kwargs):
+        return kwargs
+
+    def on_optimize(self, **kwargs):
         return None
 
     def finish_optimize(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_optimize_record(self, **kwargs):
         return self.logs
 
     def on_optimize_record(self, **kwargs):
-        self.logs['global_step'] += 1
-        self.logs['epoch_step'] += 1
-
         return self.logs
 
     def finish_optimize_record(self, **kwargs):
         return self.logs
-
-    def on_optimize(self, grad_clip=None, **kwargs):
-        # 梯度裁剪
-        if grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(self.module.parameters(), grad_clip)
-
-        # 更新权值
-        self.optimizer.step()
-
-        # EMA更新
-        if self.ema_decay:
-            self.ema.update(self.module.parameters())
-
-        # 更新学习率
-        if self.scheduler:
-            self.scheduler.step()
-
-        # 清空梯度
-        self.optimizer.zero_grad()
-
-        return self.optimizer
 
     def _on_step_end(self, step, inputs, outputs, logits, loss, **kwargs):
 
@@ -576,15 +499,19 @@ class Task(object):
         kwargs['logits'] = logits
         kwargs['loss'] = loss
 
-        self.prepare_step_end(**kwargs)
+        kwargs = self.prepare_step_end(**kwargs)
 
         self.on_step_end(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_step_end') and callable(callback.on_step_end):
-                callback.on_step_end(**kwargs)
+                callback.on_step_end(module=self.module,
+                                     tokenizer=self.tokenizer,
+                                     optimizer=self.optimizer,
+                                     scheduler=self.scheduler,
+                                     **kwargs)
 
-        self.finish_step_end(**kwargs)
+        kwargs = self.finish_step_end(**kwargs)
 
         self.prepare_step_end_record(**kwargs)
 
@@ -597,40 +524,38 @@ class Task(object):
     def prepare_step_end(self, **kwargs):
         return None
 
+    def on_step_end(self, **kwargs):
+        return None
+
     def finish_step_end(self, **kwargs):
         return None
 
     def prepare_step_end_record(self, **kwargs):
         return self.logs
 
+    def on_step_end_record(self, **kwargs):
+        return self.logs
+
     def finish_step_end_record(self, **kwargs):
-        return self.logs
-
-    def on_step_end(self, **kwargs):
-        return self.logs
-
-    def on_step_end_record(self, step, verbose=True, show_metric_step=100, **kwargs):
-
-        if verbose and (step + 1) % show_metric_step == 0:
-            print('[{}/{}],train loss is:{:.6f}'.format(
-                step, self.epoch_step_num,
-                self.logs['epoch_loss'] / self.logs['epoch_step']))
-
         return self.logs
 
     def _on_epoch_end(self, epoch, **kwargs):
 
         kwargs['epoch'] = epoch
 
-        self.prepare_epoch_end(**kwargs)
+        kwargs = self.prepare_epoch_end(**kwargs)
 
         self.on_epoch_end(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_epoch_end') and callable(callback.on_epoch_end):
-                callback.on_epoch_end(**kwargs)
+                callback.on_epoch_end(module=self.module,
+                                      tokenizer=self.tokenizer,
+                                      optimizer=self.optimizer,
+                                      scheduler=self.scheduler,
+                                      **kwargs)
 
-        self.finish_epoch_end(**kwargs)
+        kwargs = self.finish_epoch_end(**kwargs)
 
         self.prepare_epoch_end_record(**kwargs)
 
@@ -641,42 +566,38 @@ class Task(object):
         return None
 
     def prepare_epoch_end(self, **kwargs):
+        return kwargs
+
+    def on_epoch_end(self, **kwargs):
         return None
 
     def finish_epoch_end(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_epoch_end_record(self, **kwargs):
+        return self.logs
+
+    def on_epoch_end_record(self, **kwargs):
         return self.logs
 
     def finish_epoch_end_record(self, **kwargs):
         return self.logs
 
-    def on_epoch_end(self, **kwargs):
-        return None
-
-    def on_epoch_end_record(self, epoch, verbose=True, **kwargs):
-
-        if verbose:
-            print('epoch:[{}],train loss is:{:.6f} \n'.format(
-                epoch, self.logs['epoch_loss'] / self.logs['epoch_step']))
-
-        self.logs['epoch_loss'] = 0.0
-        self.logs['epoch_step'] = 0.0
-
-        return self.logs
-
     def _on_train_end(self, **kwargs):
 
-        self.prepare_train_end(**kwargs)
+        kwargs = self.prepare_train_end(**kwargs)
 
         self.on_train_end(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_train_end') and callable(callback.on_train_end):
-                callback.on_train_end(**kwargs)
+                callback.on_train_end(module=self.module,
+                                      tokenizer=self.tokenizer,
+                                      optimizer=self.optimizer,
+                                      scheduler=self.scheduler,
+                                      **kwargs)
 
-        self.finish_train_end(**kwargs)
+        kwargs = self.finish_train_end(**kwargs)
 
         self.prepare_train_end_record(**kwargs)
 
@@ -687,10 +608,13 @@ class Task(object):
         return None
 
     def prepare_train_end(self, **kwargs):
+        return kwargs
+
+    def on_train_end(self, **kwargs):
         return None
 
     def finish_train_end(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_train_end_record(self, **kwargs):
         return self.logs
@@ -700,9 +624,6 @@ class Task(object):
 
     def finish_train_end_record(self, **kwargs):
         return self.logs
-
-    def on_train_end(self, **kwargs):
-        return None
 
     def evaluate(self, validation_data, *, evaluate_batch_size=16, **kwargs):
         """
@@ -740,74 +661,59 @@ class Task(object):
 
         kwargs['validation_data'] = validation_data
 
-        self.prepare_evaluate_begin(**kwargs)
+        kwargs = self.prepare_evaluate_begin(**kwargs)
 
         generator = self.on_evaluate_begin(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_evaluate_begin') and callable(
                     callback.on_evaluate_begin):
-                callback.on_evaluate_begin(**kwargs)
+                callback.on_evaluate_begin(module=self.module,
+                                           tokenizer=self.tokenizer,
+                                           optimizer=self.optimizer,
+                                           scheduler=self.scheduler,
+                                           **kwargs)
 
-        self.finish_evaluate_begin(**kwargs)
+        kwargs = self.finish_evaluate_begin(**kwargs)
 
         return generator
 
     def prepare_evaluate_begin(self, **kwargs):
+        return kwargs
+
+    def on_evaluate_begin(self, **kwargs):
         return None
 
     def finish_evaluate_begin(self, **kwargs):
-        return None
-
-    def on_evaluate_begin(self,
-                          validation_data,
-                          evaluate_batch_size,
-                          shuffle=False,
-                          worker_num=0,
-                          evaluate_to_device_cols=None,
-                          **kwargs):
-        if evaluate_to_device_cols is None:
-            self.evaluate_to_device_cols = validation_data.to_device_cols
-        else:
-            self.evaluate_to_device_cols = evaluate_to_device_cols
-
-        generator = DataLoader(validation_data,
-                               batch_size=evaluate_batch_size,
-                               shuffle=shuffle,
-                               num_workers=worker_num,
-                               collate_fn=self._evaluate_collate_fn)
-
-        if self.ema_decay:
-            self.ema.store(self.module.parameters())
-            self.ema.copy_to(self.module.parameters())
-
-        self.module.eval()
-
-        return generator
+        return kwargs
 
     def _on_evaluate_epoch_begin(self, **kwargs):
 
-        self.prepare_evaluate_epoch_begin(**kwargs)
+        kwargs = self.prepare_evaluate_epoch_begin(**kwargs)
 
         self.on_evaluate_epoch_begin(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_evaluate_epoch_begin') and callable(
                     callback.on_evaluate_epoch_begin):
-                callback.on_evaluate_epoch_begin(**kwargs)
+                callback.on_evaluate_epoch_begin(module=self.module,
+                                                 tokenizer=self.tokenizer,
+                                                 optimizer=self.optimizer,
+                                                 scheduler=self.scheduler,
+                                                 **kwargs)
 
-        self.finish_evaluate_epoch_begin(**kwargs)
+        kwargs = self.finish_evaluate_epoch_begin(**kwargs)
 
         return None
 
     def prepare_evaluate_epoch_begin(self, **kwargs):
-        return None
-
-    def finish_evaluate_epoch_begin(self, **kwargs):
-        return None
+        return kwargs
 
     def on_evaluate_epoch_begin(self, **kwargs):
         return None
+
+    def finish_evaluate_epoch_begin(self, **kwargs):
+        return kwargs
 
     def _get_module_inputs_on_evaluate(self, inputs, **kwargs):
 
@@ -816,14 +722,8 @@ class Task(object):
 
         return inputs
 
-    def get_module_inputs_on_evaluate(self, inputs, **kwargs):
-        for col in self.evaluate_to_device_cols:
-            if type(inputs[col]) is torch.Tensor:
-                inputs[col] = inputs[col].to(self.device)
-            else:
-                warnings.warn(f"The {col} is not Tensor.\n")
-
-        return inputs
+    def get_module_inputs_on_evaluate(self, **kwargs):
+        return None
 
     def _get_module_outputs_on_evaluate(self, inputs, **kwargs):
 
@@ -832,8 +732,8 @@ class Task(object):
 
         return outputs
 
-    def get_module_outputs_on_evaluate(self, inputs, **kwargs):
-        return self.module(**inputs)
+    def get_module_outputs_on_evaluate(self, **kwargs):
+        return None
 
     def _on_evaluate_step_end(self, step, inputs, outputs, **kwargs):
 
@@ -841,35 +741,30 @@ class Task(object):
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
 
-        self.prepare_evaluate_step_end(**kwargs)
+        kwargs = self.prepare_evaluate_step_end(**kwargs)
 
         self.on_evaluate_step_end(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_evaluate_step_end') and callable(
                     callback.on_evaluate_step_end):
-                callback.on_evaluate_step_end(**kwargs)
+                callback.on_evaluate_step_end(module=self.module,
+                                              tokenizer=self.tokenizer,
+                                              optimizer=self.optimizer,
+                                              scheduler=self.scheduler,
+                                              **kwargs)
 
-        self.finish_evaluate_step_end(**kwargs)
+        kwargs = self.finish_evaluate_step_end(**kwargs)
 
         return None
 
     def prepare_evaluate_step_end(self, **kwargs):
-        return None
+        return kwargs
 
     def finish_evaluate_step_end(self, **kwargs):
-        return None
+        return kwargs
 
-    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
-
-        with torch.no_grad():
-            # compute loss
-            logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            self.evaluate_logs['loss'] += loss.item()
-
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
-
+    def on_evaluate_step_end(self, **kwargs):
         return None
 
     def _get_evaluate_loss(self, inputs, outputs, **kwargs):
@@ -881,85 +776,65 @@ class Task(object):
 
         return logits, loss
 
-    def get_evaluate_loss(self, inputs, outputs, **kwargs):
-        if type(outputs) == tuple:
-            if len(outputs) > 2:
-                logits, loss, *_ = outputs
-            else:
-                logits, loss = outputs
-        else:
-            logits = outputs
-            # 计算损失
-            loss = self.compute_loss(inputs, logits, **kwargs)
-
-        return logits, loss
+    def get_evaluate_loss(self, **kwargs):
+        return None, None
 
     def _on_evaluate_epoch_end(self, validation_data, **kwargs):
 
         kwargs['validation_data'] = validation_data
 
-        self.prepare_evaluate_epoch_end(**kwargs)
+        kwargs = self.prepare_evaluate_epoch_end(**kwargs)
 
         self.on_evaluate_epoch_end(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_evaluate_epoch_end') and callable(
                     callback.on_evaluate_epoch_end):
-                callback.on_evaluate_epoch_end(**kwargs)
+                callback.on_evaluate_epoch_end(module=self.module,
+                                               tokenizer=self.tokenizer,
+                                               optimizer=self.optimizer,
+                                               scheduler=self.scheduler,
+                                               **kwargs)
 
-        self.finish_evaluate_epoch_end(**kwargs)
+        kwargs = self.finish_evaluate_epoch_end(**kwargs)
 
         return None
 
     def prepare_evaluate_epoch_end(self, **kwargs):
-        return None
+        return kwargs
 
     def finish_evaluate_epoch_end(self, **kwargs):
-        return None
+        return kwargs
 
-    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********\n")
-            print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
-                                          self.evaluate_logs['step']))
+    def on_evaluate_epoch_end(self, **kwargs):
         return self.evaluate_logs
 
     def _on_evaluate_end(self, **kwargs):
 
-        self.prepare_evaluate_end(**kwargs)
+        kwargs = self.prepare_evaluate_end(**kwargs)
 
         self.on_evaluate_end(**kwargs)
 
         for callback in self.callbacks:
             if hasattr(callback, 'on_evaluate_end') and callable(
                     callback.on_evaluate_end):
-                callback.on_evaluate_end(**kwargs)
+                callback.on_evaluate_end(module=self.module,
+                                         tokenizer=self.tokenizer,
+                                         optimizer=self.optimizer,
+                                         scheduler=self.scheduler,
+                                         **kwargs)
 
-        self.finish_evaluate_end(**kwargs)
+        kwargs = self.finish_evaluate_end(**kwargs)
 
         return None
 
     def prepare_evaluate_end(self, **kwargs):
-        return None
+        return kwargs
 
     def finish_evaluate_end(self, **kwargs):
-        return None
+        return kwargs
 
-    def on_evaluate_end(self, evaluate_save=False, save_module_path=None, **kwargs):
-        if evaluate_save:
-            if save_module_path is None:
-                if not os.path.exists('checkpoint'):
-                    os.makedirs('checkpoint')
-
-                prefix = './checkpoint/' + str(self.module.__class__.__name__)
-                save_module_path = time.strftime(prefix + '_%m%d_%H%M%S.pth')
-
-            torch.save(self.module.state_dict(), save_module_path)
-
-        if self.ema_decay:
-            self.ema.restore(self.module.parameters())
-
+    def on_evaluate_end(self, **kwargs):
         return None
 
     def _train_collate_fn(self, batch):

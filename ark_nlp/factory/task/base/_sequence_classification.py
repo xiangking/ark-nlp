@@ -17,9 +17,10 @@
 
 
 from ark_nlp.factory.task.base._task import Task
+from ark_nlp.factory.task.base._task_mixin import TaskMixin
 
 
-class SequenceClassificationTask(Task):
+class SequenceClassificationTask(TaskMixin, Task):
     """
     序列分类任务的基类
     

@@ -79,11 +79,11 @@ class SpanBertNERTask(TokenClassificationTask):
 
         return None
 
-    def on_evaluate_step_end(self, inputs, logits, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
-            logits, loss = self._get_evaluate_loss(inputs, logits, **kwargs)
+            logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
 
         length = inputs['attention_mask'].cpu().numpy().sum() - 2
 

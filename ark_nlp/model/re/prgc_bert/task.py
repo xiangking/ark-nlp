@@ -276,11 +276,11 @@ class PRGCRETask(SequenceClassificationTask):
 
         return generator
 
-    def on_evaluate_step_end(self, inputs, logits, corres_threshold=0.5, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, corres_threshold=0.5, **kwargs):
 
         batch_size, _ = inputs['input_ids'].size()
 
-        output_sub, output_obj, corres_pred, pred_rels, xi = logits
+        output_sub, output_obj, corres_pred, pred_rels, xi = outputs
 
         pred_seq_sub = torch.argmax(torch.softmax(output_sub, dim=-1), dim=-1)
         pred_seq_obj = torch.argmax(torch.softmax(output_obj, dim=-1), dim=-1)
