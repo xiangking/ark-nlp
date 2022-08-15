@@ -85,6 +85,9 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
         if id2cat is None:
             id2cat = self.id2cat
 
+        if self.early_stopping:
+            self.epoch_score = 2 * self.evaluate_logs['numerate'] / self.evaluate_logs['denominator']
+
         if evaluate_verbose:
             print("********** Evaluating Done **********")
             print('loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
