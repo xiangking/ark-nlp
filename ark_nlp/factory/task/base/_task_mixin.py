@@ -65,8 +65,6 @@ class TaskMixin(object):
 
         self._set_scheduler(epoch_num, **kwargs)
 
-        if self.early_stopping: self._set_early_stopping(**kwargs)
-
         return train_generator
 
     def on_epoch_begin(self, **kwargs):
@@ -245,7 +243,7 @@ class TaskMixin(object):
         return self.evaluate_logs
 
     def on_evaluate_end(self, evaluate_save=False, save_module_path=None, **kwargs):
-        if evaluate_save or self.early_stopping:
+        if evaluate_save:
             if save_module_path is None:
                 if not os.path.exists('checkpoint'):
                     os.makedirs('checkpoint')
@@ -253,13 +251,7 @@ class TaskMixin(object):
                 prefix = './checkpoint/' + str(self.module.__class__.__name__)
                 save_module_path = time.strftime(prefix + '_%m%d_%H%M%S.pth')
 
-            if self.early_stopping:
-                if self.epoch_score is not None:
-                    self.es(self.epoch_score, self.module, model_path=save_module_path)
-                else:
-                    raise ValueError("Epoch_score is not set")
-            else:
-                torch.save(self.module.state_dict(), save_module_path)
+            torch.save(self.module.state_dict(), save_module_path)
 
         if self.ema_decay:
             self.ema.restore(self.module.parameters())

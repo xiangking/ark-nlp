@@ -28,7 +28,6 @@ from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.lr_scheduler import get_scheduler
 from ark_nlp.factory.utils.ema import EMA
-from ark_nlp.factory.utils.early_stopping import EarlyStopping
 
 
 class Task(object):
@@ -61,8 +60,6 @@ class Task(object):
                  device=None,
                  cuda_device=0,
                  ema_decay=None,
-                 early_stopping=False,
-                 es=None,
                  callbacks=None,
                  **kwargs):
         self.module = module
@@ -97,15 +94,6 @@ class Task(object):
         self.ema_decay = ema_decay
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
-
-        # 设置Early stopping
-        self.early_stopping = early_stopping
-        if early_stopping:
-            self.epoch_score = None
-            if es is not None:
-                self.es = es
-            else:
-                self.es = None
 
         # 设置callbacks
         self.callbacks = [] if callbacks is None else [
@@ -175,10 +163,6 @@ class Task(object):
 
         return self.scheduler
 
-    def _set_early_stopping(self, **kwargs):
-        if self.early_stopping and self.es is None:
-            self.es = EarlyStopping(**kwargs)
-
     def fit(self,
             train_data,
             validation_data=None,
@@ -245,9 +229,6 @@ class Task(object):
 
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
-
-            if self.early_stopping and self.es.early_stop:
-                break
 
         self._on_train_end(**kwargs)
 
@@ -541,13 +522,13 @@ class Task(object):
         return None
 
     def prepare_step_end(self, **kwargs):
-        return kwargs
+        return None
 
     def on_step_end(self, **kwargs):
         return None
 
     def finish_step_end(self, **kwargs):
-        return kwargs
+        return None
 
     def prepare_step_end_record(self, **kwargs):
         return self.logs
@@ -660,9 +641,11 @@ class Task(object):
         evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
 
         with torch.no_grad():
+
             self._on_evaluate_epoch_begin(**kwargs)
 
             for step, inputs in enumerate(evaluate_generator):
+
                 inputs = self._get_module_inputs_on_evaluate(inputs, **kwargs)
 
                 # forward
