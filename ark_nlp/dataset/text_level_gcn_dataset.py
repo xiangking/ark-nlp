@@ -18,6 +18,7 @@
 
 import copy
 
+from tqdm import tqdm
 from ark_nlp.dataset import SentenceClassificationDataset
 
 
@@ -28,18 +29,14 @@ class TextLevelGCNDataset(SentenceClassificationDataset):
     Args:
         data (DataFrame or string): 数据或者数据地址
         categories (list or None, optional): 数据类别, 默认值为: None
-        is_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
-        is_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
         is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
         is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def convert_to_ids(self, tokenizer):
-        """
-        将文本转化成id的形式
-
-        :param tokenizer:
-        """
         if tokenizer.tokenizer_type == 'graph':
             features = self._convert_to_graph_ids(tokenizer)
         else:
@@ -53,8 +50,15 @@ class TextLevelGCNDataset(SentenceClassificationDataset):
     def _convert_to_graph_ids(self, graph_tokenizer):
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
-            node_ids, edge_ids, sub_graph = graph_tokenizer.sequence_to_graph(row_['text'])
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Convert to graph ids',
+                )):
+
+            node_ids, edge_ids, sub_graph = graph_tokenizer.sequence_to_graph(
+                row['text'])
 
             feature = {
                 'node_ids': node_ids,
@@ -63,7 +67,7 @@ class TextLevelGCNDataset(SentenceClassificationDataset):
             }
 
             if not self.is_test:
-                label_ids = self.cat2id[row_['label']]
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
             features.append(feature)

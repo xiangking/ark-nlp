@@ -522,13 +522,13 @@ class Task(object):
         return None
 
     def prepare_step_end(self, **kwargs):
-        return None
+        return kwargs
 
     def on_step_end(self, **kwargs):
         return None
 
     def finish_step_end(self, **kwargs):
-        return None
+        return kwargs
 
     def prepare_step_end_record(self, **kwargs):
         return self.logs

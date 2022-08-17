@@ -16,6 +16,7 @@
 # Status: Active
 
 
+from tqdm import tqdm
 from ark_nlp.dataset import PairWiseSentenceClassificationDataset
 
 
@@ -26,10 +27,11 @@ class UnsupervisedSimCSEDataset(PairWiseSentenceClassificationDataset):
     Args:
         data (DataFrame or string): 数据或者数据地址
         categories (list or None, optional): 数据类别, 默认值为: None
-        is_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
-        is_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
         is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
         is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def _get_categories(self):
@@ -38,28 +40,32 @@ class UnsupervisedSimCSEDataset(PairWiseSentenceClassificationDataset):
         else:
             return None
 
-    def _convert_to_transfomer_ids(self, bert_tokenizer):
+    def _convert_to_transformer_ids(self, tokenizer):
 
         features = []
-        for (_index, _row) in enumerate(self.dataset):
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Convert to transformer ids',
+                )):
+            input_ids_a = tokenizer.sequence_to_ids(row['text_a'])
+            input_ids_b = tokenizer.sequence_to_ids(row['text_b'])
 
-            input_ids_a = bert_tokenizer.sequence_to_ids(_row['text_a'])
-            input_ids_b = bert_tokenizer.sequence_to_ids(_row['text_b'])
-
-            input_ids_a, input_mask_a, segment_ids_a = input_ids_a
-            input_ids_b, input_mask_b, segment_ids_b = input_ids_b
+            input_ids_a, attention_mask_a, token_type_ids_a = input_ids_a
+            input_ids_b, attention_mask_b, token_type_ids_b = input_ids_b
 
             feature = {
                 'input_ids_a': input_ids_a,
-                'attention_mask_a': input_mask_a,
-                'token_type_ids_a': segment_ids_a,
+                'attention_mask_a': attention_mask_a,
+                'token_type_ids_a': token_type_ids_a,
                 'input_ids_b': input_ids_b,
-                'attention_mask_b': input_mask_b,
-                'token_type_ids_b': segment_ids_b
+                'attention_mask_b': attention_mask_b,
+                'token_type_ids_b': token_type_ids_b
             }
 
-            if 'label' in _row:
-                label_ids = self.cat2id[_row['label']]
+            if 'label' in row:
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
             features.append(feature)

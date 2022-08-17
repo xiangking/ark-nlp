@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import copy
 import random
 import numpy as np
@@ -30,14 +29,17 @@ class CasRelREDataset(BaseDataset):
     Args:
         data (DataFrame or string): 数据或者数据地址
         categories (list or None, optional): 数据类别, 默认值为: None
-        is_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
-        is_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
         is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
         is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def _get_categories(self):
-        return sorted(list(set([triple_[3] for data_ in self.dataset for triple_ in data_['label']])))
+        return sorted(
+            list(set([triple[3] for data_ in self.dataset
+                      for triple in data_['label']])))
 
     def _convert_to_dataset(self, data_df):
 
@@ -48,10 +50,12 @@ class CasRelREDataset(BaseDataset):
             data_df['label'] = data_df['label'].apply(lambda x: eval(x))
 
         feature_names = list(data_df.columns)
-        for index_, row_ in enumerate(data_df.itertuples()):
+        for index, row in enumerate(data_df.itertuples()):
 
-            dataset.append({feature_name_: getattr(row_, feature_name_)
-                             for feature_name_ in feature_names})
+            dataset.append({
+                feature_name: getattr(row, feature_name)
+                for feature_name in feature_names
+            })
         return dataset
 
     def convert_to_ids(self, tokenizer):
@@ -66,7 +70,7 @@ class CasRelREDataset(BaseDataset):
 
         self.tokenizer = tokenizer
 
-        if self.is_retain_dataset:
+        if self.do_retain_dataset:
             self.retain_dataset = copy.deepcopy(self.dataset)
 
     def __getitem__(self, idx):
@@ -77,7 +81,9 @@ class CasRelREDataset(BaseDataset):
             text = text[:self.tokenizer.max_seq_len - 2]
 
         tokens = self.tokenizer.tokenize(text)
-        token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
+        token_mapping = self.tokenizer.get_token_mapping(text,
+                                                         tokens,
+                                                         is_mapping_index=False)
         index_token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
         start_mapping = {j[0]: i for i, j in enumerate(index_token_mapping) if j}
@@ -88,11 +94,14 @@ class CasRelREDataset(BaseDataset):
             text_len = len(token_ids)
             sub_heads, sub_tails = np.zeros(text_len), np.zeros(text_len)
             sub_head, sub_tail = np.zeros(text_len), np.zeros(text_len)
-            obj_heads, obj_tails = np.zeros((text_len, self.class_num)), np.zeros((text_len, self.class_num))
+            obj_heads, obj_tails = np.zeros((text_len, self.class_num)), np.zeros(
+                (text_len, self.class_num))
             if self.is_test:
                 return token_ids, masks, text_len, tokens
             else:
-                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens, token_mapping
+                return (token_ids, masks, text_len, sub_heads, sub_tails, sub_head,
+                        sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens,
+                        token_mapping)
         else:
             s2ro_map = {}
             for triple in ins_json_data['label']:
@@ -101,18 +110,21 @@ class CasRelREDataset(BaseDataset):
                 obj_head_idx = triple[5]
                 obj_end_idx = triple[6]
 
-                triple = (self.tokenizer.tokenize(triple[0]), triple[3], self.tokenizer.tokenize(triple[4]))
+                triple = (self.tokenizer.tokenize(triple[0]), triple[3],
+                          self.tokenizer.tokenize(triple[4]))
 
-                if sub_head_idx in start_mapping and obj_head_idx in start_mapping and sub_end_idx in end_mapping and obj_end_idx in end_mapping:
+                if (sub_head_idx in start_mapping and obj_head_idx in start_mapping
+                        and sub_end_idx in end_mapping and obj_end_idx in end_mapping):
                     sub_head_idx = start_mapping[sub_head_idx]
                     obj_head_idx = start_mapping[obj_head_idx]
 
-                    sub = (sub_head_idx+1, end_mapping[sub_end_idx]+1)
+                    sub = (sub_head_idx + 1, end_mapping[sub_end_idx] + 1)
 
                     if sub not in s2ro_map:
                         s2ro_map[sub] = []
 
-                    s2ro_map[sub].append((obj_head_idx+1, end_mapping[obj_end_idx]+1, self.cat2id[triple[1]]))
+                    s2ro_map[sub].append((obj_head_idx + 1, end_mapping[obj_end_idx] + 1,
+                                          self.cat2id[triple[1]]))
 
             if s2ro_map:
                 token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
@@ -125,10 +137,13 @@ class CasRelREDataset(BaseDataset):
                 sub_head, sub_tail = np.zeros(text_len), np.zeros(text_len)
                 sub_head[sub_head_idx] = 1
                 sub_tail[sub_tail_idx] = 1
-                obj_heads, obj_tails = np.zeros((text_len, self.class_num)), np.zeros((text_len, self.class_num))
+                obj_heads, obj_tails = np.zeros((text_len, self.class_num)), np.zeros(
+                    (text_len, self.class_num))
                 for ro in s2ro_map.get((sub_head_idx, sub_tail_idx), []):
                     obj_heads[ro[0]][ro[2]] = 1
                     obj_tails[ro[1]][ro[2]] = 1
-                return token_ids, masks, text_len, sub_heads, sub_tails, sub_head, sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens, token_mapping
+                return (token_ids, masks, text_len, sub_heads, sub_tails, sub_head,
+                        sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens,
+                        token_mapping)
             else:
                 return None

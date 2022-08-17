@@ -178,7 +178,7 @@ class W2NERTask(TokenClassificationTask):
         dist_inputs = default_collate([f['dist_inputs'] for f in batch])
         pieces2word = default_collate([f['pieces2word'] for f in batch])
         label_ids = default_collate([f['label_ids'] for f in batch])
-        input_lengths = default_collate([f['input_lengths'] for f in batch])
+        sequence_length = default_collate([f['sequence_length'] for f in batch])
         entity_text = [f['entity_text'] for f in batch]
 
         tensors = {
@@ -189,7 +189,7 @@ class W2NERTask(TokenClassificationTask):
             'dist_inputs': dist_inputs,
             'pieces2word': pieces2word,
             'label_ids': label_ids,
-            'input_lengths': input_lengths,
+            'sequence_length': sequence_length,
             'entity_text': entity_text,
         }
 
@@ -221,7 +221,7 @@ class W2NERTask(TokenClassificationTask):
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
 
             logits = torch.argmax(logits, -1)
-            entity_text, length = inputs['entity_text'], inputs['input_lengths']
+            entity_text, length = inputs['entity_text'], inputs['sequence_length']
 
             rights, founds, origins = decode(logits.cpu().numpy(), entity_text,
                                              length.cpu().numpy())
