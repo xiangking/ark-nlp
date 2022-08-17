@@ -70,6 +70,7 @@ class TCTask(SequenceClassificationTask):
 
         self.logs['epoch_loss'] = 0.0
         self.logs['epoch_step'] = 0.0
+        self.logs['epoch_evaluation'] = 0.0
 
         return self.logs
 
