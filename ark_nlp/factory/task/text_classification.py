@@ -43,21 +43,14 @@ class TCTask(SequenceClassificationTask):
         self.logs['global_step'] += 1
         self.logs['epoch_step'] += 1
 
-        if verbose:
-            with torch.no_grad():
-                _, preds = torch.max(logits, 1)
-                self.logs['epoch_evaluation'] += torch.sum(
-                    preds == inputs['label_ids']).item() / len(inputs['label_ids'])
-
         return self.logs
 
     def on_step_end_record(self, step, verbose=True, show_metric_step=100, **kwargs):
 
         if verbose and (step + 1) % show_metric_step == 0:
-            print('[{}/{}],train loss is:{:.6f},train evaluation is:{:.6f}'.format(
+            print('[{}/{}],train loss is:{:.6f}'.format(
                 step, self.epoch_step_num,
-                self.logs['epoch_loss'] / self.logs['epoch_step'],
-                self.logs['epoch_evaluation'] / self.logs['epoch_step']))
+                self.logs['epoch_loss'] / self.logs['epoch_step']))
 
         return self.logs
 

@@ -25,7 +25,6 @@ from torch.utils.data._utils.collate import default_collate
 
 
 class TaskMixin(object):
-
     def on_train_begin(self,
                        train_data,
                        epoch_num,
@@ -120,7 +119,6 @@ class TaskMixin(object):
 
     def on_backward_record(self, loss, **kwargs):
         self.logs['global_loss'] += loss.item()
-        self.logs['epoch_loss'] += loss.item()
 
         return self.logs
 
@@ -147,16 +145,36 @@ class TaskMixin(object):
 
     def on_optimize_record(self, **kwargs):
         self.logs['global_step'] += 1
-        self.logs['epoch_step'] += 1
 
         return self.logs
 
-    def on_step_end_record(self, step, verbose=True, show_metric_step=100, **kwargs):
+    def on_step_end_record(self, validation_data, step, **kwargs):
 
-        if verbose and (step + 1) % show_metric_step == 0:
-            print('[{}/{}],train loss is:{:.6f}'.format(
-                step, self.epoch_step_num,
-                self.logs['epoch_loss'] / self.logs['epoch_step']))
+        # 打印训练信息
+        if self.state.logging_step > 0 and self.logs[
+                'global_step'] % self.state.logging_step == 0:
+
+            print('[{}/{}], loss is:{:.6f}'.format(
+                step, self.epoch_step_num, self.logs['epoch_loss'] -
+                self.logs['logging_loss'] / self.state.logging_step))
+
+            self.logs['logging_loss'] = self.logs['global_loss']
+
+        # 保存模型
+        if self.state.save_step > 0 and self.logs[
+                'global_step'] % self.state.save_step == 0:
+            os.makedirs(self.state.output_dir, exist_ok=True)
+            self.save(self.state.output_dir)
+
+        # 评估模型
+        if self.state.evaluate_during_training_step > 0 and self.logs[
+                'global_step'] % self.state.evaluate_during_training_step == 0:
+            self.evaluate(validation_data, **kwargs)
+
+            if self.evaluate_logs['evaluate_metric'] > self.state.best_evaluate_metric:
+                self.state.best_evaluate_metric = self.evaluate_logs['evaluate_metric']
+                os.makedirs(self.state.output_dir, exist_ok=True)
+                self.save(self.state.output_dir)
 
         return self.logs
 

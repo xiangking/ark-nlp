@@ -28,6 +28,7 @@ from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.lr_scheduler import get_scheduler
 from ark_nlp.factory.utils.ema import EMA
+from ark_nlp.factory.task.base.task_utils import State
 
 
 class Task(object):
@@ -195,6 +196,9 @@ class Task(object):
         kwargs['batch_size'] = batch_size
         kwargs['gradient_accumulation_step'] = gradient_accumulation_step
 
+        self.train_state = State()
+        self.train_state.update_from_dict(kwargs)
+
         train_generator = self._on_train_begin(train_data, validation_data, **kwargs)
 
         for epoch in range(epoch_num):
@@ -225,7 +229,13 @@ class Task(object):
                 # setp evaluate
                 self._on_step_end(step, inputs, outputs, logits, loss, **kwargs)
 
+                if self.state.should_epoch_stop or self.state.should_training_stop:
+                    break
+
             self._on_epoch_end(epoch, **kwargs)
+
+            if self.state.should_training_stop:
+                break
 
             if validation_data is not None:
                 self.evaluate(validation_data, **kwargs)
