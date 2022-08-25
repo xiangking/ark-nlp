@@ -28,7 +28,7 @@ from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.lr_scheduler import get_scheduler
 from ark_nlp.factory.utils.ema import EMA
-from ark_nlp.factory.task.base.task_utils import State
+from ark_nlp.factory.task.base.task_utils import Handler
 
 
 class Task(object):
@@ -92,6 +92,7 @@ class Task(object):
             self.module = torch.nn.DataParallel(self.module)
 
         # 设置EMA
+        self.ema = None
         self.ema_decay = ema_decay
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
@@ -196,8 +197,8 @@ class Task(object):
         kwargs['batch_size'] = batch_size
         kwargs['gradient_accumulation_step'] = gradient_accumulation_step
 
-        self.train_state = State()
-        self.train_state.update_from_dict(kwargs)
+        self.handler = Handler()
+        self.handler.update_from_dict(kwargs)
 
         train_generator = self._on_train_begin(train_data, validation_data, **kwargs)
 
@@ -229,12 +230,12 @@ class Task(object):
                 # setp evaluate
                 self._on_step_end(step, inputs, outputs, logits, loss, **kwargs)
 
-                if self.state.should_epoch_stop or self.state.should_training_stop:
+                if self.handler.should_epoch_stop or self.handler.should_training_stop:
                     break
 
             self._on_epoch_end(epoch, **kwargs)
 
-            if self.state.should_training_stop:
+            if self.handler.should_training_stop:
                 break
 
             if validation_data is not None:
@@ -853,32 +854,59 @@ class Task(object):
     def _evaluate_collate_fn(self, batch):
         return default_collate(batch)
 
-    def save(self, save_path: str, save_mode: str = 'pth'):
+    def save(self,
+             output_dir,
+             module_name=None,
+             save_mode='torch',
+             save_format='pth'):
         """
         提供多种方式保存模型
         
         Args:
-            save_path: 保存的路径
-            save_mode (string, optional):
+            output_dir (str): 保存路径
+            module_name (str, optional): 模型名称
+            save_mode (str, optional):
                 保存的方式
-                "huggingface"表示会以transformers库保存预训练模型的格式进行保存
-                "pth"表示module会以torch.save的方式保存模型权重
-                默认值为: "pth"
+                "pretrained"表示会以transformers库保存预训练模型的格式进行保存
+                "torch"表示module会以torch.save的方式保存模型权重
+            save_format (str, optional): 保存格式, 默认值为: "pth"
         """  # noqa: ignore flake8"
-        if self.tokenizer is not None:
-            self.tokenizer.vocab.save_pretrained(save_path)
-        if self.cat2id is not None:
-            with open(os.path.join(save_path, 'cat2id.json'), 'w') as f:
-                json.dump(self.cat2id, f)
 
-        if save_mode == 'huggingface':
-            self.module.save_pretrained(save_path)
-        elif save_mode == 'pth':
-            if not save_path.endswith('pth'):
-                save_path += '/' + time.strftime(
-                    str(self.module.__class__.__name__) + '_%m%d_%H%M%S.pth')
-            torch.save(self.module.state_dict(), save_path)
+        if self.ema:
+            self.ema.store(self.module.parameters())
+            self.ema.copy_to(self.module.parameters())
+
+        if save_mode == 'pretrained':
+            if module_name:
+                output_dir = os.path.join(output_dir, module_name)
+
+            if self.tokenizer is not None:
+                self.tokenizer.vocab.save_pretrained(output_dir)
+
+            if self.cat2id is not None:
+                with open(os.path.join(output_dir, 'cat2id.json'), 'w') as f:
+                    json.dump(self.cat2id, f)
+
+            self.module.save_pretrained(output_dir)
+
+        elif save_mode == 'torch':
+            if self.tokenizer is not None:
+                self.tokenizer.vocab.save_pretrained(output_dir)
+
+            if self.cat2id is not None:
+                with open(os.path.join(output_dir, 'cat2id.json'), 'w') as f:
+                    json.dump(self.cat2id, f)
+
+            if module_name is None:
+                module_name = time.strftime(
+                    str(self.module.__class__.__name__) + '_%m%d_%H%M%S') + '.' + save_format
+
+            output_dir = os.path.join(output_dir, module_name)
+
+            torch.save(self.module.state_dict(), output_dir)
+
         else:
-            raise ValueError("The save mode does not exist")
+            raise ValueError("The save omde does not exist")
 
-        return save_path
+        if self.ema:
+            self.ema.restore(self.module.parameters())

@@ -25,11 +25,13 @@ from typing import Optional
 
 
 @dataclass
-class State:
+class Handler:
     epoch: Optional[float] = None
     step: int = 0
     global_step: int = 0
-    save_model_every_epoch: bool = False
+
+    evaluate_per_epoch_end: bool = False
+    save_per_epoch_end: bool = False
 
     should_epoch_stop: bool = False
     should_training_stop: bool = False

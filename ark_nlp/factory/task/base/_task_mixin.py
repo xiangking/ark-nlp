@@ -131,7 +131,7 @@ class TaskMixin(object):
         self.optimizer.step()
 
         # EMA更新
-        if self.ema_decay:
+        if self.ema:
             self.ema.update(self.module.parameters())
 
         # 更新学习率
@@ -151,41 +151,42 @@ class TaskMixin(object):
     def on_step_end_record(self, validation_data, step, **kwargs):
 
         # 打印训练信息
-        if self.state.logging_step > 0 and self.logs[
-                'global_step'] % self.state.logging_step == 0:
+        if self.handler.logging_step > 0 and self.logs[
+                'global_step'] % self.handler.logging_step == 0:
 
             print('[{}/{}], loss is:{:.6f}'.format(
-                step, self.epoch_step_num, self.logs['epoch_loss'] -
-                self.logs['logging_loss'] / self.state.logging_step))
+                self.epoch_step_num, step,
+                (self.logs['global_loss'] - self.logs['logging_loss']) /
+                self.handler.logging_step))
 
             self.logs['logging_loss'] = self.logs['global_loss']
 
         # 保存模型
-        if self.state.save_step > 0 and self.logs[
-                'global_step'] % self.state.save_step == 0:
-            os.makedirs(self.state.output_dir, exist_ok=True)
-            self.save(self.state.output_dir)
+        if self.handler.save_step > 0 and self.logs[
+                'global_step'] % self.handler.save_step == 0:
+            os.makedirs(self.handler.output_dir, exist_ok=True)
+            self.save(self.handler.output_dir, f"checkpoint-step-{self.handler.global_step}")
 
         # 评估模型
-        if self.state.evaluate_during_training_step > 0 and self.logs[
-                'global_step'] % self.state.evaluate_during_training_step == 0:
+        if self.handler.evaluate_during_training_step > 0 and self.logs[
+                'global_step'] % self.handler.evaluate_during_training_step == 0:
             self.evaluate(validation_data, **kwargs)
 
-            if self.evaluate_logs['evaluate_metric'] > self.state.best_evaluate_metric:
-                self.state.best_evaluate_metric = self.evaluate_logs['evaluate_metric']
-                os.makedirs(self.state.output_dir, exist_ok=True)
-                self.save(self.state.output_dir)
+            if self.handler.save_best_model and self.evaluate_logs['score'] > self.handler.best_score:
+                self.handler.best_score = self.evaluate_logs['score']
+                os.makedirs(self.handler.output_dir, exist_ok=True)
+                self.save(self.handler.output_dir, "checkpoint-best")
 
         return self.logs
 
-    def on_epoch_end_record(self, epoch, verbose=True, **kwargs):
+    def on_epoch_end_record(self, epoch, **kwargs):
 
-        if verbose:
-            print('epoch:[{}],train loss is:{:.6f} \n'.format(
-                epoch, self.logs['epoch_loss'] / self.logs['epoch_step']))
+        if self.handler.evaluate_per_epoch_end:
+            print('epoch:[{}], train loss is:{:.6f} \n'.format(
+                epoch, self.logs['global_loss'] / self.logs['global_step']))
 
-        self.logs['epoch_loss'] = 0.0
-        self.logs['epoch_step'] = 0.0
+        if self.handler.save_per_epoch_end:
+            self.save(self.handler.output_dir, f"checkpoint-epoch-{epoch}")
 
         return self.logs
 
@@ -196,6 +197,18 @@ class TaskMixin(object):
                           worker_num=0,
                           evaluate_to_device_cols=None,
                           **kwargs):
+        # 设置 self.id2cat 和 self.cat2id
+        if hasattr(self, 'id2cat'):
+            self.id2cat = validation_data.id2cat
+            self.cat2id = {v_: k_ for k_, v_ in validation_data.id2cat.items()}
+
+        # 在初始化时会有class_num参数，若在初始化时不指定，则在验证集获取信息
+        if self.class_num is None:
+            if hasattr(validation_data, 'class_num'):
+                self.class_num = validation_data.class_num
+            else:
+                warnings.warn("The class_num is None.")
+
         if evaluate_to_device_cols is None:
             self.evaluate_to_device_cols = validation_data.to_device_cols
         else:
@@ -207,7 +220,7 @@ class TaskMixin(object):
                                num_workers=worker_num,
                                collate_fn=self._evaluate_collate_fn)
 
-        if self.ema_decay:
+        if self.ema:
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
 
@@ -271,7 +284,7 @@ class TaskMixin(object):
 
             torch.save(self.module.state_dict(), save_module_path)
 
-        if self.ema_decay:
+        if self.ema:
             self.ema.restore(self.module.parameters())
 
         return None
