@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
 from ark_nlp.factory.task.base._task import Task
@@ -45,7 +44,7 @@ class SequenceClassificationTask(TaskMixin, Task):
         super(SequenceClassificationTask, self).__init__(*args, **kwargs)
         if hasattr(self.module, 'task') is False:
             self.module.task = 'SequenceLevel'
-            
+
         if self.metric is None:
             self.metric = SequenceClassificationMetric()
 
@@ -56,37 +55,17 @@ class SequenceClassificationTask(TaskMixin, Task):
     @property
     def default_loss_function(self):
         return 'ce'
-    
+
     def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
             self.evaluate_logs['loss'] += loss.item()
-            
-            preds = torch.argmax(logits, -1)
-            
-            self.metric.update(preds.detach().cpu().numpy(), inputs['label_ids'].detach().cpu().numpy())
+
+            if self.metric:
+                preds = torch.argmax(logits, -1)
+                self.metric.update(preds.detach().cpu().numpy(),
+                                   inputs['label_ids'].detach().cpu().numpy())
 
         return None
-
-    def on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
-
-        self.evaluate_logs.update(self.metric.result())
-
-        if evaluate_verbose:
-            
-            self.log_evaluation()
-                        
-            # for k, v in self.evaluate_logs.items():
-            #     if type(v) == float or type(v) == int:
-            #         print('{} is: {:.6f}'.format(k, v))
-            #     else:
-            #         print('{} is: \n{}'.format(k, v))
-            
-            # print("********** Evaluating Done **********\n")
-            # print('classification_report: \n', report)
-            # print('confusion_matrix: \n', confusion_matrix)
-            # print('loss is: {:.6f}'.format(self.evaluate_logs['loss'] /
-            #                                self.evaluate_logs['step']))
-            # print('evaluation: ', evaluate_infos)

@@ -15,10 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
-from typing import Dict
-from typing import List
-from typing import Union
 from typing import Optional
 from dataclasses import dataclass
 from collections import defaultdict
@@ -39,14 +35,15 @@ class Handler:
     logging_step: int = 100
     save_step: int = 0
     evaluate_during_training_step: int = 0
-   
-    evaluate_per_epoch_end: bool = True
-    save_per_epoch_end: bool = False
-    save_best_model: bool = False
+
+    do_evaluate_per_epoch_end: bool = True
+    do_save_per_epoch_end: bool = False
+    do_save_best_module: bool = False
+    is_minimize_metric: bool = False
 
     should_epoch_stop: bool = False
     should_training_stop: bool = False
-    
+
     best_score: int = 0
     output_dir: str = 'checkpoint'
     save_best_moulde_metric: str = None

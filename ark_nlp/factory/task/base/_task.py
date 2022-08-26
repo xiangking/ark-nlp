@@ -70,7 +70,7 @@ class Task(object):
         self.optimizer = optimizer
         self.scheduler = scheduler
         self._set_loss_function(loss_function)
-        
+
         self._set_metric(metric)
 
         self.class_num = class_num
@@ -104,7 +104,7 @@ class Task(object):
         self.callbacks = [] if callbacks is None else [
             callback() for callback in callbacks
         ]
-        
+
     def _set_metric(self, metric):
         if callable(metric):
             self.metric = metric()
@@ -117,7 +117,7 @@ class Task(object):
 
     def _set_loss_function(self, loss_function):
         if loss_function is None:
-            self.loss_function = get_loss(self.default_loss_function)            
+            self.loss_function = get_loss(self.default_loss_function)
         elif isinstance(loss_function, str) or isinstance(loss_function, object):
             if callable(loss_function):
                 self.loss_function = loss_function()
@@ -244,7 +244,8 @@ class Task(object):
                     self._on_optimize(inputs, outputs, logits, loss, **kwargs)
 
                 # setp evaluate
-                self._on_step_end(step, inputs, outputs, logits, loss, validation_data, **kwargs)
+                self._on_step_end(step, inputs, outputs, logits, loss, validation_data,
+                                  **kwargs)
 
                 if self.handler.should_epoch_stop or self.handler.should_training_stop:
                     break
@@ -273,6 +274,8 @@ class Task(object):
                                         tokenizer=self.tokenizer,
                                         optimizer=self.optimizer,
                                         scheduler=self.scheduler,
+                                        handler=self.handler,
+                                        logs=self.logs,
                                         **kwargs)
 
         kwargs = self.finish_train_begin(**kwargs)
@@ -315,6 +318,8 @@ class Task(object):
                                         tokenizer=self.tokenizer,
                                         optimizer=self.optimizer,
                                         scheduler=self.scheduler,
+                                        handler=self.handler,
+                                        logs=self.logs,
                                         **kwargs)
 
         kwargs = self.finish_epoch_begin(**kwargs)
@@ -360,6 +365,8 @@ class Task(object):
                                        tokenizer=self.tokenizer,
                                        optimizer=self.optimizer,
                                        scheduler=self.scheduler,
+                                       handler=self.handler,
+                                       logs=self.logs,
                                        **kwargs)
 
         kwargs = self.finish_step_begin(**kwargs)
@@ -441,6 +448,8 @@ class Task(object):
                                      tokenizer=self.tokenizer,
                                      optimizer=self.optimizer,
                                      scheduler=self.scheduler,
+                                     handler=self.handler,
+                                     logs=self.logs,
                                      **kwargs)
 
         kwargs = self.finish_backward(**kwargs)
@@ -488,6 +497,8 @@ class Task(object):
                                      tokenizer=self.tokenizer,
                                      optimizer=self.optimizer,
                                      scheduler=self.scheduler,
+                                     handler=self.handler,
+                                     logs=self.logs,
                                      **kwargs)
 
         kwargs = self.finish_optimize(**kwargs)
@@ -518,7 +529,8 @@ class Task(object):
     def finish_optimize_record(self, **kwargs):
         return self.logs
 
-    def _on_step_end(self, step, inputs, outputs, logits, loss, validation_data, **kwargs):
+    def _on_step_end(self, step, inputs, outputs, logits, loss, validation_data,
+                     **kwargs):
 
         kwargs['step'] = step
         kwargs['inputs'] = inputs
@@ -537,6 +549,8 @@ class Task(object):
                                      tokenizer=self.tokenizer,
                                      optimizer=self.optimizer,
                                      scheduler=self.scheduler,
+                                     handler=self.handler,
+                                     logs=self.logs,
                                      **kwargs)
 
         kwargs = self.finish_step_end(**kwargs)
@@ -581,6 +595,8 @@ class Task(object):
                                       tokenizer=self.tokenizer,
                                       optimizer=self.optimizer,
                                       scheduler=self.scheduler,
+                                      handler=self.handler,
+                                      logs=self.logs,
                                       **kwargs)
 
         kwargs = self.finish_epoch_end(**kwargs)
@@ -623,6 +639,8 @@ class Task(object):
                                       tokenizer=self.tokenizer,
                                       optimizer=self.optimizer,
                                       scheduler=self.scheduler,
+                                      handler=self.handler,
+                                      logs=self.logs,
                                       **kwargs)
 
         kwargs = self.finish_train_end(**kwargs)
@@ -669,12 +687,14 @@ class Task(object):
 
         evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
 
+        kwargs['epoch_step_num'] = len(evaluate_generator)
+
         with torch.no_grad():
 
             self._on_evaluate_epoch_begin(**kwargs)
 
             for step, inputs in enumerate(evaluate_generator):
-                                
+
                 inputs = self._get_module_inputs_on_evaluate(inputs, **kwargs)
 
                 # forward
@@ -701,6 +721,7 @@ class Task(object):
                                            tokenizer=self.tokenizer,
                                            optimizer=self.optimizer,
                                            scheduler=self.scheduler,
+                                           logs=self.evaluate_logs,
                                            **kwargs)
 
         kwargs = self.finish_evaluate_begin(**kwargs)
@@ -729,6 +750,7 @@ class Task(object):
                                                  tokenizer=self.tokenizer,
                                                  optimizer=self.optimizer,
                                                  scheduler=self.scheduler,
+                                                 logs=self.evaluate_logs,
                                                  **kwargs)
 
         kwargs = self.finish_evaluate_epoch_begin(**kwargs)
@@ -781,6 +803,7 @@ class Task(object):
                                               tokenizer=self.tokenizer,
                                               optimizer=self.optimizer,
                                               scheduler=self.scheduler,
+                                              logs=self.evaluate_logs,
                                               **kwargs)
 
         kwargs = self.finish_evaluate_step_end(**kwargs)
@@ -823,6 +846,7 @@ class Task(object):
                                                tokenizer=self.tokenizer,
                                                optimizer=self.optimizer,
                                                scheduler=self.scheduler,
+                                               logs=self.evaluate_logs,
                                                **kwargs)
 
         kwargs = self.finish_evaluate_epoch_end(**kwargs)
@@ -851,6 +875,7 @@ class Task(object):
                                          tokenizer=self.tokenizer,
                                          optimizer=self.optimizer,
                                          scheduler=self.scheduler,
+                                         logs=self.evaluate_logs,
                                          **kwargs)
 
         kwargs = self.finish_evaluate_end(**kwargs)
@@ -876,7 +901,8 @@ class Task(object):
              output_dir,
              module_name=None,
              save_mode=None,
-             save_format=None):
+             save_format=None,
+             **kwargs):
         """
         提供多种方式保存模型
         
@@ -890,13 +916,15 @@ class Task(object):
             save_format (str, optional): 保存格式, 默认值为: "pth"
         """  # noqa: ignore flake8"
 
+        os.makedirs(output_dir, exist_ok=True)
+
         if self.ema:
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
-            
+
         if save_mode is None:
             save_mode = 'torch'
-            
+
         if save_format is None:
             save_format = 'pth'
 
@@ -923,7 +951,8 @@ class Task(object):
 
             if module_name is None:
                 module_name = time.strftime(
-                    str(self.module.__class__.__name__) + '_%m%d_%H%M%S') + '.' + save_format
+                    str(self.module.__class__.__name__) +
+                    '_%m%d_%H%M%S') + '.' + save_format
             else:
                 module_name += '.' + save_format
 
@@ -936,3 +965,19 @@ class Task(object):
 
         if self.ema:
             self.ema.restore(self.module.parameters())
+
+    def log_evaluation(self):
+
+        print("\n******************** Evaluating Done ********************\n")
+
+        for name, metric in self.evaluate_logs.items():
+            if type(metric) == float or type(metric) == int:
+                print('{} is: {:.6f}'.format(name, metric))
+            else:
+                print('{} is: \n{}'.format(name, metric))
+
+    @property
+    def metric_names(self):
+        if self.metric:
+            return self.metric.name
+        return None
