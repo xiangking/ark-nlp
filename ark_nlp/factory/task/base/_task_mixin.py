@@ -57,7 +57,7 @@ class TaskMixin(object):
                                      num_workers=worker_num,
                                      collate_fn=self._train_collate_fn)
 
-        self.epoch_step_num = len(train_generator) // gradient_accumulation_step
+        self.handler.epoch_step_num = len(train_generator) // gradient_accumulation_step
 
         self._set_optimizer(**kwargs)
         self.optimizer.zero_grad()
@@ -144,38 +144,40 @@ class TaskMixin(object):
         return self.optimizer
 
     def on_optimize_record(self, **kwargs):
-        self.logs['global_step'] += 1
+        self.handler.global_step += 1
 
         return self.logs
 
     def on_step_end_record(self, validation_data, step, **kwargs):
 
         # 打印训练信息
-        if self.handler.logging_step > 0 and self.logs[
-                'global_step'] % self.handler.logging_step == 0:
+        if self.handler.logging_step > 0 and self.handler.global_step % self.handler.logging_step == 0:
 
             print('[{}/{}], loss is:{:.6f}'.format(
-                self.epoch_step_num, step,
+                self.handler.epoch_step_num, (step + 1),
                 (self.logs['global_loss'] - self.logs['logging_loss']) /
                 self.handler.logging_step))
 
             self.logs['logging_loss'] = self.logs['global_loss']
 
         # 保存模型
-        if self.handler.save_step > 0 and self.logs[
-                'global_step'] % self.handler.save_step == 0:
+        if self.handler.save_step > 0 and self.handler.global_step % self.handler.save_step == 0:
             os.makedirs(self.handler.output_dir, exist_ok=True)
             self.save(self.handler.output_dir, f"checkpoint-step-{self.handler.global_step}")
 
         # 评估模型
-        if self.handler.evaluate_during_training_step > 0 and self.logs[
-                'global_step'] % self.handler.evaluate_during_training_step == 0:
+        if self.handler.evaluate_during_training_step > 0 and self.handler.global_step % self.handler.evaluate_during_training_step == 0:
+            
             self.evaluate(validation_data, **kwargs)
-
-            if self.handler.save_best_model and self.evaluate_logs['score'] > self.handler.best_score:
-                self.handler.best_score = self.evaluate_logs['score']
+            
+            # 保存最佳模型
+            if self.handler.save_best_model and self.handler.save_best_moulde_metric and self.evaluate_logs[self.handler.save_best_moulde_metric] > self.handler.best_score:
+                self.handler.best_score = self.evaluate_logs[self.handler.save_best_moulde_metric]
                 os.makedirs(self.handler.output_dir, exist_ok=True)
-                self.save(self.handler.output_dir, "checkpoint-best")
+                self.save(self.handler.output_dir,
+                          "checkpoint-best",
+                          save_mode=kwargs.get('save_mode', None),
+                          save_format=kwargs.get('save_format', None))
 
         return self.logs
 
@@ -183,10 +185,13 @@ class TaskMixin(object):
 
         if self.handler.evaluate_per_epoch_end:
             print('epoch:[{}], train loss is:{:.6f} \n'.format(
-                epoch, self.logs['global_loss'] / self.logs['global_step']))
+                epoch+1, self.logs['global_loss'] / self.handler.global_step))
 
         if self.handler.save_per_epoch_end:
-            self.save(self.handler.output_dir, f"checkpoint-epoch-{epoch}")
+            self.save(self.handler.output_dir,
+                      f"checkpoint-epoch-{epoch+1}",
+                      save_mode=kwargs.get('save_mode', None),
+                      save_format=kwargs.get('save_format', None))
 
         return self.logs
 
@@ -223,6 +228,9 @@ class TaskMixin(object):
         if self.ema:
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
+            
+        if self.metric:
+            self.metric.reset()
 
         self.module.eval()
 
@@ -246,9 +254,6 @@ class TaskMixin(object):
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
             self.evaluate_logs['loss'] += loss.item()
-
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
 
         return None
 
@@ -283,7 +288,7 @@ class TaskMixin(object):
                 save_module_path = time.strftime(prefix + '_%m%d_%H%M%S.pth')
 
             torch.save(self.module.state_dict(), save_module_path)
-
+                        
         if self.ema:
             self.ema.restore(self.module.parameters())
 
@@ -294,3 +299,18 @@ class TaskMixin(object):
 
     def _evaluate_collate_fn(self, batch):
         return default_collate(batch)
+    
+    def log_evaluation(self):
+        
+        print("\n******************** Evaluating Done ********************\n")
+        
+        for name, metric in self.evaluate_logs.items():
+            if type(metric) == float or type(metric) == int:
+                print('{} is: {:.6f}'.format(name, metric))
+            else:
+                print('{} is: \n{}'.format(name, metric))
+        
+    
+    
+    
+    

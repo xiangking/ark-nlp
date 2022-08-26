@@ -2,6 +2,7 @@ import torch
 
 from torch import nn
 from collections import Counter
+from ark_nlp.factory.metric.sequence_classification_metric import SequenceClassificationMetric
 
 
 def topk_accuracy(

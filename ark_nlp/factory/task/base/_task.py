@@ -56,6 +56,7 @@ class Task(object):
                  loss_function=None,
                  scheduler=None,
                  tokenizer=None,
+                 metric=None,
                  class_num=None,
                  gpu_num=1,
                  device=None,
@@ -69,6 +70,8 @@ class Task(object):
         self.optimizer = optimizer
         self.scheduler = scheduler
         self._set_loss_function(loss_function)
+        
+        self._set_metric(metric)
 
         self.class_num = class_num
 
@@ -101,12 +104,25 @@ class Task(object):
         self.callbacks = [] if callbacks is None else [
             callback() for callback in callbacks
         ]
+        
+    def _set_metric(self, metric):
+        if callable(metric):
+            self.metric = metric()
+        elif isinstance(metric, object):
+            self.metric = metric
+        else:
+            self.metric = None
+
+        return self.metric
 
     def _set_loss_function(self, loss_function):
         if loss_function is None:
-            self.loss_function = get_loss(self.default_loss_function)
+            self.loss_function = get_loss(self.default_loss_function)            
         elif isinstance(loss_function, str) or isinstance(loss_function, object):
-            self.loss_function = get_loss(loss_function)
+            if callable(loss_function):
+                self.loss_function = loss_function()
+            else:
+                self.loss_function = get_loss(loss_function)
         else:
             raise ValueError("The loss function type does not exist")
 
@@ -159,7 +175,7 @@ class Task(object):
 
     def _set_scheduler(self, epoch_num, **kwargs):
         if self.scheduler is not None:
-            training_step_num = self.epoch_step_num * epoch_num
+            training_step_num = self.handler.epoch_step_num * epoch_num
             self.scheduler = get_scheduler(self.scheduler, self.optimizer,
                                            training_step_num, **kwargs)
 
@@ -228,7 +244,7 @@ class Task(object):
                     self._on_optimize(inputs, outputs, logits, loss, **kwargs)
 
                 # setp evaluate
-                self._on_step_end(step, inputs, outputs, logits, loss, **kwargs)
+                self._on_step_end(step, inputs, outputs, logits, loss, validation_data, **kwargs)
 
                 if self.handler.should_epoch_stop or self.handler.should_training_stop:
                     break
@@ -502,13 +518,14 @@ class Task(object):
     def finish_optimize_record(self, **kwargs):
         return self.logs
 
-    def _on_step_end(self, step, inputs, outputs, logits, loss, **kwargs):
+    def _on_step_end(self, step, inputs, outputs, logits, loss, validation_data, **kwargs):
 
         kwargs['step'] = step
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
         kwargs['logits'] = logits
         kwargs['loss'] = loss
+        kwargs['validation_data'] = validation_data
 
         kwargs = self.prepare_step_end(**kwargs)
 
@@ -647,6 +664,7 @@ class Task(object):
         """  # noqa: ignore flake8"
 
         self.evaluate_logs = defaultdict(int)
+        kwargs = dict()
         kwargs['evaluate_batch_size'] = evaluate_batch_size
 
         evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
@@ -656,7 +674,7 @@ class Task(object):
             self._on_evaluate_epoch_begin(**kwargs)
 
             for step, inputs in enumerate(evaluate_generator):
-
+                                
                 inputs = self._get_module_inputs_on_evaluate(inputs, **kwargs)
 
                 # forward
@@ -857,8 +875,8 @@ class Task(object):
     def save(self,
              output_dir,
              module_name=None,
-             save_mode='torch',
-             save_format='pth'):
+             save_mode=None,
+             save_format=None):
         """
         提供多种方式保存模型
         
@@ -875,6 +893,12 @@ class Task(object):
         if self.ema:
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
+            
+        if save_mode is None:
+            save_mode = 'torch'
+            
+        if save_format is None:
+            save_format = 'pth'
 
         if save_mode == 'pretrained':
             if module_name:
@@ -900,6 +924,8 @@ class Task(object):
             if module_name is None:
                 module_name = time.strftime(
                     str(self.module.__class__.__name__) + '_%m%d_%H%M%S') + '.' + save_format
+            else:
+                module_name += '.' + save_format
 
             output_dir = os.path.join(output_dir, module_name)
 
