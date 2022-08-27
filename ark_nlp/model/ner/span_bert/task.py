@@ -17,9 +17,6 @@
 
 import torch
 
-from ark_nlp.factory.utils import conlleval
-from ark_nlp.factory.metric import SpanMetrics
-from ark_nlp.factory.metric import BiaffineSpanMetrics
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -73,17 +70,12 @@ class SpanBertNERTask(TokenClassificationTask):
 
         return loss
 
-    def on_evaluate_epoch_begin(self, **kwargs):
-
-        self.metric = SpanMetrics(self.id2cat)
-
-        return None
-
     def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
         length = inputs['attention_mask'].cpu().numpy().sum() - 2
 
@@ -108,28 +100,9 @@ class SpanBertNERTask(TokenClassificationTask):
                         S.append((s_l, i, i + j))
                         break
 
-            self.metric.update(true_subject=inputs['label_ids'][index], pred_subject=S)
-
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
-        self.evaluate_logs['loss'] += loss.item()
+            self.metric.update(preds=S, labels=inputs['label_ids'][index])
 
         return logits, loss
-
-    def on_evaluate_epoch_end(self, evaluate_verbose=True, id2cat=None, **kwargs):
-
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        with torch.no_grad():
-            evaluate_infos, entity_infos = self.metric.result()
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********")
-            print('evaluation: ', evaluate_infos)
-            print('entity evaluation: ', entity_infos)
-
-        return None
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""

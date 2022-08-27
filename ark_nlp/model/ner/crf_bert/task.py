@@ -51,6 +51,7 @@ class CrfBertNERTask(TokenClassificationTask):
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
             tags = self.module.crf.decode(logits, inputs['attention_mask'])
             tags = tags.squeeze(0)

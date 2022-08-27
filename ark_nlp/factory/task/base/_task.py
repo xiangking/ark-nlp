@@ -1004,5 +1004,6 @@ class Task(object):
 
     def remove_invalid_arguments(self, kwargs):
         for arg_name in ['inputs', 'outputs', 'logits', 'loss']:
-            del kwargs[arg_name]
+            if arg_name in kwargs:
+                del kwargs[arg_name]
         return kwargs

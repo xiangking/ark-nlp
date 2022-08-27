@@ -25,8 +25,7 @@ class SpanMetric(object):
     
     """  # noqa: ignore flake8"
 
-    def __init__(self, id2label=None, **kwargs):
-        self.id2label = id2label
+    def __init__(self, **kwargs):
         self.labels = []
         self.preds = []
         self.rights = []
@@ -45,28 +44,36 @@ class SpanMetric(object):
 
         return recall, precision, f1
 
-    def result(self, **kwargs):
+    def result(self, categories=None, **kwargs):
 
         recall, precision, f1 = self.compute(len(self.preds), len(self.labels),
                                              len(self.rights))
 
-        if self.id2label is not None:
+        if categories is not None:
+
+            id2label = {idx: label for idx, label in enumerate(categories)}
+
             label_counter = Counter([x[0] for x in self.labels])
             pred_counter = Counter([x[0] for x in self.preds])
             right_counter = Counter([x[0] for x in self.rights])
             target_names = []
             rows = []
             for entity_type, count in label_counter.items():
+
                 label_num = count
                 pred_num = pred_counter.get(entity_type, 0)
                 right_num = right_counter.get(entity_type, 0)
+
+                if type(entity_type) == int:
+                    entity_type = id2label[entity_type]
+
                 target_names.append(entity_type)
 
-                recall, precision, f1 = self.compute(pred_num, label_num, right_num)
+                type_recall, type_precision, type_f1 = self.compute(
+                    pred_num, label_num, right_num)
 
-                rows.append((entity_type, round(precision,
-                                                4), round(recall,
-                                                          4), round(f1, 4), label_num))
+                rows.append((entity_type, round(type_precision, 4), round(type_recall, 4),
+                             round(type_f1, 4), label_num))
 
             # 类似 sklearn.metrics.classification_report的格式输出
             headers = ["precision", "recall", "f1-score", "support"]
@@ -98,7 +105,7 @@ class SpanMetric(object):
                 预测span列表
                 当只存在连续实体的时，格式如 [(label, start_index, end_index),...]
                 当存在不连续实体的时，格式如 ['i-j-k-#-label',] 参考w2ner_bert/task/convert_index_to_text
-            preds (list): 标签span列表, 格式同preds
+            labels (list): 标签span列表, 格式同preds
         """  # noqa: ignore flake8"
 
         self.labels.extend(labels)
