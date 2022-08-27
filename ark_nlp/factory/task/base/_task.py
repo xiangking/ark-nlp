@@ -19,6 +19,7 @@ import os
 import json
 import time
 import torch
+import numpy as np
 
 from tqdm import tqdm
 from collections import defaultdict
@@ -991,7 +992,7 @@ class Task(object):
         print("\n******************** Evaluating Done ********************\n")
 
         for name, metric in self.evaluate_logs.items():
-            if type(metric) == float or type(metric) == int:
+            if type(metric) == float or type(metric) == int or type(metric) == np.float64:
                 print('{} is: {:.6f}'.format(name, metric))
             else:
                 print('{} is: \n{}'.format(name, metric))

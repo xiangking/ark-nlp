@@ -18,8 +18,7 @@
 import torch
 
 from torch.utils.data._utils.collate import default_collate
-
-from ark_nlp.factory.utils import conlleval
+from ark_nlp.factory.metric import GlobalPointerMetric
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -40,6 +39,13 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
         ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
+
+    def __init__(self, *args, **kwargs):
+
+        super(GlobalPointerBertNERTask, self).__init__(*args, **kwargs)
+
+        if 'metric' not in kwargs:
+            self.metric = GlobalPointerMetric()
 
     def _train_collate_fn(self, batch):
 
@@ -70,24 +76,6 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
 
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
-            numerate, denominator = conlleval.global_pointer_f1_score(
-                inputs['label_ids'].cpu(), logits.cpu())
-            self.evaluate_logs['numerate'] += numerate
-            self.evaluate_logs['denominator'] += denominator
-
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
-        self.evaluate_logs['loss'] += loss.item()
-
-    def _on_evaluate_epoch_end(self, evaluate_verbose=True, id2cat=None, **kwargs):
-
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********")
-            print('loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
-                self.evaluate_logs['numerate'], self.evaluate_logs['denominator'],
-                2 * self.evaluate_logs['numerate'] / self.evaluate_logs['denominator']))
+            self.metric.update(preds=logits.cpu(), labels=inputs['label_ids'].cpu())

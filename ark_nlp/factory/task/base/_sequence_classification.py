@@ -45,7 +45,7 @@ class SequenceClassificationTask(TaskMixin, Task):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'SequenceLevel'
 
-        if self.metric is None:
+        if 'metric' not in kwargs:
             self.metric = SequenceClassificationMetric()
 
     @property

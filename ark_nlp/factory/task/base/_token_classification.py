@@ -46,7 +46,7 @@ class TokenClassificationTask(TaskMixin, Task):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
 
-        if self.metric is None:
+        if 'metric' not in kwargs:
             self.metric = SpanMetric()
 
     @property

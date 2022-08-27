@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from collections import Counter
 from ark_nlp.factory.metric.span_metric import SpanMetric
+from ark_nlp.factory.metric.global_pointer_metric import GlobalPointerMetric
 from ark_nlp.factory.metric.sequence_classification_metric import SequenceClassificationMetric
 
 

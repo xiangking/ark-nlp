@@ -17,6 +17,7 @@
 # Status: Active
 
 from collections import Counter
+from torch import Tensor
 
 
 class SpanMetric(object):
@@ -108,7 +109,17 @@ class SpanMetric(object):
             labels (list): 标签span列表, 格式同preds
         """  # noqa: ignore flake8"
 
+        if isinstance(preds, Tensor):
+            preds = preds.numpy()
+
+        if isinstance(labels, Tensor):
+            labels = labels.numpy()
+
         self.labels.extend(labels)
         self.preds.extend(preds)
         self.rights.extend(
             [pred_entity for pred_entity in preds if pred_entity in labels])
+
+    @property
+    def name(self):
+        return ['precision', 'recall', 'f1-score', 'report']
