@@ -17,10 +17,12 @@
 
 import torch
 
-from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
+from ark_nlp.factory.task.base._task import Task
+from ark_nlp.factory.task.base._task_mixin import TaskMixin
+from ark_nlp.factory.metric import SpanMetric
 
 
-class TokenClassificationTask(SequenceClassificationTask):
+class TokenClassificationTask(TaskMixin, Task):
     """
     字符分类任务的基类
     
@@ -40,9 +42,20 @@ class TokenClassificationTask(SequenceClassificationTask):
 
     def __init__(self, *args, **kwargs):
 
-        super(SequenceClassificationTask, self).__init__(*args, **kwargs)
+        super(TokenClassificationTask, self).__init__(*args, **kwargs)
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
+
+        if self.metric is None:
+            self.metric = SpanMetric()
+
+    @property
+    def default_optimizer(self):
+        return 'adamw'
+
+    @property
+    def default_loss_function(self):
+        return 'ce'
 
     def compute_loss(self, inputs, logits, verbose=True, **kwargs):
 
@@ -55,9 +68,3 @@ class TokenClassificationTask(SequenceClassificationTask):
         loss = self.loss_function(active_logits, active_labels)
 
         return loss
-
-    def on_evaluate_epoch_begin(self, **kwargs):
-
-        self.evaluate_logs['labels'] = []
-        self.evaluate_logs['logits'] = []
-        self.evaluate_logs['sequence_length'] = []

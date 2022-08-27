@@ -220,32 +220,35 @@ class Task(object):
 
         for epoch in range(epoch_num):
 
-            self._on_epoch_begin(**kwargs)
+            self._on_epoch_begin(epoch, **kwargs)
 
             for step, inputs in enumerate(tqdm(train_generator)):
 
                 self._on_step_begin(epoch, step, inputs, **kwargs)
 
                 # input处理和设备转移
-                inputs = self._get_module_inputs_on_train(inputs, **kwargs)
+                inputs = self._get_module_inputs_on_train(epoch, step, inputs, **kwargs)
 
                 # forward
-                outputs = self._get_module_outputs_on_train(inputs, **kwargs)
+                outputs = self._get_module_outputs_on_train(epoch, step, inputs, **kwargs)
 
                 # 计算损失
-                logits, loss = self._get_train_loss(inputs, outputs, **kwargs)
+                logits, loss = self._get_train_loss(epoch, step, inputs, outputs,
+                                                    **kwargs)
 
                 # loss backword
-                loss = self._on_backward(inputs, outputs, logits, loss, **kwargs)
+                loss = self._on_backward(epoch, step, inputs, outputs, logits, loss,
+                                         **kwargs)
 
                 if (step + 1) % gradient_accumulation_step == 0:
 
                     # optimize
-                    self._on_optimize(inputs, outputs, logits, loss, **kwargs)
+                    self._on_optimize(epoch, step, inputs, outputs, logits, loss,
+                                      **kwargs)
 
                 # setp evaluate
-                self._on_step_end(step, inputs, outputs, logits, loss, validation_data,
-                                  **kwargs)
+                self._on_step_end(epoch, step, inputs, outputs, logits, loss,
+                                  validation_data, **kwargs)
 
                 if self.handler.should_epoch_stop or self.handler.should_training_stop:
                     break
@@ -306,7 +309,9 @@ class Task(object):
     def finish_train_begin_record(self, **kwargs):
         return self.logs
 
-    def _on_epoch_begin(self, **kwargs):
+    def _on_epoch_begin(self, epoch, **kwargs):
+
+        kwargs['epoch'] = epoch
 
         kwargs = self.prepare_epoch_begin(**kwargs)
 
@@ -397,8 +402,11 @@ class Task(object):
     def finish_step_begin_record(self, **kwargs):
         return self.logs
 
-    def _get_module_inputs_on_train(self, inputs, **kwargs):
+    def _get_module_inputs_on_train(self, epoch, step, inputs, **kwargs):
         """模型输入处理阶段"""
+
+        kwargs['epoch'] = epoch
+        kwargs['step'] = step
         kwargs['inputs'] = inputs
         inputs = self.get_module_inputs_on_train(**kwargs)
 
@@ -407,8 +415,10 @@ class Task(object):
     def get_module_inputs_on_train(self, **kwargs):
         return None
 
-    def _get_module_outputs_on_train(self, inputs, **kwargs):
+    def _get_module_outputs_on_train(self, epoch, step, inputs, **kwargs):
 
+        kwargs['epoch'] = epoch
+        kwargs['step'] = step
         kwargs['inputs'] = inputs
         outputs = self.get_module_outputs_on_train(**kwargs)
 
@@ -417,8 +427,11 @@ class Task(object):
     def get_module_outputs_on_train(self, inputs, **kwargs):
         return self.module(**inputs)
 
-    def _get_train_loss(self, inputs, outputs, **kwargs):
+    def _get_train_loss(self, epoch, step, inputs, outputs, **kwargs):
         """获取训练阶段损失阶段"""
+
+        kwargs['epoch'] = epoch
+        kwargs['step'] = step
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
 
@@ -432,7 +445,10 @@ class Task(object):
     def compute_loss(self, **kwargs):
         return None
 
-    def _on_backward(self, inputs, outputs, logits, loss, **kwargs):
+    def _on_backward(self, epoch, step, inputs, outputs, logits, loss, **kwargs):
+
+        kwargs['epoch'] = epoch
+        kwargs['step'] = step
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
         kwargs['logits'] = logits
@@ -480,8 +496,10 @@ class Task(object):
     def finish_backward_record(self, **kwargs):
         return self.logs
 
-    def _on_optimize(self, inputs, outputs, logits, loss, **kwargs):
+    def _on_optimize(self, epoch, step, inputs, outputs, logits, loss, **kwargs):
 
+        kwargs['epoch'] = epoch
+        kwargs['step'] = step
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
         kwargs['logits'] = logits
@@ -529,9 +547,10 @@ class Task(object):
     def finish_optimize_record(self, **kwargs):
         return self.logs
 
-    def _on_step_end(self, step, inputs, outputs, logits, loss, validation_data,
+    def _on_step_end(self, epoch, step, inputs, outputs, logits, loss, validation_data,
                      **kwargs):
 
+        kwargs['epoch'] = epoch
         kwargs['step'] = step
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
@@ -671,6 +690,7 @@ class Task(object):
     def finish_train_end_record(self, **kwargs):
         return self.logs
 
+    # @torch.no_grad()
     def evaluate(self, validation_data, *, evaluate_batch_size=16, **kwargs):
         """
         验证方法
@@ -682,7 +702,8 @@ class Task(object):
         """  # noqa: ignore flake8"
 
         self.evaluate_logs = defaultdict(int)
-        kwargs = dict()
+
+        kwargs = self.remove_invalid_arguments(kwargs)
         kwargs['evaluate_batch_size'] = evaluate_batch_size
 
         evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
@@ -700,7 +721,7 @@ class Task(object):
                 # forward
                 outputs = self._get_module_outputs_on_evaluate(inputs, **kwargs)
 
-                self._on_evaluate_step_end(step, inputs, outputs, **kwargs)
+                self._on_evaluate_step_end(inputs, outputs, **kwargs)
 
             self._on_evaluate_epoch_end(validation_data, **kwargs)
 
@@ -786,9 +807,8 @@ class Task(object):
     def get_module_outputs_on_evaluate(self, **kwargs):
         return None
 
-    def _on_evaluate_step_end(self, step, inputs, outputs, **kwargs):
+    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
-        kwargs['step'] = step
         kwargs['inputs'] = inputs
         kwargs['outputs'] = outputs
 
@@ -981,3 +1001,8 @@ class Task(object):
         if self.metric:
             return self.metric.name
         return None
+
+    def remove_invalid_arguments(self, kwargs):
+        for arg_name in ['inputs', 'outputs', 'logits', 'loss']:
+            del kwargs[arg_name]
+        return kwargs

@@ -66,7 +66,7 @@ class PURERCDataset(BaseDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
             text, entities = row['text'], row['entities']
 

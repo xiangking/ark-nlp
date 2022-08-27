@@ -58,7 +58,7 @@ class SentenceClassificationDataset(BaseDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
             input_ids = tokenizer.sequence_to_ids(row['text'])
 
@@ -85,7 +85,7 @@ class SentenceClassificationDataset(BaseDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to ids',
+                    desc='Converting sequence to  ids',
                 )):
             tokens = tokenizer.tokenize(row['text'])
             input_ids = tokenizer.sequence_to_ids(tokens)
@@ -145,7 +145,7 @@ class PairMergeSentenceClassificationDataset(BaseDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
             input_ids = tokenizer.sequence_to_ids(row['text_a'], row['text_b'])
 
@@ -206,7 +206,7 @@ class PairWiseSentenceClassificationDataset(BaseDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
 
             input_ids_a = tokenizer.sequence_to_ids(row['text_a'])
@@ -239,7 +239,7 @@ class PairWiseSentenceClassificationDataset(BaseDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to ids',
+                    desc='Converting sequence to ids',
                 )):
 
             input_ids_a = tokenizer.sequence_to_ids(row['text_a'])

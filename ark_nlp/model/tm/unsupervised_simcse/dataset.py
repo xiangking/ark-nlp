@@ -47,7 +47,7 @@ class UnsupervisedSimCSEDataset(PairWiseSentenceClassificationDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
             input_ids_a = tokenizer.sequence_to_ids(row['text_a'])
             input_ids_b = tokenizer.sequence_to_ids(row['text_b'])

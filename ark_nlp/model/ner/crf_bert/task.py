@@ -15,10 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
-from ark_nlp.factory.utils import conlleval
+from ark_nlp.factory.utils.span_decode import get_entities
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -40,21 +39,14 @@ class CrfBertNERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def compute_loss(
-        self,
-        inputs,
-        logits,
-        **kwargs
-    ):
-        loss = -1 * self.module.crf(
-            emissions=logits,
-            tags=inputs['label_ids'].long(),
-            mask=inputs['attention_mask']
-        )
+    def compute_loss(self, inputs, logits, **kwargs):
+        loss = -1 * self.module.crf(emissions=logits,
+                                    tags=inputs['label_ids'].long(),
+                                    mask=inputs['attention_mask'])
 
         return loss
 
-    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, markup='bio', **kwargs):
 
         with torch.no_grad():
             # compute loss
@@ -63,57 +55,24 @@ class CrfBertNERTask(TokenClassificationTask):
             tags = self.module.crf.decode(logits, inputs['attention_mask'])
             tags = tags.squeeze(0)
 
-        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
-        self.evaluate_logs['logits'].append(tags.cpu())
-        self.evaluate_logs['sequence_length'].append(inputs['sequence_length'].cpu())
+            preds = tags.cpu().numpy().tolist()
+            labels = inputs['label_ids'].cpu().numpy().tolist()
+            sequence_length_list = inputs['sequence_length'].cpu().numpy().tolist()
 
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
-        self.evaluate_logs['loss'] += loss.item()
+            for index, label in enumerate(labels):
+                label_list = []
+                pred_list = []
+                for jndex, _ in enumerate(label):
+                    if jndex == 0:
+                        continue
+                    elif jndex == sequence_length_list[index] - 1:
+                        self.metric.update(preds=get_entities(pred_list, self.id2cat,
+                                                              markup),
+                                           labels=get_entities(label_list, self.id2cat,
+                                                               markup))
+                        break
+                    else:
+                        label_list.append(labels[index][jndex])
+                        pred_list.append(preds[index][jndex])
 
         return logits, loss
-
-    def on_evaluate_epoch_end(
-        self,
-        evaluate_verbose=True,
-        id2cat=None,
-        markup='bio',
-        **kwargs
-    ):
-
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
-
-        preds_ = torch.cat(self.evaluate_logs['logits'], dim=0).numpy().tolist()
-        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
-        input_lens_ = torch.cat(self.evaluate_logs['sequence_length'], dim=0).numpy()
-
-        for index_, label_ in enumerate(labels_):
-            label_list_ = []
-            pred_list_ = []
-            for jndex_, _ in enumerate(label_):
-                if jndex_ == 0:
-                    continue
-                elif jndex_ == input_lens_[index_]-1:
-                    self.ner_metric.update(
-                        pred_paths=[pred_list_],
-                        label_paths=[label_list_]
-                    )
-                    break
-                else:
-                    label_list_.append(labels_[index_][jndex_])
-                    pred_list_.append(preds_[index_][jndex_])
-
-        evaluate_infos, entity_infos = self.ner_metric.result()
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********")
-            print('evaluate loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
-                                                   self.evaluate_logs['step']))
-            print(evaluate_infos)
-
-            print(entity_infos)
-
-        return None

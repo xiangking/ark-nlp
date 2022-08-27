@@ -51,7 +51,7 @@ class BiaffineBertNERDataset(TokenClassificationDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
 
             tokens = tokenizer.tokenize(row['text'])[:tokenizer.max_seq_len - 2]

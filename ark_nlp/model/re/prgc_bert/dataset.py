@@ -76,7 +76,7 @@ class PRGCREDataset(BaseDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
 
             text = row['text']

@@ -54,7 +54,7 @@ class TextLevelGCNDataset(SentenceClassificationDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to graph ids',
+                    desc='Converting sequence to graph ids',
                 )):
 
             node_ids, edge_ids, sub_graph = graph_tokenizer.sequence_to_graph(

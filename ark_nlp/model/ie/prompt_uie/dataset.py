@@ -42,7 +42,7 @@ class PromptUIEDataset(TokenClassificationDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
 
             prompt_tokens = tokenizer.tokenize(row['condition'])

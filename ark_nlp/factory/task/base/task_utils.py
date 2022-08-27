@@ -28,9 +28,6 @@ class Handler:
     epoch_step_num: int = 0
     global_step: int = 0
 
-    epoch: int = 0
-    step: int = 0
-
     max_training_step_num: int = 0
     logging_step: int = 100
     save_step: int = 0

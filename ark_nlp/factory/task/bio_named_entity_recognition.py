@@ -17,7 +17,7 @@
 
 import torch
 
-from ark_nlp.factory.utils import conlleval
+from ark_nlp.factory.utils.span_decode import get_entities
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -39,58 +39,31 @@ class BIONERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, markup='bio', **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
             self.evaluate_logs['loss'] += loss.item()
 
-        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
-        self.evaluate_logs['logits'].append(logits.cpu())
-        self.evaluate_logs['sequence_length'].append(inputs['sequence_length'].cpu())
+            if self.metric:
+                preds = torch.argmax(logits, -1).cpu().numpy().tolist()
+                labels = inputs['label_ids'].cpu().numpy().tolist()
+                sequence_length_list = inputs['sequence_length'].cpu().numpy().tolist()
 
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
+                for index, label in enumerate(labels):
+                    label_list = []
+                    pred_list = []
+                    for jndex, _ in enumerate(label):
+                        if jndex == 0:
+                            continue
+                        elif jndex == sequence_length_list[index] - 1:
+                            self.metric.update(
+                                preds=get_entities(pred_list, self.id2cat, markup),
+                                labels=get_entities(label_list, self.id2cat, markup))
+                            break
+                        else:
+                            label_list.append(labels[index][jndex])
+                            pred_list.append(preds[index][jndex])
 
         return logits, loss
-
-    def on_evaluate_epoch_end(self,
-                              evaluate_verbose=True,
-                              id2cat=None,
-                              markup='bio',
-                              **kwargs):
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        self.metric = conlleval.SeqEntityScore(id2cat, markup=markup)
-
-        preds = torch.argmax(torch.cat(self.evaluate_logs['logits'], dim=0),
-                             -1).numpy().tolist()
-        labels = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
-        sequence_length_list = torch.cat(self.evaluate_logs['sequence_length'],
-                                         dim=0).numpy().tolist()
-
-        for index, label in enumerate(labels):
-            label_list = []
-            pred_list = []
-            for jndex, _ in enumerate(label):
-                if jndex == 0:
-                    continue
-                elif jndex == sequence_length_list[index] - 1:
-                    self.metric.update(pred_paths=[pred_list], label_paths=[label_list])
-                    break
-                else:
-                    label_list.append(labels[index][jndex])
-                    pred_list.append(preds[index][jndex])
-
-        evaluate_infos, entity_infos = self.metric.result()
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********\n")
-            print('loss is:{:.6f}'.format(self.evaluate_logs['loss'] /
-                                          self.evaluate_logs['step']))
-            print(evaluate_infos)
-            print(entity_infos)
-
-        return None

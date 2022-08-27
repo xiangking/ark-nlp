@@ -63,7 +63,7 @@ class PromptDataset(SentenceClassificationDataset):
                 tqdm(
                     self.dataset,
                     disable=not self.progress_verbose,
-                    desc='Convert to transformer ids',
+                    desc='Converting sequence to transformer ids',
                 )):
 
             seq = tokenizer.tokenize(row['text'])
