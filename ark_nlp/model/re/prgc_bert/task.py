@@ -20,6 +20,7 @@ import numpy as np
 import torch.nn as nn
 
 from torch.utils.data import DataLoader
+from ark_nlp.factory.metric import TripleMetric
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 
@@ -121,20 +122,6 @@ def tag_mapping_corres(predict_tags,
     return pre_triples
 
 
-def get_metrics(correct_num, predict_num, gold_num):
-    p = correct_num / predict_num if predict_num > 0 else 0
-    r = correct_num / gold_num if gold_num > 0 else 0
-    f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0
-    return {
-        'correct_num': correct_num,
-        'predict_num': predict_num,
-        'gold_num': gold_num,
-        'precision': p,
-        'recall': r,
-        'f1': f1
-    }
-
-
 class PRGCRETask(SequenceClassificationTask):
     """
     基于PRGC Bert的联合关系抽取任务的Task
@@ -158,6 +145,9 @@ class PRGCRETask(SequenceClassificationTask):
         super(PRGCRETask, self).__init__(*args, **kwargs)
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
+
+        if 'metric' not in kwargs:
+            self.metric = TripleMetric()
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""
@@ -254,6 +244,10 @@ class PRGCRETask(SequenceClassificationTask):
                           evaluate_to_device_cols=None,
                           **kwargs):
 
+        # 设置categories
+        if not hasattr(self, 'categories') and hasattr(validation_data, 'categories'):
+            self.categories = validation_data.categories
+
         self.evaluate_id2sublabel = validation_data.sublabel2id
         self.evaluate_id2oblabel = validation_data.oblabel2id
 
@@ -271,6 +265,9 @@ class PRGCRETask(SequenceClassificationTask):
         if self.ema_decay:
             self.ema.store(self.module.parameters())
             self.ema.copy_to(self.module.parameters())
+
+        if self.metric:
+            self.metric.reset()
 
         self.module.eval()
 
@@ -314,19 +311,6 @@ class PRGCRETask(SequenceClassificationTask):
                 label2idx_sub=self.evaluate_id2sublabel,
                 label2idx_obj=self.evaluate_id2oblabel)
 
-            self.evaluate_logs['correct_num'] += len(
-                set(pre_triples) & set(inputs['triples'][idx]))
-            self.evaluate_logs['predict_num'] += len(set(pre_triples))
-            self.evaluate_logs['gold_num'] += len(set(inputs['triples'][idx]))
-
-    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
-
-        evaluation_metrics = get_metrics(self.evaluate_logs['correct_num'],
-                                         self.evaluate_logs['predict_num'],
-                                         self.evaluate_logs['gold_num'])
-        evaluation_metrics = "; ".join("{}: {:05.3f}".format(k, v)
-                                       for k, v in evaluation_metrics.items())
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********")
-            print(evaluation_metrics)
+            if self.metric:
+                self.metric.update(preds=set(pre_triples),
+                                   labels=set(inputs['triples'][idx]))
