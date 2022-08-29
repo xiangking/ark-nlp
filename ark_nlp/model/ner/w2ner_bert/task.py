@@ -16,10 +16,9 @@
 # Status: Active
 
 import torch
-
-from collections import Counter
 from torch.utils.data._utils.collate import default_collate
-from ark_nlp.factory.utils import conlleval
+
+from ark_nlp.factory.metric import W2NERSpanMetric
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -75,79 +74,8 @@ def decode(outputs, entities, length):
 
         ent_r.extend(ent_set)
         ent_p.extend(predicts)
-        for x in predicts:
-            if x in ent_set:
-                ent_c.append(x)
 
-    return ent_c, ent_p, ent_r
-
-
-class SeqEntityScore(object):
-    def __init__(self, id2label, markup='bio'):
-        self.id2label = id2label
-        self.markup = markup
-        self.reset()
-
-    def reset(self):
-        self.origins = []
-        self.founds = []
-        self.rights = []
-
-    def compute(self, origin, found, right):
-
-        recall = 0 if origin == 0 else (right / origin)
-        precision = 0 if found == 0 else (right / found)
-        f1 = 0. if recall + precision == 0 else (2 * precision * recall) / (precision +
-                                                                            recall)
-        return recall, precision, f1
-
-    def result(self):
-        class_info = {}
-        origin_counter = Counter([x.split('-')[-1] for x in self.origins])
-        found_counter = Counter([x.split('-')[-1] for x in self.origins])
-        right_counter = Counter([x.split('-')[-1] for x in self.origins])
-
-        for type_, count in origin_counter.items():
-            origin = count
-            found = found_counter.get(type_, 0)
-            right = right_counter.get(type_, 0)
-            recall, precision, f1 = self.compute(origin, found, right)
-            class_info[type_] = {
-                "acc": round(precision, 4),
-                'recall': round(recall, 4),
-                'f1': round(f1, 4)
-            }
-
-        origin = len(self.origins)
-        found = len(self.founds)
-        right = len(self.rights)
-        recall, precision, f1 = self.compute(origin, found, right)
-
-        return {'acc': precision, 'recall': recall, 'f1': f1}, class_info
-
-    def update(self, label_paths, pred_paths):
-        """
-        更新
-
-        Args:
-            label_paths: 标签
-            pred_paths: 预测结果
-
-        Example:
-            .. code-block::
-
-                labels_paths = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
-                pred_paths = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
-        """
-        for label_path, pre_path in zip(label_paths, pred_paths):
-            label_entities = conlleval.get_entities(label_path, self.id2label,
-                                                    self.markup)
-            pre_entities = conlleval.get_entities(pre_path, self.id2label, self.markup)
-            self.origins.extend(label_entities)
-            self.founds.extend(pre_entities)
-            self.rights.extend([
-                pre_entity for pre_entity in pre_entities if pre_entity in label_entities
-            ])
+    return ent_r, ent_p
 
 
 class W2NERTask(TokenClassificationTask):
@@ -167,6 +95,13 @@ class W2NERTask(TokenClassificationTask):
         ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
+
+    def __init__(self, *args, **kwargs):
+
+        super(W2NERTask, self).__init__(*args, **kwargs)
+
+        if 'metric' not in kwargs:
+            self.metric = W2NERSpanMetric()
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""
@@ -208,46 +143,17 @@ class W2NERTask(TokenClassificationTask):
 
         return loss
 
-    def on_evaluate_epoch_begin(self, **kwargs):
-
-        self.evaluate_logs['rights'] = []
-        self.evaluate_logs['founds'] = []
-        self.evaluate_logs['origins'] = []
-
     def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
+
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-
-            logits = torch.argmax(logits, -1)
-            entity_text, length = inputs['entity_text'], inputs['sequence_length']
-
-            rights, founds, origins = decode(logits.cpu().numpy(), entity_text,
-                                             length.cpu().numpy())
-
-            self.evaluate_logs['rights'].extend(rights)
-            self.evaluate_logs['founds'].extend(founds)
-            self.evaluate_logs['origins'].extend(origins)
-
-            self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-            self.evaluate_logs['step'] += 1
             self.evaluate_logs['loss'] += loss.item()
 
-    def on_evaluate_epoch_end(self, evaluate_verbose=True, id2cat=None, **kwargs):
-        if id2cat is None:
-            id2cat = self.id2cat
+            logits = torch.argmax(logits, -1)
+            origins, founds = decode(logits.cpu().numpy(),
+                                     inputs['entity_text'],
+                                     inputs['sequence_length'].cpu().numpy())
 
-        self.ner_metric = SeqEntityScore(id2cat)
-
-        self.ner_metric.rights = self.evaluate_logs['rights']
-        self.ner_metric.founds = self.evaluate_logs['founds']
-        self.ner_metric.origins = self.evaluate_logs['origins']
-
-        evaluate_infos, _ = self.ner_metric.result()
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********")
-            print('loss is: {:.6f}'.format(self.evaluate_logs['loss'] /
-                                           self.evaluate_logs['step']))
-            print('evaluation: ', evaluate_infos)
+            self.metric.update(origins, founds)

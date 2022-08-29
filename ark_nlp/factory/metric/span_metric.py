@@ -123,3 +123,52 @@ class SpanMetric(object):
     @property
     def name(self):
         return ['precision', 'recall', 'f1-score', 'report']
+
+
+class W2NERSpanMetric(SpanMetric):
+
+    def result(self, categories=None, **kwargs):
+
+        recall, precision, f1 = self.compute(len(self.preds), len(self.labels),
+                                             len(self.rights))
+
+        if categories is not None:
+            label_counter = Counter([x.split('-')[-1] for x in self.labels])
+            pred_counter = Counter([x.split('-')[-1] for x in self.preds])
+            right_counter = Counter([x.split('-')[-1] for x in self.rights])
+            target_names = []
+            rows = []
+            for entity_type, count in label_counter.items():
+                label_num = count
+                pred_num = pred_counter.get(entity_type, 0)
+                right_num = right_counter.get(entity_type, 0)
+                target_names.append(entity_type)
+
+                recall, precision, f1 = self.compute(pred_num, label_num, right_num)
+
+                rows.append((entity_type, round(precision,
+                                                4), round(recall,
+                                                          4), round(f1, 4), label_num))
+
+            # 类似 sklearn.metrics.classification_report的格式输出
+            headers = ["precision", "recall", "f1-score", "support"]
+            digits = 2
+            longest_last_line_heading = 'weighted avg'
+            name_width = max(len(cn) for cn in target_names)
+            width = max(name_width, len(longest_last_line_heading), digits)
+            head_fmt = '{:>{width}s} ' + ' {:>9}' * len(headers)
+            report = head_fmt.format('', *headers, width=width)
+            report += '\n\n'
+            row_fmt = '{:>{width}s} ' + ' {:>9.{digits}f}' * 3 + ' {:>9}\n'
+            for row in rows:
+                report += row_fmt.format(*row, width=width, digits=digits)
+            report += '\n'
+
+            return {
+                'precision': precision,
+                'recall': recall,
+                'f1-score': f1,
+                'report': report
+            }
+        else:
+            return {'precision': precision, 'recall': recall, 'f1-score': f1}

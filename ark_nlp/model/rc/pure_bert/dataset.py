@@ -58,7 +58,7 @@ class PURERCDataset(BaseDataset):
     def _convert_to_transformer_ids(self, tokenizer):
         self.tokenizer = tokenizer
 
-        if self.is_retain_dataset:
+        if self.is_train:
             self.retain_dataset = copy.deepcopy(self.dataset)
 
         features = []
