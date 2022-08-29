@@ -15,11 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
-import numpy as np
-from scipy import stats
 
+from ark_nlp.factory.metric import SpearmanCorrelationMetric
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 
@@ -41,20 +39,14 @@ class UnsupervisedSimCSETask(SequenceClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def on_evaluate_epoch_begin(self, **kwargs):
+    def __init__(self, *args, **kwargs):
 
-        self.evaluate_logs['labels'] = []
-        self.evaluate_logs['similarity'] = []
+        super(UnsupervisedSimCSETask, self).__init__(*args, **kwargs)
 
-        return self.evaluate_logs
+        if 'metric' not in kwargs:
+            self.metric = SpearmanCorrelationMetric()
 
-    def on_evaluate_step_end(
-        self,
-        inputs,
-        outputs,
-        show_evaluate_loss=False,
-        **kwargs
-    ):
+    def on_evaluate_step_end(self, inputs, outputs, show_evaluate_loss=False, **kwargs):
         """
         计算损失和精度
         Args:
@@ -70,27 +62,6 @@ class UnsupervisedSimCSETask(SequenceClassificationTask):
                 self.evaluate_logs['loss'] += loss.item()
 
             if 'label_ids' in inputs and show_evaluate_loss is False:
-                cosine_sim = self.module.cosine_sim(**inputs).cpu().numpy()
-                self.evaluate_logs['similarity'].append(cosine_sim)
-                self.evaluate_logs['labels'].append(inputs['label_ids'].cpu().numpy())
 
-        self.evaluate_logs['example_num'] += inputs['input_ids_a'].shape[0]
-        self.evaluate_logs['step'] += 1
-
-    def on_evaluate_epoch_end(
-        self,
-        evaluate_verbose=True,
-        show_evaluate_loss=False,
-        **kwargs
-    ):
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********\n")
-            if 'labels' in self.evaluate_logs and show_evaluate_loss is False:
-                sims = np.concatenate(self.evaluate_logs['similarity'], axis=0)
-                labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
-                spearman_corr = stats.spearmanr(labels, sims).correlation
-                print('spearman corr is: {:.4f}'.format(spearman_corr))
-
-            if show_evaluate_loss is True:
-                print('loss is: {:.6f}'.format(self.evaluate_logs['loss'] / self.evaluate_logs['step']))
+                self.metric.update(preds=self.module.cosine_sim(**inputs).cpu().numpy(),
+                                   labels=inputs['label_ids'].cpu().numpy())
