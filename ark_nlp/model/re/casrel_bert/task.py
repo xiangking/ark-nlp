@@ -19,6 +19,7 @@ import torch
 import numpy as np
 
 from collections import defaultdict
+from ark_nlp.factory.metric import TripleMetric
 from ark_nlp.factory.task.base import SequenceClassificationTask
 
 
@@ -46,6 +47,13 @@ class CasRelRETask(SequenceClassificationTask):
         ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
+
+    def __init__(self, *args, **kwargs):
+
+        super(CasRelRETask, self).__init__(*args, **kwargs)
+
+        if 'metric' not in kwargs:
+            self.metric = TripleMetric()
 
     def _train_collate_fn(self, batch):
         return self.casrel_collate_fn(batch)
@@ -131,9 +139,13 @@ class CasRelRETask(SequenceClassificationTask):
         """  # noqa: ignore flake8"
 
         self.evaluate_logs = defaultdict(int)
+
+        kwargs = self.remove_invalid_arguments(kwargs)
         kwargs['evaluate_batch_size'] = 1
 
         evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
+
+        kwargs['epoch_step_num'] = len(evaluate_generator)
 
         with torch.no_grad():
 
@@ -146,7 +158,7 @@ class CasRelRETask(SequenceClassificationTask):
                 # forward
                 outputs = self._get_module_outputs_on_evaluate(inputs, **kwargs)
 
-                self._on_evaluate_step_end(step, inputs, outputs, **kwargs)
+                self._on_evaluate_step_end(inputs, outputs, **kwargs)
 
             self._on_evaluate_epoch_end(validation_data, **kwargs)
 
@@ -162,7 +174,6 @@ class CasRelRETask(SequenceClassificationTask):
         return encoded_text, pred_sub_heads, pred_sub_tails
 
     def on_evaluate_step_end(self,
-                             step,
                              inputs,
                              outputs,
                              h_bar=0.5,
@@ -238,29 +249,5 @@ class CasRelRETask(SequenceClassificationTask):
 
             gold_triples = set(to_tup(inputs['label_ids'][0]))
 
-            self.evaluate_logs['correct_num'] += len(pred_triples & gold_triples)
-
-            if step < show_example_step:
-                print('pred_triples: ', pred_triples)
-                print('gold_triples: ', gold_triples)
-
-            self.evaluate_logs['predict_num'] += len(pred_triples)
-            self.evaluate_logs['gold_num'] += len(gold_triples)
-
-    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
-
-        if evaluate_verbose:
-
-            precision = self.evaluate_logs['correct_num'] / (
-                self.evaluate_logs['predict_num'] + 1e-10)
-            recall = self.evaluate_logs['correct_num'] / (self.evaluate_logs['gold_num'] +
-                                                          1e-10)
-            f1_score = 2 * precision * recall / (precision + recall + 1e-10)
-
-            print("********** Evaluating Done **********")
-            print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(
-                self.evaluate_logs['correct_num'], self.evaluate_logs['predict_num'],
-                self.evaluate_logs['gold_num']))
-
-            print("precision: {}, recall: {}, f1_score: {}".format(
-                precision, recall, f1_score))
+            if self.metric:
+                self.metric.update(preds=pred_triples, labels=gold_triples)
