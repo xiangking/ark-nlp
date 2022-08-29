@@ -121,7 +121,10 @@ class Task(object):
             self.loss_function = get_loss(self.default_loss_function)
         elif isinstance(loss_function, str) or isinstance(loss_function, object):
             if callable(loss_function):
-                self.loss_function = loss_function()
+                if type(loss_function) == type:
+                    self.loss_function = loss_function()
+                else:
+                    self.loss_function = loss_function
             else:
                 self.loss_function = get_loss(loss_function)
         else:

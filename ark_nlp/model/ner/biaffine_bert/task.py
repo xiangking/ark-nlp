@@ -15,10 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
-from ark_nlp.factory.metric import BiaffineSpanMetrics
+from ark_nlp.factory.metric import BiaffineSpanMetric
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -40,18 +39,20 @@ class BiaffineBertNERTask(TokenClassificationTask):
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def compute_loss(
-        self,
-        inputs,
-        logits,
-        **kwargs
-    ):
+    def __init__(self, *args, **kwargs):
 
-        labels = inputs['label_ids'].view(size=(-1,))
+        super(BiaffineBertNERTask, self).__init__(*args, **kwargs)
+
+        if 'metric' not in kwargs:
+            self.metric = BiaffineSpanMetric()
+
+    def compute_loss(self, inputs, logits, **kwargs):
+
+        labels = inputs['label_ids'].view(size=(-1, ))
 
         loss = self.loss_function(logits.view(size=(-1, self.class_num)), labels.long())
 
-        loss = loss * inputs['span_mask'].view(size=(-1,))
+        loss = loss * inputs['span_mask'].view(size=(-1, ))
 
         loss = torch.sum(loss) / inputs['span_mask'].size()[0]
 
@@ -62,39 +63,18 @@ class BiaffineBertNERTask(TokenClassificationTask):
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            logits = torch.nn.functional.softmax(logits, dim=-1)
+            # preds = torch.nn.functional.softmax(logits, dim=-1)
+            preds = torch.argmax(logits, dim=-1)
+
             self.evaluate_logs['loss'] += loss.item()
 
-        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
-        self.evaluate_logs['logits'].append(logits.cpu())
+            batch_size, seq_len, hidden = inputs['label_ids'].shape
+            preds = preds.view(batch_size, seq_len, hidden)
 
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
+            preds = preds.view(size=(-1, ))
+            labels = inputs['label_ids'].view(size=(-1, ))
+
+            if self.metric:
+                self.metric.update(preds=preds.cpu(), labels=labels.cpu())
 
         return logits, loss
-
-    def on_evaluate_epoch_end(
-        self,
-        evaluate_verbose=True,
-        id2cat=None,
-        **kwargs
-    ):
-
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        biaffine_metric = BiaffineSpanMetrics()
-
-        preds = torch.cat(self.evaluate_logs['logits'], dim=0)
-        labels = torch.cat(self.evaluate_logs['labels'], dim=0)
-
-        with torch.no_grad():
-            recall, precision, f1 = biaffine_metric(preds, labels)
-
-        if evaluate_verbose:
-            print('evaluate loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['loss'] / self.evaluate_logs['step'],
-                precision,
-                recall,
-                f1)
-            )

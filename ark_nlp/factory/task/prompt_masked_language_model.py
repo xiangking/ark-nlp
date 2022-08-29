@@ -17,7 +17,6 @@
 
 import torch
 import numpy as np
-import sklearn.metrics as sklearn_metrics
 
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
@@ -45,13 +44,6 @@ class PromptMLMTask(SequenceClassificationTask):
         loss = self.loss_function(logits, labels)
 
         return loss
-
-    def on_evaluate_epoch_begin(self, **kwargs):
-
-        self.evaluate_logs['labels'] = []
-        self.evaluate_logs['logits'] = []
-
-        return self.evaluate_logs
 
     def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
@@ -93,38 +85,7 @@ class PromptMLMTask(SequenceClassificationTask):
 
             label_indexs = np.array(label_indexs)
 
-        self.evaluate_logs['labels'].append(label_indexs)
-        self.evaluate_logs['logits'].append(preds)
-
-        self.evaluate_logs['accuracy'] += (label_indexs == preds).sum()
-
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
+            if self.metric:
+                self.metric.update(preds=preds, labels=label_indexs)
 
         return logits, loss
-
-    def on_evaluate_epoch_end(self, validation_data, evaluate_verbose=True, **kwargs):
-
-        labels = np.concatenate(self.evaluate_logs['labels'], axis=0)
-        preds = np.concatenate(self.evaluate_logs['logits'], axis=0)
-
-        f1_score = sklearn_metrics.f1_score(labels, preds, average='macro')
-
-        report = sklearn_metrics.classification_report(
-            labels,
-            preds,
-            labels=[v for k, v in validation_data.cat2id.items()],
-            target_names=[str(k) for k, v in validation_data.cat2id.items()])
-
-        confusion_matrix = sklearn_metrics.confusion_matrix(labels, preds)
-
-        if evaluate_verbose:
-            print("********** Evaluating Done **********")
-            print('evaluate classification_report: \n', report)
-            print('evaluate confusion_matrix_: \n', confusion_matrix)
-            print(
-                'evaluate loss is:{:.6f}, evaluate accuracy is:{:.6f}, evaluate f1_score is:{:.6f}'
-                .format(
-                    self.evaluate_logs['loss'] / self.evaluate_logs['step'],
-                    self.evaluate_logs['accuracy'] / self.evaluate_logs['example_num'],
-                    f1_score))
