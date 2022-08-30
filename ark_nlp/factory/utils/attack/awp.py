@@ -1,7 +1,7 @@
 import torch
 import warnings
-from torch.utils.data import DataLoader
 
+from torch.utils.data import DataLoader
 from ark_nlp.factory.optimizer import get_optimizer
 
 
@@ -15,7 +15,13 @@ class AWP(object):
     Reference:
         [1] [Adversarial weight perturbation helps robust generalization](https://arxiv.org/abs/2004.05884)
     """
-    def __init__(self, module, awp_epsilon=0.001, awp_alpha=1.0, awp_emb_name='weight'):
+
+    def __init__(self,
+                 module,
+                 awp_epsilon=0.001,
+                 awp_alpha=1.0,
+                 awp_emb_name='weight',
+                 **kwargs):
         self.module = module
 
         self.epsilon = awp_epsilon
@@ -70,17 +76,21 @@ class AWP(object):
 
 
 class AWPAttackMixin(object):
-    def _on_train_begin(self,
-                        train_data,
-                        validation_data,
-                        epoch_num,
-                        batch_size,
-                        shuffle,
-                        gradient_accumulation_step,
-                        worker_num=0,
-                        train_to_device_cols=None,
-                        awp_k=3,
-                        **kwargs):
+
+    def on_train_begin(self,
+                       train_data,
+                       epoch_num,
+                       batch_size,
+                       gradient_accumulation_step,
+                       worker_num=0,
+                       train_to_device_cols=None,
+                       awp_k=3,
+                       **kwargs):
+        # 设置categories
+        if hasattr(train_data, 'categories'):
+            self.categories = train_data.categories
+
+        # 设置 self.id2cat 和 self.cat2id
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
             self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
@@ -92,7 +102,7 @@ class AWPAttackMixin(object):
             else:
                 warnings.warn("The class_num is None.")
 
-        # 获取获取放置到GPU的变量名称列表
+        # 获s获取放置到GPU的变量名称列表
         if train_to_device_cols is None:
             self.train_to_device_cols = train_data.to_device_cols
         else:
@@ -104,27 +114,19 @@ class AWPAttackMixin(object):
                                      num_workers=worker_num,
                                      collate_fn=self._train_collate_fn)
 
-        self.epoch_step_num = len(train_generator) // gradient_accumulation_step
+        self.handler.epoch_step_num = len(train_generator) // gradient_accumulation_step
 
-        self.set_optimizer(**kwargs)
+        self._set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
-        self.set_scheduler(epoch_num, batch_size, **kwargs)
+        self._set_scheduler(epoch_num, **kwargs)
 
         self.awp = AWP(self.module, **kwargs)
         self.awp_k = awp_k
 
-        self._on_train_begin_record(**kwargs)
-
         return train_generator
 
-    def _on_backward(self,
-                     inputs,
-                     outputs,
-                     logits,
-                     loss,
-                     gradient_accumulation_step=1,
-                     **kwargs):
+    def on_backward(self, inputs, loss, gradient_accumulation_step=1, **kwargs):
         # 如果GPU数量大于1
         if self.gpu_num > 1:
             loss = loss.mean()
@@ -142,11 +144,10 @@ class AWPAttackMixin(object):
                 self.optimizer.zero_grad()
             else:
                 self.awp.restore_grad()
-                logits = self.module(**inputs)
-                _, attck_loss = self._get_train_loss(inputs, logits, **kwargs)
+                outputs = self.module(**inputs)
+                _, attck_loss = self.get_train_loss(inputs, outputs)
                 attck_loss.backward()
-        self.awp.restore()
 
-        self._on_backward_record(loss, **kwargs)
+        self.awp.restore()
 
         return loss
