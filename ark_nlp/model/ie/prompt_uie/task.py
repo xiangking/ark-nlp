@@ -18,7 +18,7 @@
 import torch
 import torch.nn.functional as F
 
-from ark_nlp.factory.metric import SpanMetrics
+from ark_nlp.factory.metric import SpanMetric
 from ark_nlp.model.ie.prompt_uie.utils import get_span
 from ark_nlp.model.ie.prompt_uie.utils import get_bool_ids_greater_than
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
@@ -81,17 +81,12 @@ class PromptUIETask(TokenClassificationTask):
 
         return loss
 
-    def on_evaluate_epoch_begin(self, **kwargs):
-
-        self.metric = SpanMetrics()
-
-        return None
-
     def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
         S = []
         start_logits = logits[0]
@@ -106,18 +101,7 @@ class PromptUIETask(TokenClassificationTask):
         for index, (start_score,
                     end_score) in enumerate(zip(start_score_list, end_score_list)):
             S = get_span(start_score, end_score)
-            self.metric.update(true_subject=inputs['label_ids'][index], pred_subject=S)
-
-        self.evaluate_logs['example_num'] += len(inputs['label_ids'])
-        self.evaluate_logs['step'] += 1
-        self.evaluate_logs['loss'] += loss.item()
-
-    def on_evaluate_epoch_end(self, evaluate_verbose=True, **kwargs):
-
-        if evaluate_verbose:
-            print(self.metric.result())
-
-        return None
+            self.metric.update(labels=inputs['label_ids'][index], preds=S)
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""
