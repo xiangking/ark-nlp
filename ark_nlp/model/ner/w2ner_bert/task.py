@@ -20,62 +20,7 @@ from torch.utils.data._utils.collate import default_collate
 
 from ark_nlp.factory.metric import W2NERSpanMetric
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
-
-
-def convert_index_to_text(index, type):
-    text = "-".join([str(i) for i in index])
-    text = text + "-#-{}".format(type)
-    return text
-
-
-def decode(outputs, entities, length):
-    ent_r, ent_p, ent_c = [], [], []
-    for index, (instance, ent_set, l) in enumerate(zip(outputs, entities, length)):
-        forward_dict = {}
-        head_dict = {}
-        ht_type_dict = {}
-        for i in range(l):
-            for j in range(i + 1, l):
-                if instance[i, j] == 1:
-                    if i not in forward_dict:
-                        forward_dict[i] = [j]
-                    else:
-                        forward_dict[i].append(j)
-        for i in range(l):
-            for j in range(i, l):
-                if instance[j, i] > 1:
-                    ht_type_dict[(i, j)] = instance[j, i]
-                    if i not in head_dict:
-                        head_dict[i] = {j}
-                    else:
-                        head_dict[i].add(j)
-
-        predicts = []
-
-        def find_entity(key, entity, tails):
-            entity.append(key)
-            if key not in forward_dict:
-                if key in tails:
-                    predicts.append(entity.copy())
-                entity.pop()
-                return
-            else:
-                if key in tails:
-                    predicts.append(entity.copy())
-            for k in forward_dict[key]:
-                find_entity(k, entity, tails)
-            entity.pop()
-
-        for head in head_dict:
-            find_entity(head, [], head_dict[head])
-
-        predicts = set(
-            [convert_index_to_text(x, ht_type_dict[(x[0], x[-1])]) for x in predicts])
-
-        ent_r.extend(ent_set)
-        ent_p.extend(predicts)
-
-    return ent_r, ent_p
+from ark_nlp.factory.utils.span_decode import get_entities_for_w2ner
 
 
 class W2NERTask(TokenClassificationTask):
@@ -152,8 +97,7 @@ class W2NERTask(TokenClassificationTask):
             self.evaluate_logs['loss'] += loss.item()
 
             logits = torch.argmax(logits, -1)
-            origins, founds = decode(logits.cpu().numpy(),
-                                     inputs['entity_text'],
-                                     inputs['sequence_length'].cpu().numpy())
 
-            self.metric.update(origins, founds)
+            for instance, origins, l in zip(logits.cpu().numpy(), inputs['entity_text'], inputs['sequence_length'].cpu().numpy()):
+                founds = get_entities_for_w2ner(instance, l)
+                self.metric.update(origins, founds)

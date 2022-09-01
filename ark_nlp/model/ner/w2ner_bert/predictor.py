@@ -19,6 +19,8 @@
 import torch
 import numpy as np
 
+from ark_nlp.factory.utils.span_decode import get_entities_for_w2ner, convert_text_to_index
+
 
 class W2NERPredictor(object):
     """
@@ -57,11 +59,11 @@ class W2NERPredictor(object):
         input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
-        # input_length 对应源码 sent_length
-        input_length = len(tokens)
-        _grid_mask2d = np.ones((input_length, input_length), dtype=np.bool)
-        _dist_inputs = np.zeros((input_length, input_length), dtype=np.int)
-        _pieces2word = np.zeros((input_length, input_length + 2), dtype=np.bool)
+        # sequence_length 对应源码 sent_length
+        sequence_length = len(tokens)
+        _grid_mask2d = np.ones((sequence_length, sequence_length), dtype=np.bool)
+        _dist_inputs = np.zeros((sequence_length, sequence_length), dtype=np.int)
+        _pieces2word = np.zeros((sequence_length, sequence_length + 2), dtype=np.bool)
 
         # pieces2word 类似于token_mapping
         start = 0
@@ -87,12 +89,12 @@ class W2NERPredictor(object):
         dis2idx[128:] = 8
         dis2idx[256:] = 9
 
-        for k in range(input_length):
+        for k in range(sequence_length):
             _dist_inputs[k, :] += k
             _dist_inputs[:, k] -= k
 
-        for i in range(input_length):
-            for j in range(input_length):
+        for i in range(sequence_length):
+            for j in range(sequence_length):
                 if _dist_inputs[i, j] < 0:
                     _dist_inputs[i, j] = dis2idx[-_dist_inputs[i, j]] + 9
                 else:
@@ -118,7 +120,7 @@ class W2NERPredictor(object):
             'grid_mask2d': _grid_mask2d,
             'dist_inputs': _dist_inputs,
             'pieces2word': _pieces2word,
-            'input_lengths': input_length,
+            'sequence_length': sequence_length,
         }
 
         return features
@@ -143,7 +145,7 @@ class W2NERPredictor(object):
         tensors = dict()
 
         for col in features:
-            if col == 'input_lengths':
+            if col == 'sequence_length':
                 tensors[col] = torch.Tensor([features[col]])
             else:
                 tensors[col] = torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device)
@@ -170,52 +172,17 @@ class W2NERPredictor(object):
 
         preds = torch.argmax(logit, -1)
 
-        instance, l = preds.cpu().numpy()[0], int(inputs['input_lengths'].cpu().numpy()[0])
+        instance, l = preds.cpu().numpy()[0], int(inputs['sequence_length'].cpu().numpy()[0])
 
-        forward_dict = {}
-        head_dict = {}
-        ht_type_dict = {}
-        for i in range(l):
-            for j in range(i + 1, l):
-                if instance[i, j] == 1:
-                    if i not in forward_dict:
-                        forward_dict[i] = [j]
-                    else:
-                        forward_dict[i].append(j)
-        for i in range(l):
-            for j in range(i, l):
-                if instance[j, i] > 1:
-                    ht_type_dict[(i, j)] = instance[j, i]
-                    if i not in head_dict:
-                        head_dict[i] = {j}
-                    else:
-                        head_dict[i].add(j)
-
-        predicts = []
-
-        def find_entity(key, entity, tails):
-            entity.append(key)
-            if key not in forward_dict:
-                if key in tails:
-                    predicts.append(entity.copy())
-                entity.pop()
-                return
-            else:
-                if key in tails:
-                    predicts.append(entity.copy())
-            for k in forward_dict[key]:
-                find_entity(k, entity, tails)
-            entity.pop()
-
-        for head in head_dict:
-            find_entity(head, [], head_dict[head])
+        predicts = get_entities_for_w2ner(instance, l)
 
         entities = []
         for entity_ in predicts:
+            index, type = convert_text_to_index(entity_)
             entities.append({
                 "idx": entity_,
-                "entity": ''.join([text[i] for i in entity_]),
-                "type": self.id2cat[ht_type_dict[(entity_[0], entity_[-1])]]
+                "entity": ''.join([text[i] for i in index]),
+                "type": self.id2cat[type]
             })
 
         return entities
