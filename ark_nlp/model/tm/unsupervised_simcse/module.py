@@ -101,6 +101,7 @@ class SimCSE(BertMixin, BertPreTrainedModel):
         position_ids=None,
         attention_mask=None,
         pooling='cls_with_pooler',
+        do_normalize=True,
     ):
         outputs = self.bert(
             input_ids,
@@ -121,7 +122,9 @@ class SimCSE(BertMixin, BertPreTrainedModel):
             encoder_feature = self.emb_reduce_linear(encoder_feature)
 
         encoder_feature = self.dropout(encoder_feature)
-        out = F.normalize(encoder_feature, p=2, dim=-1)
+
+        if do_normalize:
+            out = F.normalize(encoder_feature, p=2, dim=-1)
 
         return out
 
