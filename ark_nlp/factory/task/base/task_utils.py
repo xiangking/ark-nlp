@@ -43,7 +43,11 @@ class Handler:
 
     best_score: int = 0
     output_dir: str = 'checkpoint'
-    save_best_moulde_metric: str = None
+    save_best_module_metric: str = None
+
+    do_early_stopping: bool = False
+    early_stopping_patience: int = 2
+    early_stopping_counter: int = 0
 
     def update_from_dict(self, new_values):
         if isinstance(new_values, dict):

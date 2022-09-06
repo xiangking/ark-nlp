@@ -21,10 +21,11 @@ import torch
 import warnings
 
 from torch.utils.data import DataLoader
+from ark_nlp.factory.task.base._task import Task
 from torch.utils.data._utils.collate import default_collate
 
 
-class TaskMixin(object):
+class TaskMixin(Task):
     def on_train_begin(self,
                        train_data,
                        epoch_num,
@@ -177,18 +178,29 @@ class TaskMixin(object):
                 self.evaluate(validation_data, **kwargs)
 
                 # 保存最佳模型
-                if self.handler.do_save_best_module and self.handler.save_best_moulde_metric is not None:
+                if self.handler.do_save_best_module and self.handler.save_best_module_metric is not None:
 
                     if (self.handler.is_minimize_metric
-                            and self.evaluate_logs[self.handler.save_best_moulde_metric] <
+                            and self.evaluate_logs[self.handler.save_best_module_metric] <
                             self.handler.best_score
                         ) or (not self.handler.is_minimize_metric
-                              and self.evaluate_logs[self.handler.save_best_moulde_metric]
+                              and self.evaluate_logs[self.handler.save_best_module_metric]
                               > self.handler.best_score):
 
-                        self.handler.best_score = self.evaluate_logs[
-                            self.handler.save_best_moulde_metric]
-                        self.save(self.handler.output_dir, "checkpoint-best", **kwargs)
+                        self.handler.best_score = self.evaluate_logs[self.handler.save_best_module_metric]
+
+                        if self.handler.do_early_stopping:
+                            self.handler.early_stopping_counter = 0
+                        else:
+                            self.save(self.handler.output_dir, "checkpoint-best", **kwargs)
+                    else:
+                        if self.handler.do_early_stopping:
+                            self.handler.early_stopping_counter += 1
+                            print('EarlyStopping counter: {} out of {}'.format(self.handler.early_stopping_counter,
+                                                                               self.handler.early_stopping_patience))
+                            if self.handler.early_stopping_patience <= self.handler.early_stopping_counter:
+                                self.handler.should_training_stop = True
+                                self.handler.should_epoch_stop = True
 
         return self.logs
 

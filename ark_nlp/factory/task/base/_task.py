@@ -240,7 +240,7 @@ class Task(object):
                 logits, loss = self._get_train_loss(epoch, step, inputs, outputs,
                                                     **kwargs)
 
-                # loss backword
+                # loss backward
                 loss = self._on_backward(epoch, step, inputs, outputs, logits, loss,
                                          **kwargs)
 
@@ -250,7 +250,7 @@ class Task(object):
                     self._on_optimize(epoch, step, inputs, outputs, logits, loss,
                                       **kwargs)
 
-                # setp evaluate
+                # step evaluate
                 self._on_step_end(epoch, step, inputs, outputs, logits, loss,
                                   validation_data, **kwargs)
 
