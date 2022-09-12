@@ -19,10 +19,17 @@ import os
 import time
 import torch
 import warnings
+import numpy as np
 
 from torch.utils.data import DataLoader
 from ark_nlp.factory.task.base._task import Task
 from torch.utils.data._utils.collate import default_collate
+
+try:
+    import wandb
+    wandb_available = True
+except ImportError:
+    wandb_available = False
 
 
 class TaskMixin(Task):
@@ -156,7 +163,21 @@ class TaskMixin(Task):
     def on_step_end_record(self, validation_data, step, **kwargs):
 
         if (step + 1) % self.handler.gradient_accumulation_step == 0:
-            # 打印训练信息
+            
+            # tensorboar记录参数信息
+            if self.tb_writer and self.scheduler:
+                self.tb_writer.add_scalar("learning_rate",
+                                          self.scheduler.get_last_lr()[0],
+                                          self.handler.global_step)
+
+            # wandb记录参数信息
+            if self.do_wandb_logging and self.scheduler:
+                wandb.log({
+                    "learning_rate": self.scheduler.get_last_lr()[0],
+                    "global_step": self.handler.global_step,
+                })
+
+            # 记录训练信息
             if self.handler.logging_step > 0 and self.handler.global_step % self.handler.logging_step == 0:
 
                 print('[{}/{}], loss is:{:.6f}'.format(
@@ -164,7 +185,23 @@ class TaskMixin(Task):
                     (step + 1) // self.handler.gradient_accumulation_step,
                     (self.logs['global_loss'] - self.logs['logging_loss']) /
                     self.handler.logging_step))
-
+                
+                # tensorboar记录训练loss信息
+                if self.tb_writer:
+                    self.tb_writer.add_scalar(
+                        "training_loss",
+                        (self.logs['global_loss'] - self.logs['logging_loss']) /
+                        self.handler.logging_step,
+                        self.handler.global_step,
+                    )
+                    
+                # wandb记录训练loss信息
+                if self.do_wandb_logging:
+                    wandb.log({
+                        "training_loss": (self.logs['global_loss'] - self.logs['logging_loss']) / self.handler.logging_step,
+                        "global_step": self.handler.global_step,
+                    })
+                
                 self.logs['logging_loss'] = self.logs['global_loss']
 
             # 保存模型
@@ -187,20 +224,43 @@ class TaskMixin(Task):
                               and self.evaluate_logs[self.handler.save_best_module_metric]
                               > self.handler.best_score):
 
-                        self.handler.best_score = self.evaluate_logs[self.handler.save_best_module_metric]
+                        self.handler.best_score = self.evaluate_logs[
+                            self.handler.save_best_module_metric]
 
                         if self.handler.do_early_stopping:
                             self.handler.early_stopping_counter = 0
                         else:
-                            self.save(self.handler.output_dir, "checkpoint-best", **kwargs)
+                            self.save(self.handler.output_dir, "checkpoint-best",
+                                      **kwargs)
                     else:
                         if self.handler.do_early_stopping:
                             self.handler.early_stopping_counter += 1
-                            print('EarlyStopping counter: {} out of {}'.format(self.handler.early_stopping_counter,
-                                                                               self.handler.early_stopping_patience))
+                            print('EarlyStopping counter: {} out of {}'.format(
+                                self.handler.early_stopping_counter,
+                                self.handler.early_stopping_patience))
                             if self.handler.early_stopping_patience <= self.handler.early_stopping_counter:
                                 self.handler.should_training_stop = True
                                 self.handler.should_epoch_stop = True
+                                
+                # tensorboar记录评估信息              
+                if self.tb_writer:
+                    for name, metric in self.evaluate_logs.items():
+                        if name == 'loss':
+                            name = 'evaluating_loss'
+                        if type(metric) == float or type(metric) == int or type(metric) == np.float64:
+                            self.tb_writer.add_scalar(name, metric, self.handler.global_step)
+                            
+                # wanbd记录评估信息              
+                if self.do_wandb_logging:
+                    for name, metric in self.evaluate_logs.items():
+                        if name == 'loss':
+                            name = 'evaluating_loss'
+                        if type(metric) == float or type(metric) == int or type(metric) == np.float64:
+                            wandb.log({name: metric})
+
+            # tensorboar flush
+            if self.tb_writer:
+                self.tb_writer.flush()
 
         return self.logs
 

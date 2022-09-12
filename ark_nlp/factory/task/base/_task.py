@@ -18,6 +18,7 @@
 import os
 import json
 import time
+import warnings
 import torch
 import numpy as np
 
@@ -30,6 +31,21 @@ from ark_nlp.factory.optimizer import get_optimizer
 from ark_nlp.factory.lr_scheduler import get_scheduler
 from ark_nlp.factory.utils.ema import EMA
 from ark_nlp.factory.task.base.task_utils import Handler
+
+
+try:
+    import tensorboard
+    from torch.utils.tensorboard import SummaryWriter
+    tensorboard_available = True
+except ImportError:
+    tensorboard_available = False
+
+
+try:
+    import wandb
+    wandb_available = True
+except ImportError:
+    wandb_available = False
 
 
 class Task(object):
@@ -63,7 +79,9 @@ class Task(object):
                  device=None,
                  cuda_device=0,
                  ema_decay=None,
+                 tensorboard_dir=None,
                  callbacks=None,
+                 wandb_project_name=None,
                  **kwargs):
         self.module = module
         self.tokenizer = tokenizer
@@ -100,6 +118,28 @@ class Task(object):
         self.ema_decay = ema_decay
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
+
+        # 设置tensorboard
+        self.tb_writer = None
+        if tensorboard_dir:
+            if tensorboard_available:
+                self.tb_writer = SummaryWriter(log_dir=tensorboard_dir)
+            else:
+                warnings.warn(
+                    "Please install tensorboard to use tensorboard logging. "
+                )
+
+        # 设置wandb
+        self.do_wandb_logging = False
+        if wandb_project_name:
+            self.do_wandb_logging = True
+            self.wandb_project_name = wandb_project_name
+        
+        if not wandb_available and self.do_wandb_logging:
+            warnings.warn(
+                "Please install wandb to use wandb logging. "
+            )
+            self.do_wandb_logging = False
 
         # 设置callbacks
         self.callbacks = [] if callbacks is None else [
@@ -219,6 +259,21 @@ class Task(object):
 
         self.handler = Handler()
         self.handler.update_from_dict(kwargs)
+        
+        wandb_configs = ['epoch_num', 'batch_size']
+        
+        if self.do_wandb_logging:
+            
+            wandb_kwargs = kwargs.get('wandb_kwargs', {})
+            
+            wandb.init(
+                project=self.wandb_project_name,
+                config={k:v for k, v in kwargs.items() if k in wandb_configs},
+                **wandb_kwargs,
+            )
+            wandb.run._label(repo="ark-nlp")
+            self.wandb_run_id = wandb.run.id
+            wandb.watch(self.module)
 
         train_generator = self._on_train_begin(train_data, validation_data, **kwargs)
 
