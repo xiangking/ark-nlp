@@ -18,7 +18,7 @@
 import torch
 import torch.nn.functional as F
 
-from ark_nlp.factory.metric import SpanMetrics
+from ark_nlp.factory.metric import SpanMetric
 from ark_nlp.model.ie.prompt_uie.utils import get_span
 from ark_nlp.model.ie.prompt_uie.utils import get_bool_ids_greater_than
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
@@ -30,31 +30,29 @@ class PromptUIETask(TokenClassificationTask):
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _get_train_loss(self, inputs, outputs, **kwargs):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
-
-        self._compute_loss_record(**kwargs)
+    def get_train_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _get_evaluate_loss(self, inputs, outputs, **kwargs):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
-        self._compute_loss_record(**kwargs)
+    def get_evaluate_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def compute_loss(self, inputs, logits, **kwargs):
         start_logits = logits[0]
         end_logits = logits[1]
 
@@ -83,51 +81,27 @@ class PromptUIETask(TokenClassificationTask):
 
         return loss
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
-
-        self.metric = SpanMetrics()
-
-        if self.ema_decay:
-            self.ema.store(self.module.parameters())
-            self.ema.copy_to(self.module.parameters())
-
-        self._on_epoch_begin_record(**kwargs)
-
-    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
-            logits, loss = self._get_evaluate_loss(inputs, logits, **kwargs)
+            logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
         S = []
         start_logits = logits[0]
         end_logits = logits[1]
 
-        start_pred = start_logits[0].cpu().numpy()
-        end_pred = end_logits[0].cpu().numpy()
+        start_pred = start_logits.cpu().numpy().tolist()
+        end_pred = end_logits.cpu().numpy().tolist()
 
-        start_scores = get_bool_ids_greater_than(start_pred)
-        end_scores = get_bool_ids_greater_than(end_pred)
+        start_score_list = get_bool_ids_greater_than(start_pred)
+        end_score_list = get_bool_ids_greater_than(end_pred)
 
-        S = get_span(start_scores, end_scores)
-
-        self.metric.update(true_subject=inputs['label_ids'][0], pred_subject=S)
-
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
-
-    def _on_evaluate_epoch_end(self,
-                               validation_data,
-                               epoch=1,
-                               is_evaluate_print=True,
-                               **kwargs):
-
-        with torch.no_grad():
-            eval_info = self.metric.result()
-
-        if is_evaluate_print:
-            print('eval_info: ', eval_info)
+        for index, (start_score,
+                    end_score) in enumerate(zip(start_score_list, end_score_list)):
+            S = get_span(start_score, end_score)
+            self.metric.update(labels=inputs['label_ids'][index], preds=S)
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""

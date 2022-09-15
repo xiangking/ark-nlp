@@ -1,3 +1,5 @@
+import math
+
 from transformers.optimization import get_constant_schedule
 from transformers.optimization import get_constant_schedule_with_warmup
 from transformers.optimization import get_linear_schedule_with_warmup
@@ -9,7 +11,7 @@ from transformers.optimization import get_polynomial_decay_schedule_with_warmup
 def get_scheduler(scheduler,
                   optimizer,
                   training_step_num,
-                  warmup_step: int = 0,
+                  warmup_step=None,
                   warmup_ratio: float = 0.06,
                   cosine_schedule_num_cycles: float = 0.5,
                   polynomial_decay_schedule_lr_end: float = 1e-7,
@@ -20,6 +22,10 @@ def get_scheduler(scheduler,
     Args:
         scheduler (string or torch module): LR调度器名或LR调度器对象
     """  # noqa: ignore flake8"
+
+    if warmup_step is None:
+        warmup_step = math.ceil(training_step_num * warmup_ratio)
+
     if isinstance(scheduler, str):
         scheduler = scheduler.lower()
         if scheduler == "constant_schedule":

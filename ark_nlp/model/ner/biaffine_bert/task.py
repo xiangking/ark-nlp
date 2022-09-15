@@ -15,10 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
-from ark_nlp.factory.metric import BiaffineSpanMetrics
+from ark_nlp.factory.metric import BiaffineSpanMetric
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -28,75 +27,54 @@ class BiaffineBertNERTask(TokenClassificationTask):
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
+    def __init__(self, *args, **kwargs):
 
-        span_label = inputs['label_ids'].view(size=(-1,))
-        span_logits = logits.view(size=(-1, self.class_num))
+        super(BiaffineBertNERTask, self).__init__(*args, **kwargs)
 
-        span_loss = self.loss_function(span_logits, span_label.long())
+        if 'metric' not in kwargs:
+            self.metric = BiaffineSpanMetric()
 
-        span_mask = inputs['span_mask'].view(size=(-1,))
+    def compute_loss(self, inputs, logits, **kwargs):
 
-        span_loss *= span_mask
-        loss = torch.sum(span_loss) / inputs['span_mask'].size()[0]
+        labels = inputs['label_ids'].view(size=(-1, ))
+
+        loss = self.loss_function(logits.view(size=(-1, self.class_num)), labels.long())
+
+        loss = loss * inputs['span_mask'].view(size=(-1, ))
+
+        loss = torch.sum(loss) / inputs['span_mask'].size()[0]
 
         return loss
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
-            logits = torch.nn.functional.softmax(logits, dim=-1)
-            self.evaluate_logs['eval_loss'] += loss.item()
+            # preds = torch.nn.functional.softmax(logits, dim=-1)
+            preds = torch.argmax(logits, dim=-1)
 
-        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
-        self.evaluate_logs['logits'].append(logits.cpu())
+            self.evaluate_logs['loss'] += loss.item()
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
+            batch_size, seq_len, hidden = inputs['label_ids'].shape
+            preds = preds.view(batch_size, seq_len, hidden)
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch=1,
-        is_evaluate_print=True,
-        id2cat=None,
-        **kwargs
-    ):
+            preds = preds.view(size=(-1, ))
+            labels = inputs['label_ids'].view(size=(-1, ))
 
-        if id2cat is None:
-            id2cat = self.id2cat
+            if self.metric:
+                self.metric.update(preds=preds.cpu(), labels=labels.cpu())
 
-        biaffine_metric = BiaffineSpanMetrics()
-
-        preds_ = torch.cat(self.evaluate_logs['logits'], dim=0)
-        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0)
-
-        with torch.no_grad():
-            recall, precise, span_f1 = biaffine_metric(preds_, labels_)
-
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                precise,
-                recall,
-                span_f1)
-            )
+        return logits, loss

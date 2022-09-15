@@ -1,19 +1,27 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
+from torch.nn.utils.rnn import pack_padded_sequence
+from torch.nn.utils.rnn import pad_packed_sequence
 from transformers import BertModel
 from transformers import BertPreTrainedModel
 
 
 class LayerNorm(nn.Module):
-    def __init__(self, input_dim, cond_dim=0, center=True, scale=True, epsilon=None, conditional=False,
-                 hidden_units=None, hidden_activation='linear', hidden_initializer='xaiver', **kwargs):
+    def __init__(self,
+                 input_dim,
+                 cond_dim=0,
+                 center=True,
+                 scale=True,
+                 epsilon=None,
+                 conditional=False,
+                 hidden_units=None,
+                 hidden_activation='linear',
+                 hidden_initializer='xaiver',
+                 **kwargs):
         super(LayerNorm, self).__init__()
-        """
-        input_dim: inputs.shape[-1]
-        cond_dim: cond.shape[-1]
-        """
+
         self.center = center
         self.scale = scale
         self.conditional = conditional
@@ -30,11 +38,17 @@ class LayerNorm(nn.Module):
 
         if self.conditional:
             if self.hidden_units is not None:
-                self.hidden_dense = nn.Linear(in_features=self.cond_dim, out_features=self.hidden_units, bias=False)
+                self.hidden_dense = nn.Linear(in_features=self.cond_dim,
+                                              out_features=self.hidden_units,
+                                              bias=False)
             if self.center:
-                self.beta_dense = nn.Linear(in_features=self.cond_dim, out_features=input_dim, bias=False)
+                self.beta_dense = nn.Linear(in_features=self.cond_dim,
+                                            out_features=input_dim,
+                                            bias=False)
             if self.scale:
-                self.gamma_dense = nn.Linear(in_features=self.cond_dim, out_features=input_dim, bias=False)
+                self.gamma_dense = nn.Linear(in_features=self.cond_dim,
+                                             out_features=input_dim,
+                                             bias=False)
 
         self.initialize_weights()
 
@@ -75,8 +89,8 @@ class LayerNorm(nn.Module):
             mean = torch.mean(outputs, dim=-1).unsqueeze(-1)
             outputs = outputs - mean
         if self.scale:
-            variance = torch.mean(outputs ** 2, dim=-1).unsqueeze(-1)
-            std = (variance + self.epsilon) ** 0.5
+            variance = torch.mean(outputs**2, dim=-1).unsqueeze(-1)
+            std = (variance + self.epsilon)**0.5
             outputs = outputs / std
             outputs = outputs * gamma
         if self.center:
@@ -94,8 +108,14 @@ class ConvolutionLayer(nn.Module):
             nn.GELU(),
         )
 
-        self.convs = nn.ModuleList(
-            [nn.Conv2d(channels, channels, kernel_size=3, groups=channels, dilation=d, padding=d) for d in dilation])
+        self.convs = nn.ModuleList([
+            nn.Conv2d(channels,
+                      channels,
+                      kernel_size=3,
+                      groups=channels,
+                      dilation=d,
+                      padding=d) for d in dilation
+        ])
 
     def forward(self, x):
         x = x.permute(0, 3, 1, 2).contiguous()
@@ -161,11 +181,20 @@ class MLP(nn.Module):
 
 
 class CoPredictor(nn.Module):
-    def __init__(self, cls_num, hid_size, biaffine_size, channels, ffnn_hid_size, dropout=0):
+    def __init__(self,
+                 cls_num,
+                 hid_size,
+                 biaffine_size,
+                 channels,
+                 ffnn_hid_size,
+                 dropout=0):
         super().__init__()
         self.mlp1 = MLP(n_in=hid_size, n_out=biaffine_size, dropout=dropout)
         self.mlp2 = MLP(n_in=hid_size, n_out=biaffine_size, dropout=dropout)
-        self.biaffine = Biaffine(n_in=biaffine_size, n_out=cls_num, bias_x=True, bias_y=True)
+        self.biaffine = Biaffine(n_in=biaffine_size,
+                                 n_out=cls_num,
+                                 bias_x=True,
+                                 bias_y=True)
         self.mlp_rel = MLP(channels, ffnn_hid_size, dropout=dropout)
         self.linear = nn.Linear(ffnn_hid_size, cls_num)
         self.dropout = nn.Dropout(dropout)
@@ -177,6 +206,7 @@ class CoPredictor(nn.Module):
 
         z = self.dropout(self.mlp_rel(z))
         o2 = self.linear(z)
+
         return o1 + o2
 
 
@@ -225,26 +255,22 @@ class W2NERBert(BertPreTrainedModel):
         [1] https://github.com/ljynlp/w2ner
     """  # noqa: ignore flake8"
 
-    def __init__(
-        self,
-        config,
-        use_bert_last_4_layers=True,
-
-        dist_emb_size=20,
-        type_emb_size=20,
-        lstm_hid_size=512,
-        conv_hid_size=96,
-
-        biaffine_size=512,
-        ffnn_hid_size=288,
-        dilation=[1, 2, 3],
-
-        conv_dropout=0.5,
-        emb_dropout=0.5,
-        out_dropout=0.33,
-        ** kwargs
-    ):
+    def __init__(self,
+                 config,
+                 use_bert_last_4_layers=True,
+                 dist_emb_size=20,
+                 type_emb_size=20,
+                 lstm_hid_size=512,
+                 conv_hid_size=96,
+                 biaffine_size=512,
+                 ffnn_hid_size=288,
+                 dilation=[1, 2, 3],
+                 conv_dropout=0.5,
+                 emb_dropout=0.5,
+                 out_dropout=0.33,
+                 **kwargs):
         super(W2NERBert, self).__init__(config)
+
         self.num_labels = config.num_labels
 
         self.use_bert_last_4_layers = use_bert_last_4_layers
@@ -260,12 +286,16 @@ class W2NERBert(BertPreTrainedModel):
         self.dis_embs = nn.Embedding(20, dist_emb_size)
         self.reg_embs = nn.Embedding(3, type_emb_size)
 
-        self.encoder = nn.LSTM(lstm_input_size, lstm_hid_size // 2, num_layers=1, batch_first=True,
+        self.encoder = nn.LSTM(lstm_input_size,
+                               lstm_hid_size // 2,
+                               num_layers=1,
+                               batch_first=True,
                                bidirectional=True)
 
         conv_input_size = lstm_hid_size + dist_emb_size + type_emb_size
 
-        self.convLayer = ConvolutionLayer(conv_input_size, conv_hid_size, dilation, conv_dropout)
+        self.convLayer = ConvolutionLayer(conv_input_size, conv_hid_size, dilation,
+                                          conv_dropout)
         self.dropout = nn.Dropout(emb_dropout)
         self.predictor = CoPredictor(self.num_labels, lstm_hid_size, biaffine_size,
                                      conv_hid_size * len(dilation), ffnn_hid_size,
@@ -273,17 +303,15 @@ class W2NERBert(BertPreTrainedModel):
 
         self.cln = LayerNorm(lstm_hid_size, lstm_hid_size, conditional=True)
 
-    def forward(
-            self,
-            input_ids,
-            attention_mask,
-            token_type_ids,
-            grid_mask2d,
-            dist_inputs,
-            pieces2word,
-            input_lengths,
-            **kwargs
-    ):
+    def forward(self,
+                input_ids,
+                attention_mask,
+                token_type_ids,
+                grid_mask2d,
+                dist_inputs,
+                pieces2word,
+                sequence_length,
+                **kwargs):
         bert_embs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -302,14 +330,20 @@ class W2NERBert(BertPreTrainedModel):
 
         # Max pooling word representations from pieces
         _bert_embs = bert_embs.unsqueeze(1).expand(-1, length, -1, -1)
-        _bert_embs = torch.masked_fill(_bert_embs, pieces2word.eq(0).unsqueeze(-1), min_value)
+        _bert_embs = torch.masked_fill(_bert_embs,
+                                       pieces2word.eq(0).unsqueeze(-1), min_value)
         word_reps, _ = torch.max(_bert_embs, dim=2)
 
         word_reps = self.dropout(word_reps)
-        packed_embs = pack_padded_sequence(word_reps, input_lengths.cpu(), batch_first=True, enforce_sorted=False)
+        packed_embs = pack_padded_sequence(word_reps,
+                                           sequence_length.cpu(),
+                                           batch_first=True,
+                                           enforce_sorted=False)
         packed_outs, (hidden, _) = self.encoder(packed_embs)
-        # 源码每个batch的长度等于 input_lengths.max()
-        word_reps, _ = pad_packed_sequence(packed_outs, batch_first=True, total_length=length)
+        # 源码每个batch的长度等于 sequence_length.max()
+        word_reps, _ = pad_packed_sequence(packed_outs,
+                                           batch_first=True,
+                                           total_length=length)
 
         cln = self.cln(word_reps.unsqueeze(2), word_reps)
 
@@ -321,7 +355,8 @@ class W2NERBert(BertPreTrainedModel):
         conv_inputs = torch.cat([dis_emb, reg_emb, cln], dim=-1)
         conv_inputs = torch.masked_fill(conv_inputs, grid_mask2d.eq(0).unsqueeze(-1), 0.0)
         conv_outputs = self.convLayer(conv_inputs)
-        conv_outputs = torch.masked_fill(conv_outputs, grid_mask2d.eq(0).unsqueeze(-1), 0.0)
+        conv_outputs = torch.masked_fill(conv_outputs,
+                                         grid_mask2d.eq(0).unsqueeze(-1), 0.0)
         outputs = self.predictor(word_reps, word_reps, conv_outputs)
 
         return outputs

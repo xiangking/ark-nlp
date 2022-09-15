@@ -15,24 +15,28 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
+import torch
 
 from ark_nlp.factory.task.base._task import Task
+from ark_nlp.factory.task.base._task_mixin import TaskMixin
+from ark_nlp.factory.metric import SequenceClassificationMetric
 
 
-class SequenceClassificationTask(Task):
+class SequenceClassificationTask(TaskMixin, Task):
     """
     序列分类任务的基类
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
@@ -41,6 +45,9 @@ class SequenceClassificationTask(Task):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'SequenceLevel'
 
+        if 'metric' not in kwargs:
+            self.metric = SequenceClassificationMetric()
+
     @property
     def default_optimizer(self):
         return 'adamw'
@@ -48,3 +55,17 @@ class SequenceClassificationTask(Task):
     @property
     def default_loss_function(self):
         return 'ce'
+
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
+
+        with torch.no_grad():
+            # compute loss
+            logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
+
+            if self.metric:
+                preds = torch.argmax(logits, -1)
+                self.metric.update(preds.detach().cpu().numpy(),
+                                   inputs['label_ids'].detach().cpu().numpy())
+
+        return None

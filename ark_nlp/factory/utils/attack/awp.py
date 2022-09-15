@@ -1,7 +1,7 @@
 import torch
 import warnings
-from torch.utils.data import DataLoader
 
+from torch.utils.data import DataLoader
 from ark_nlp.factory.optimizer import get_optimizer
 
 
@@ -10,26 +10,38 @@ class AWP(object):
     基于AWP算法的攻击机制
 
     Args:
-        module (:obj:`torch.nn.Module`): 模型
+        module (torch.nn.Module): 模型
 
     Reference:
         [1] [Adversarial weight perturbation helps robust generalization](https://arxiv.org/abs/2004.05884)
     """
-    def __init__(self, module):
+
+    def __init__(self,
+                 module,
+                 awp_epsilon=0.001,
+                 awp_alpha=1.0,
+                 awp_emb_name='weight',
+                 **kwargs):
         self.module = module
+
+        self.epsilon = awp_epsilon
+        self.alpha = awp_alpha
+        self.emb_name = awp_emb_name
+
         self.param_backup = {}
         self.param_backup_eps = {}
         self.grad_backup = {}
 
-    def attack(self, epsilon=0.001, alpha=1.0, emb_name='weight', is_first_attack=False):
-        if alpha == 0: return
+    def attack(self, is_first_attack=False):
+        if self.alpha == 0:
+            return None
         e = 1e-6
         for name, param in self.module.named_parameters():
-            if param.requires_grad and param.grad is not None and emb_name in name:
+            if param.requires_grad and param.grad is not None and self.emb_name in name:
                 # save
                 if is_first_attack:
                     self.param_backup[name] = param.data.clone()
-                    grad_eps = epsilon * param.abs().detach()
+                    grad_eps = self.epsilon * param.abs().detach()
                     self.param_backup_eps[name] = (
                         self.param_backup[name] - grad_eps,
                         self.param_backup[name] + grad_eps,
@@ -38,7 +50,7 @@ class AWP(object):
                 norm1 = torch.norm(param.grad)
                 norm2 = torch.norm(param.data.detach())
                 if norm1 != 0 and not torch.isnan(norm1):
-                    r_at = alpha * param.grad / (norm1 + e) * (norm2 + e)
+                    r_at = self.alpha * param.grad / (norm1 + e) * (norm2 + e)
                     param.data.add_(r_at)
                     param.data = torch.min(
                         torch.max(param.data, self.param_backup_eps[name][0]),
@@ -64,16 +76,21 @@ class AWP(object):
 
 
 class AWPAttackMixin(object):
-    def _on_train_begin(self,
-                        train_data,
-                        validation_data,
-                        epochs,
-                        batch_size,
-                        shuffle,
-                        awp_k=3,
-                        num_workers=0,
-                        train_to_device_cols=None,
-                        **kwargs):
+
+    def on_train_begin(self,
+                       train_data,
+                       epoch_num,
+                       batch_size,
+                       gradient_accumulation_step,
+                       worker_num=0,
+                       train_to_device_cols=None,
+                       awp_k=3,
+                       **kwargs):
+        # 设置categories
+        if hasattr(train_data, 'categories'):
+            self.categories = train_data.categories
+
+        # 设置 self.id2cat 和 self.cat2id
         if hasattr(train_data, 'id2cat'):
             self.id2cat = train_data.id2cat
             self.cat2id = {v_: k_ for k_, v_ in train_data.id2cat.items()}
@@ -85,6 +102,7 @@ class AWPAttackMixin(object):
             else:
                 warnings.warn("The class_num is None.")
 
+        # 获s获取放置到GPU的变量名称列表
         if train_to_device_cols is None:
             self.train_to_device_cols = train_data.to_device_cols
         else:
@@ -93,38 +111,29 @@ class AWPAttackMixin(object):
         train_generator = DataLoader(train_data,
                                      batch_size=batch_size,
                                      shuffle=True,
-                                     num_workers=num_workers,
+                                     num_workers=worker_num,
                                      collate_fn=self._train_collate_fn)
-        self.train_generator_lenth = len(train_generator)
 
-        self.set_optimizer(**kwargs)
+        self.handler.epoch_step_num = len(train_generator) // gradient_accumulation_step
+
+        self._set_optimizer(**kwargs)
         self.optimizer.zero_grad()
 
-        self.set_scheduler(epochs, batch_size, **kwargs)
+        self._set_scheduler(epoch_num, **kwargs)
 
-        self.module.train()
-
-        self.awp = AWP(self.module)
+        self.awp = AWP(self.module, **kwargs)
         self.awp_k = awp_k
-
-        self._on_train_begin_record(**kwargs)
 
         return train_generator
 
-    def _on_backward(self,
-                     inputs,
-                     outputs,
-                     logits,
-                     loss,
-                     gradient_accumulation_steps=1,
-                     **kwargs):
-
+    def on_backward(self, inputs, loss, gradient_accumulation_step=1, **kwargs):
         # 如果GPU数量大于1
-        if self.n_gpu > 1:
+        if self.gpu_num > 1:
             loss = loss.mean()
+
         # 如果使用了梯度累积，除以累积的轮数
-        if gradient_accumulation_steps > 1:
-            loss = loss / gradient_accumulation_steps
+        if gradient_accumulation_step > 1:
+            loss = loss / gradient_accumulation_step
 
         loss.backward()
 
@@ -135,11 +144,10 @@ class AWPAttackMixin(object):
                 self.optimizer.zero_grad()
             else:
                 self.awp.restore_grad()
-                logits = self.module(**inputs)
-                _, attck_loss = self._get_train_loss(inputs, logits, **kwargs)
+                outputs = self.module(**inputs)
+                _, attck_loss = self.get_train_loss(inputs, outputs)
                 attck_loss.backward()
-        self.awp.restore()
 
-        self._on_backward_record(loss, **kwargs)
+        self.awp.restore()
 
         return loss

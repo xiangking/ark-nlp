@@ -32,7 +32,7 @@ class TransformerTokenizer(BaseTokenizer):
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化
-        max_seq_len (:obj:`int`): 预设的文本最大长度
+        max_seq_len (int): 预设的文本最大长度
     """  # noqa: ignore flake8"
 
     def __init__(
@@ -213,7 +213,7 @@ class SentenceTokenizer(TransformerTokenizer):
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
-        max_seq_len (:obj:`int`): 预设的文本最大长度
+        max_seq_len (int): 预设的文本最大长度
     """  # noqa: ignore flake8"
 
     def sequence_to_ids(self, sequence, **kwargs):
@@ -226,7 +226,7 @@ class PairTokenizer(TransformerTokenizer):
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
-        max_seq_len (:obj:`int`): 预设的文本最大长度
+        max_seq_len (int): 预设的文本最大长度
     """  # noqa: ignore flake8"
 
     def sequence_to_ids(self, sequence_a, sequence_b, **kwargs):
@@ -239,7 +239,7 @@ class TokenTokenizer(TransformerTokenizer):
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
-        max_seq_len (:obj:`int`): 预设的文本最大长度
+        max_seq_len (int): 预设的文本最大长度
     """  # noqa: ignore flake8"
 
     def tokenize(self, text, **kwargs):
@@ -260,11 +260,11 @@ class SpanTokenizer(TransformerTokenizer):
 
     Args:
         vocab: transformers词典类对象、词典地址或词典名，用于实现文本分词和ID化
-        max_seq_len (:obj:`int`): 
+        max_seq_len (int): 
             预设的文本最大长度
-        split_token (:obj:`string`):
+        split_token (string):
             分隔符
-        additional_special_split_token (:obj:`string`):
+        additional_special_split_token (string):
             额外添加的特殊字符
     """  # noqa: ignore flake8"
 

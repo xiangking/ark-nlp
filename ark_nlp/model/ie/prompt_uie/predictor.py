@@ -74,7 +74,7 @@ class PromptUIEPredictor(object):
         单样本预测
 
         Args:
-            text (:obj:`string`): 输入文本
+            text (string): 输入文本
         """  # noqa: ignore flake8"
 
         text, prompt = text

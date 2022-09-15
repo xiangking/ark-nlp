@@ -26,7 +26,7 @@ class BaseTokenizer(object, metaclass=abc.ABCMeta):
 
     Args:
         vocab: 词典类对象，用于实现文本分词和ID化
-        max_seq_len (:obj:`int`): 
+        max_seq_len (int): 
             预设的文本最大长度
     """  # noqa: ignore flake8"
 

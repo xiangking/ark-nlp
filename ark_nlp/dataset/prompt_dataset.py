@@ -15,8 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import numpy as np
+
+from tqdm import tqdm
 from ark_nlp.dataset import SentenceClassificationDataset
 
 
@@ -33,20 +34,19 @@ class PromptDataset(SentenceClassificationDataset):
             默认值为"postfix"
         prefix_special_token_num (int): 使用前缀特殊字符的数量, 如"[CLS]", 默认值为1
         categories (list, optional): 数据类别, 默认值为None
-        is_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为False
-        is_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为False
-        is_train (bool, optional): 数据集是否为训练集数据, 默认值为True
-        is_test (bool, optional): 数据集是否为测试集数据, 默认值为False
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
-    def __init__(
-        self,
-        *args,
-        prompt,
-        prompt_mode='postfix',
-        prefix_special_token_num=1,
-        **kwargs
-    ):
+    def __init__(self,
+                 *args,
+                 prompt,
+                 prompt_mode='postfix',
+                 prefix_special_token_num=1,
+                 **kwargs):
         super(PromptDataset, self).__init__(*args, **kwargs)
 
         self.prompt = prompt
@@ -55,13 +55,18 @@ class PromptDataset(SentenceClassificationDataset):
         self.prompt_mode = prompt_mode
         self.prefix_special_token_num = prefix_special_token_num
 
-    def _convert_to_transfomer_ids(self, bert_tokenizer):
+    def _convert_to_transformer_ids(self, tokenizer):
 
         features = []
 
-        for (index_, row_) in enumerate(self.dataset):
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to transformer ids',
+                )):
 
-            seq = bert_tokenizer.tokenize(row_['text'])
+            seq = tokenizer.tokenize(row['text'])
 
             if self.prompt_mode == 'postfix':
                 start_mask_position = len(seq) + self.prefix_special_token_num + self.prompt.index("[MASK]")
@@ -69,23 +74,24 @@ class PromptDataset(SentenceClassificationDataset):
                 start_mask_position = self.prefix_special_token_num + self.prompt.index("[MASK]")
 
             mask_position = [
-                start_mask_position + index
-                for index in range(self.mask_lm_label_size)
+                start_mask_position + index for index in range(self.mask_lm_label_size)
             ]
 
-            input_ids = bert_tokenizer.sequence_to_ids(row_['text'], self.prompt, self.prompt_mode)
+            input_ids = tokenizer.sequence_to_ids(row['text'], self.prompt,
+                                                  self.prompt_mode)
 
-            input_ids, input_mask, segment_ids = input_ids
+            input_ids, attention_mask, token_type_ids = input_ids
 
             feature = {
                 'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids,
+                'attention_mask': attention_mask,
+                'token_type_ids': token_type_ids,
                 'mask_position': np.array(mask_position, dtype='int64')
             }
 
             if not self.is_test:
-                mask_lm_label = bert_tokenizer.vocab.convert_tokens_to_ids(bert_tokenizer.tokenize(row_['label']))
+                mask_lm_label = tokenizer.vocab.convert_tokens_to_ids(
+                    tokenizer.tokenize(row['label']))
 
                 feature['label_ids'] = np.array(mask_lm_label, dtype='int64')
 
