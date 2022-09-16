@@ -27,7 +27,7 @@ class GlobalPointerBertNERPredictor(object):
     Args:
         module: 深度学习模型
         tokernizer: 分词器
-        cat2id (:obj:`dict`): 标签映射
+        cat2id (dict): 标签映射
     """  # noqa: ignore flake8"
 
     def __init__(
@@ -94,8 +94,8 @@ class GlobalPointerBertNERPredictor(object):
         单样本预测
 
         Args:
-            text (:obj:`string`): 输入文本
-            threshold (:obj:`float`, optional, defaults to 0): 预测的阈值
+            text (string): 输入文本
+            threshold (float, optional): 预测的阈值, 默认值为: 0
         """  # noqa: ignore flake8"
 
         features, token_mapping = self._get_input_ids(text)

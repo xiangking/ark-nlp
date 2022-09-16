@@ -15,12 +15,8 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
-from ark_nlp.factory.utils import conlleval
-from ark_nlp.factory.metric import SpanMetrics
-from ark_nlp.factory.metric import BiaffineSpanMetrics
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -30,47 +26,29 @@ class SpanBertNERTask(TokenClassificationTask):
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _get_train_loss(
-        self,
-        inputs,
-        outputs,
-        **kwargs
-    ):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
-
-        self._compute_loss_record(**kwargs)
+    def get_train_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _get_evaluate_loss(
-        self,
-        inputs,
-        outputs,
-        **kwargs
-    ):
-        loss = self._compute_loss(inputs, outputs, **kwargs)
-        self._compute_loss_record(**kwargs)
+    def get_evaluate_loss(self, inputs, outputs, **kwargs):
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
+    def compute_loss(self, inputs, logits, **kwargs):
         start_logits = logits[0]
         end_logits = logits[1]
 
@@ -85,34 +63,19 @@ class SpanBertNERTask(TokenClassificationTask):
         active_start_labels = inputs['start_label_ids'].long().view(-1)[active_loss]
         active_end_labels = inputs['end_label_ids'].long().view(-1)[active_loss]
 
-        start_loss = self.loss_function(
-            active_start_logits,
-            active_start_labels
-        )
-        end_loss = self.loss_function(
-            active_end_logits,
-            active_end_labels
-        )
+        start_loss = self.loss_function(active_start_logits, active_start_labels)
+        end_loss = self.loss_function(active_end_logits, active_end_labels)
 
         loss = start_loss + end_loss
 
         return loss
 
-    def _on_evaluate_epoch_begin(self, **kwargs):
-
-        self.metric = SpanMetrics(self.id2cat)
-
-        if self.ema_decay:
-            self.ema.store(self.module.parameters())
-            self.ema.copy_to(self.module.parameters())
-
-        self._on_epoch_begin_record(**kwargs)
-
-    def _on_evaluate_step_end(self, inputs, logits, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
             # compute loss
-            logits, loss = self._get_evaluate_loss(inputs, logits, **kwargs)
+            logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
         length = inputs['attention_mask'].cpu().numpy().sum() - 2
 
@@ -120,48 +83,35 @@ class SpanBertNERTask(TokenClassificationTask):
         start_logits = logits[0]
         end_logits = logits[1]
 
-        start_pred = torch.argmax(start_logits, -1).cpu().numpy()[0][1:length+1]
-        end_pred = torch.argmax(end_logits, -1).cpu().numpy()[0][1:length+1]
+        start_score_list = torch.argmax(start_logits, -1).cpu().numpy()
+        end_score_list = torch.argmax(end_logits, -1).cpu().numpy()
 
-        for i, s_l in enumerate(start_pred):
-            if s_l == 0:
-                continue
-            for j, e_l in enumerate(end_pred[i:]):
-                if s_l == e_l:
-                    S.append((s_l, i, i + j))
-                    break
+        for index, (start_score,
+                    end_score) in enumerate(zip(start_score_list, end_score_list)):
+            start_score = start_score[1:length + 1]
+            end_score = end_score[1:length + 1]
 
-        self.metric.update(true_subject=inputs['label_ids'][0], pred_subject=S)
+            S = []
+            for i, s_l in enumerate(start_score):
+                if s_l == 0:
+                    continue
+                for j, e_l in enumerate(end_score[i:]):
+                    if s_l == e_l:
+                        S.append((s_l, i, i + j))
+                        break
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
+            self.metric.update(preds=S, labels=inputs['label_ids'][index])
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch=1,
-        is_evaluate_print=True,
-        id2cat=None,
-        **kwargs
-    ):
-
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        with torch.no_grad():
-            eval_info, entity_info = self.metric.result()
-
-        if is_evaluate_print:
-            print('eval_info: ', eval_info)
-            print('entity_info: ', entity_info)
+        return logits, loss
 
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""
 
         input_ids = torch.tensor([f['input_ids'] for f in batch], dtype=torch.long)
-        attention_mask = torch.tensor([f['attention_mask'] for f in batch], dtype=torch.long)
-        token_type_ids = torch.tensor([f['token_type_ids'] for f in batch], dtype=torch.long)
+        attention_mask = torch.tensor([f['attention_mask'] for f in batch],
+                                      dtype=torch.long)
+        token_type_ids = torch.tensor([f['token_type_ids'] for f in batch],
+                                      dtype=torch.long)
         start_label_ids = torch.cat([f['start_label_ids'] for f in batch])
         end_label_ids = torch.cat([f['end_label_ids'] for f in batch])
         label_ids = [f['label_ids'] for f in batch]

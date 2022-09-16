@@ -15,12 +15,10 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
 from torch.utils.data._utils.collate import default_collate
-
-from ark_nlp.factory.utils import conlleval
+from ark_nlp.factory.metric import GlobalPointerMetric
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -30,16 +28,24 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
+
+    def __init__(self, *args, **kwargs):
+
+        super(GlobalPointerBertNERTask, self).__init__(*args, **kwargs)
+
+        if 'metric' not in kwargs:
+            self.metric = GlobalPointerMetric()
 
     def _train_collate_fn(self, batch):
 
@@ -59,64 +65,17 @@ class GlobalPointerBertNERTask(TokenClassificationTask):
     def _evaluate_collate_fn(self, batch):
         return self._train_collate_fn(batch)
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
+    def compute_loss(self, inputs, logits, **kwargs):
         loss = self.loss_function(logits, inputs['label_ids'])
 
         return loss
 
-    def _on_evaluate_begin_record(self, **kwargs):
-
-        self.evaluate_logs['eval_loss'] = 0
-        self.evaluate_logs['eval_step'] = 0
-        self.evaluate_logs['eval_example'] = 0
-
-        self.evaluate_logs['labels'] = []
-        self.evaluate_logs['logits'] = []
-        self.evaluate_logs['input_lengths'] = []
-
-        self.evaluate_logs['numerate'] = 0
-        self.evaluate_logs['denominator'] = 0
-
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, **kwargs):
 
         with torch.no_grad():
 
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
-            numerate, denominator = conlleval.global_pointer_f1_score(
-                inputs['label_ids'].cpu(),
-                logits.cpu()
-            )
-            self.evaluate_logs['numerate'] += numerate
-            self.evaluate_logs['denominator'] += denominator
-
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
-
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch=1,
-        is_evaluate_print=True,
-        id2cat=None,
-        **kwargs
-    ):
-
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                self.evaluate_logs['numerate'],
-                self.evaluate_logs['denominator'],
-                2*self.evaluate_logs['numerate']/self.evaluate_logs['denominator'])
-            )
+            self.metric.update(preds=logits.cpu(), labels=inputs['label_ids'].cpu())

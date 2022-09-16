@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: Xiang Wang, xiangking1995@163.com
+# Author: Chenjie Shen, jimme.shen123@gmail.com
 # Status: Active
 
 
 import torch
-import torch.nn.functional as F
-
 from torch import nn
+import torch.nn.functional as F
 from transformers import BertModel
 from transformers import BertPreTrainedModel
 
@@ -82,32 +81,30 @@ class SBert(BertMixin, BertPreTrainedModel):
         self.init_weights()
 
     def get_pooled_embedding(
-            self,
-            input_ids,
-            token_type_ids=None,
-            position_ids=None,
-            attention_mask=None,
-            pooling='cls_with_pooler',
+        self,
+        input_ids,
+        token_type_ids=None,
+        position_ids=None,
+        attention_mask=None,
+        pooling='cls_with_pooler',
+        do_normalize=True,
     ):
-        outputs = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            return_dict=True,
-            output_hidden_states=True
-        )
+        outputs = self.bert(input_ids,
+                            attention_mask=attention_mask,
+                            token_type_ids=token_type_ids,
+                            position_ids=position_ids,
+                            return_dict=True,
+                            output_hidden_states=True)
 
-        encoder_feature = self.get_encoder_feature(
-            outputs,
-            attention_mask,
-            pooling
-        )
+        encoder_feature = self.get_encoder_feature(outputs, attention_mask, pooling)
 
         if self.output_emb_size > 0:
             encoder_feature = self.emb_reduce_linear(encoder_feature)
 
-        return encoder_feature
+        if do_normalize is True:
+            out = F.normalize(encoder_feature, p=2, dim=-1)
+
+        return out
 
     def cosine_sim(
         self,
@@ -139,10 +136,7 @@ class SBert(BertMixin, BertPreTrainedModel):
             pooling=pooling
         )
 
-        cosine_sim = torch.sum(
-            query_cls_embedding * title_cls_embedding,
-            axis=-1
-        )
+        cosine_sim = torch.sum(query_cls_embedding * title_cls_embedding, axis=-1)
 
         return cosine_sim
 

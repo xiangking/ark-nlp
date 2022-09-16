@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: Xiang Wang, xiangking1995@163.com
+# Author: Chenjie Shen, jimme.shen123@gmail.com
 # Status: Active
 
+from tqdm import tqdm
 
 from ark_nlp.dataset import PairWiseSentenceClassificationDataset
 
@@ -41,10 +42,15 @@ class SBertDataset(PairWiseSentenceClassificationDataset):
     def _convert_to_transformer_ids(self, bert_tokenizer):
 
         features = []
-        for (_index, _row) in enumerate(self.dataset):
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to transformer ids',
+                )):
 
-            input_ids_a = bert_tokenizer.sequence_to_ids(_row['text_a'])
-            input_ids_b = bert_tokenizer.sequence_to_ids(_row['text_b'])
+            input_ids_a = bert_tokenizer.sequence_to_ids(row['text_a'])
+            input_ids_b = bert_tokenizer.sequence_to_ids(row['text_b'])
 
             input_ids_a, input_mask_a, segment_ids_a = input_ids_a
             input_ids_b, input_mask_b, segment_ids_b = input_ids_b
@@ -60,8 +66,8 @@ class SBertDataset(PairWiseSentenceClassificationDataset):
 
             features.append(feature)
 
-            if 'label' in _row:
-                label_ids = self.cat2id[_row['label']]
+            if 'label' in row:
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
         return features

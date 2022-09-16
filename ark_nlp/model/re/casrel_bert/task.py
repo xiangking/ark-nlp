@@ -19,8 +19,8 @@ import torch
 import numpy as np
 
 from collections import defaultdict
-from torch.utils.data import DataLoader
-from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
+from ark_nlp.factory.metric import TripleMetric
+from ark_nlp.factory.task.base import SequenceClassificationTask
 
 
 def to_tup(triple_list):
@@ -30,48 +30,30 @@ def to_tup(triple_list):
     return ret
 
 
-class DataPreFetcher(object):
-    def __init__(self, loader, device):
-        self.loader = iter(loader)
-        self.stream = torch.cuda.Stream()
-        self.device = device
-        self.preload()
-
-    def preload(self):
-        try:
-            self.next_data = next(self.loader)
-        except StopIteration:
-            self.next_data = None
-            return
-        with torch.cuda.stream(self.stream):
-            for k, v in self.next_data.items():
-                if isinstance(v, torch.Tensor):
-                    self.next_data[k] = self.next_data[k].to(self.device,
-                                                             non_blocking=True)
-
-    def next(self):
-        torch.cuda.current_stream().wait_stream(self.stream)
-        data = self.next_data
-        self.preload()
-        return data
-
-
 class CasRelRETask(SequenceClassificationTask):
     """
     基于CasRel Bert的联合关系抽取任务的Task
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
+
+    def __init__(self, *args, **kwargs):
+
+        super(CasRelRETask, self).__init__(*args, **kwargs)
+
+        if 'metric' not in kwargs:
+            self.metric = TripleMetric()
 
     def _train_collate_fn(self, batch):
         return self.casrel_collate_fn(batch)
@@ -119,224 +101,153 @@ class CasRelRETask(SequenceClassificationTask):
             'token_mapping': token_mapping
         }
 
-    def fit(self,
-            train_data=None,
-            validation_data=None,
-            lr=False,
-            params=None,
-            batch_size=32,
-            epochs=1,
-            gradient_accumulation_steps=1,
-            **kwargs):
-        self.logs = defaultdict(int)
+    def get_module_inputs_on_train(self, inputs, **kwargs):
+        """模型输入处理方法"""
+        for col in inputs.keys():
+            if type(inputs[col]) is torch.Tensor:
+                inputs[col] = inputs[col].to(self.device)
 
-        train_generator = self._on_train_begin(train_data,
-                                               validation_data,
-                                               epochs,
-                                               batch_size,
-                                               shuffle=True,
-                                               **kwargs)
-
-        for epoch in range(epochs):
-
-            train_data_prefetcher, inputs = self._on_epoch_begin(
-                train_generator, **kwargs)
-
-            step = 0
-
-            while inputs is not None:
-
-                self._on_step_begin(epoch, step, inputs, **kwargs)
-
-                inputs = self._get_module_inputs_on_train(inputs, **kwargs)
-
-                # forward
-                outputs = self.module(**inputs)
-
-                # 计算损失
-                logits, loss = self._get_train_loss(inputs, outputs, **kwargs)
-
-                loss = self._on_backward(inputs, outputs, logits, loss, **kwargs)
-
-                # optimize
-                if (step + 1) % gradient_accumulation_steps == 0:
-
-                    # optimize
-                    self._on_optimize(inputs, outputs, logits, loss, **kwargs)
-
-                # setp evaluate
-                self._on_step_end(step, inputs, outputs, logits, loss, **kwargs)
-
-                step += 1
-
-                inputs = train_data_prefetcher.next()
-
-            self._on_epoch_end(epoch, **kwargs)
-
-            if validation_data is not None:
-                self.evaluate(validation_data, **kwargs)
-
-    def _on_epoch_begin(self, train_generator, **kwargs):
-
-        train_data_prefetcher = DataPreFetcher(train_generator, self.module.device)
-        inputs = train_data_prefetcher.next()
-
-        self.module.train()
-
-        self._on_epoch_begin_record(**kwargs)
-
-        return train_data_prefetcher, inputs
-
-    def _get_module_inputs_on_train(self, inputs, **kwargs):
         return inputs
 
-    def _get_train_loss(self, inputs, outputs, **kwargs):
-        # 计算损失
-        loss = self._compute_loss(inputs, outputs, **kwargs)
+    def get_module_inputs_on_evaluate(self, inputs, **kwargs):
+        for col in inputs.keys():
+            if type(inputs[col]) is torch.Tensor:
+                inputs[col] = inputs[col].to(self.device)
 
-        self._compute_loss_record(**kwargs)
+        return inputs
+
+    def get_train_loss(self, inputs, outputs, **kwargs):
+        # 计算损失
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(self, inputs, logits, verbose=True, **kwargs):
+    def compute_loss(self, inputs, logits, **kwargs):
 
         loss = self.loss_function(logits, inputs)
 
         return loss
 
-    def evaluate(self,
-                 validation_data,
-                 evaluate_batch_size=1,
-                 h_bar=0.5,
-                 t_bar=0.5,
-                 **kwargs):
-        self.evaluate_logs = dict()
+    def evaluate(self, validation_data, **kwargs):
+        """
+        验证方法
+        
+        Args:
+            validation_data (ark_nlp dataset): 训练的batch文本
+            evaluate_batch_size (int, optional): 验证阶段batch大小, 默认值为16
+            **kwargs (optional): 其他可选参数
+        """  # noqa: ignore flake8"
 
-        evaluate_generator = self._on_evaluate_begin(validation_data,
-                                                     evaluate_batch_size,
-                                                     shuffle=False,
-                                                     **kwargs)
+        self.evaluate_logs = defaultdict(int)
 
-        test_data_prefetcher = DataPreFetcher(evaluate_generator, self.module.device)
-        inputs = test_data_prefetcher.next()
-        correct_num, predict_num, gold_num = 0, 0, 0
-        step_ = 0
+        kwargs = self.remove_invalid_arguments(kwargs)
+        kwargs['evaluate_batch_size'] = 1
+
+        evaluate_generator = self._on_evaluate_begin(validation_data, **kwargs)
+
+        kwargs['epoch_step_num'] = len(evaluate_generator)
 
         with torch.no_grad():
-            while inputs is not None:
 
-                step_ += 1
+            self._on_evaluate_epoch_begin(**kwargs)
 
-                token_ids = inputs['input_ids']
-                token_mapping = inputs['token_mapping'][0]
-                mask = inputs['attention_mask']
+            for step, inputs in enumerate(evaluate_generator):
 
-                encoded_text = self.module.bert(token_ids, mask)[0]
+                inputs = self._get_module_inputs_on_evaluate(inputs, **kwargs)
 
-                pred_sub_heads, pred_sub_tails = self.module.get_subs(encoded_text)
-                sub_heads, sub_tails = np.where(
-                    pred_sub_heads.cpu()[0] > h_bar)[0], np.where(
-                        pred_sub_tails.cpu()[0] > t_bar)[0]
+                # forward
+                outputs = self._get_module_outputs_on_evaluate(inputs, **kwargs)
 
-                subjects = []
-                for sub_head in sub_heads:
-                    sub_tail = sub_tails[sub_tails >= sub_head]
-                    if len(sub_tail) > 0:
+                self._on_evaluate_step_end(inputs, outputs, **kwargs)
 
-                        sub_tail = sub_tail[0]
-                        subject = ''.join([
-                            token_mapping[index_] if index_ < len(token_mapping) else ''
-                            for index_ in range(sub_head - 1, sub_tail)
-                        ])
+            self._on_evaluate_epoch_end(validation_data, **kwargs)
 
-                        if subject == '':
-                            continue
-                        subjects.append((subject, sub_head, sub_tail))
+        self._on_evaluate_end(**kwargs)
 
-                if subjects:
-                    triple_list = []
-                    repeated_encoded_text = encoded_text.repeat(len(subjects), 1, 1)
-                    sub_head_mapping = torch.Tensor(len(subjects), 1,
-                                                    encoded_text.size(1)).zero_()
-                    sub_tail_mapping = torch.Tensor(len(subjects), 1,
-                                                    encoded_text.size(1)).zero_()
-                    for subject_idx, subject in enumerate(subjects):
-                        sub_head_mapping[subject_idx][0][subject[1]] = 1
-                        sub_tail_mapping[subject_idx][0][subject[2]] = 1
-                    sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
-                    sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
+    def get_module_outputs_on_evaluate(self, inputs, **kwargs):
 
-                    pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(
-                        sub_head_mapping, sub_tail_mapping, repeated_encoded_text)
-                    for subject_idx, subject in enumerate(subjects):
-                        sub = subject[0]
+        with torch.no_grad():
+            encoded_text = self.module.bert(inputs['input_ids'],
+                                            inputs['attention_mask'])[0]
+            pred_sub_heads, pred_sub_tails = self.module.get_subs(encoded_text)
 
-                        obj_heads, obj_tails = np.where(
-                            pred_obj_heads.cpu()[subject_idx] > h_bar), np.where(
-                                pred_obj_tails.cpu()[subject_idx] > t_bar)
-                        for obj_head, rel_head in zip(*obj_heads):
-                            for obj_tail, rel_tail in zip(*obj_tails):
-                                if obj_head <= obj_tail and rel_head == rel_tail:
-                                    rel = self.id2cat[int(rel_head)]
-                                    obj = ''.join([
-                                        token_mapping[index_]
-                                        if index_ < len(token_mapping) else ''
-                                        for index_ in range(obj_head - 1, obj_tail)
-                                    ])
+        return encoded_text, pred_sub_heads, pred_sub_tails
 
-                                    triple_list.append((sub, rel, obj))
-                                    break
-                    triple_set = set()
-                    for s, r, o in triple_list:
-                        if o == '' or s == '':
-                            continue
-                        triple_set.add((s, r, o))
-                    pred_list = list(triple_set)
-                else:
-                    pred_list = []
+    def on_evaluate_step_end(self,
+                             inputs,
+                             outputs,
+                             h_bar=0.5,
+                             t_bar=0.5,
+                             show_example_step=11,
+                             **kwargs):
 
-                pred_triples = set(pred_list)
+        encoded_text, pred_sub_heads, pred_sub_tails = outputs
+        token_mapping = inputs['token_mapping'][0]
 
-                gold_triples = set(to_tup(inputs['label_ids'][0]))
+        with torch.no_grad():
+            sub_heads, sub_tails = np.where(pred_sub_heads.cpu()[0] > h_bar)[0], np.where(
+                pred_sub_tails.cpu()[0] > t_bar)[0]
 
-                correct_num += len(pred_triples & gold_triples)
+            subjects = []
+            for sub_head in sub_heads:
+                sub_tail = sub_tails[sub_tails >= sub_head]
+                if len(sub_tail) > 0:
 
-                if step_ < 11:
-                    print('pred_triples: ', pred_triples)
-                    print('gold_triples: ', gold_triples)
+                    sub_tail = sub_tail[0]
+                    subject = ''.join([
+                        token_mapping[index_] if index_ < len(token_mapping) else ''
+                        for index_ in range(sub_head - 1, sub_tail)
+                    ])
 
-                predict_num += len(pred_triples)
-                gold_num += len(gold_triples)
+                    if subject == '':
+                        continue
+                    subjects.append((subject, sub_head, sub_tail))
 
-                inputs = test_data_prefetcher.next()
+            if subjects:
+                triple_list = []
+                repeated_encoded_text = encoded_text.repeat(len(subjects), 1, 1)
+                sub_head_mapping = torch.Tensor(len(subjects), 1,
+                                                encoded_text.size(1)).zero_()
+                sub_tail_mapping = torch.Tensor(len(subjects), 1,
+                                                encoded_text.size(1)).zero_()
+                for subject_idx, subject in enumerate(subjects):
+                    sub_head_mapping[subject_idx][0][subject[1]] = 1
+                    sub_tail_mapping[subject_idx][0][subject[2]] = 1
+                sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
+                sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
 
-        print("correct_num: {:3d}, predict_num: {:3d}, gold_num: {:3d}".format(
-            correct_num, predict_num, gold_num))
+                pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(
+                    sub_head_mapping, sub_tail_mapping, repeated_encoded_text)
+                for subject_idx, subject in enumerate(subjects):
+                    sub = subject[0]
 
-        precision = correct_num / (predict_num + 1e-10)
-        recall = correct_num / (gold_num + 1e-10)
-        f1_score = 2 * precision * recall / (precision + recall + 1e-10)
+                    obj_heads, obj_tails = np.where(
+                        pred_obj_heads.cpu()[subject_idx] > h_bar), np.where(
+                            pred_obj_tails.cpu()[subject_idx] > t_bar)
+                    for obj_head, rel_head in zip(*obj_heads):
+                        for obj_tail, rel_tail in zip(*obj_tails):
+                            if obj_head <= obj_tail and rel_head == rel_tail:
+                                rel = self.id2cat[int(rel_head)]
+                                obj = ''.join([
+                                    token_mapping[index_]
+                                    if index_ < len(token_mapping) else ''
+                                    for index_ in range(obj_head - 1, obj_tail)
+                                ])
 
-        print("precision: {}, recall: {}, f1_score: {}".format(precision, recall,
-                                                               f1_score))
+                                triple_list.append((sub, rel, obj))
+                                break
+                triple_set = set()
+                for s, r, o in triple_list:
+                    if o == '' or s == '':
+                        continue
+                    triple_set.add((s, r, o))
+                pred_list = list(triple_set)
+            else:
+                pred_list = []
 
-        return precision, recall, f1_score
+            pred_triples = set(pred_list)
 
-    def _on_evaluate_begin(self,
-                           validation_data,
-                           batch_size,
-                           shuffle,
-                           num_workers=0,
-                           **kwargs):
+            gold_triples = set(to_tup(inputs['label_ids'][0]))
 
-        evaluate_generator = DataLoader(validation_data,
-                                        batch_size=batch_size,
-                                        shuffle=shuffle,
-                                        num_workers=num_workers,
-                                        collate_fn=self._evaluate_collate_fn)
-
-        self.module.eval()
-
-        self._on_evaluate_begin_record(**kwargs)
-
-        return evaluate_generator
+            if self.metric:
+                self.metric.update(preds=pred_triples, labels=gold_triples)

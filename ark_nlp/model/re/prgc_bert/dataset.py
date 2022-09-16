@@ -15,10 +15,10 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import copy
 import numpy as np
 
+from tqdm import tqdm
 from collections import defaultdict
 from ark_nlp.dataset.base._dataset import BaseDataset
 
@@ -28,12 +28,13 @@ class PRGCREDataset(BaseDataset):
     用于PRGC Bert联合关系抽取任务的Dataset
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional): 数据类别, 默认值为: None
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
@@ -42,7 +43,9 @@ class PRGCREDataset(BaseDataset):
         self.oblabel2id = {"B-T": 1, "I-T": 2, "O": 0}
 
     def _get_categories(self):
-        return sorted(list(set([triple_[3] for data_ in self.dataset for triple_ in data_['label']])))
+        return sorted(
+            list(set([triple[3] for data_ in self.dataset
+                      for triple in data_['label']])))
 
     def _convert_to_dataset(self, data_df):
 
@@ -53,58 +56,68 @@ class PRGCREDataset(BaseDataset):
             data_df['label'] = data_df['label'].apply(lambda x: eval(x))
 
         feature_names = list(data_df.columns)
-        for index_, row_ in enumerate(data_df.itertuples()):
+        for index, row in enumerate(data_df.itertuples()):
 
             dataset.append({
-                feature_name_: getattr(row_, feature_name_)
-                for feature_name_ in feature_names
+                feature_name: getattr(row, feature_name)
+                for feature_name in feature_names
             })
 
         return dataset
 
-    def _convert_to_transfomer_ids(self, tokenizer):
+    def _convert_to_transformer_ids(self, tokenizer):
         self.tokenizer = tokenizer
 
-        if self.is_retain_dataset:
+        if self.do_retain_dataset:
             self.retain_dataset = copy.deepcopy(self.dataset)
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to transformer ids',
+                )):
 
-            text = row_['text']
+            text = row['text']
 
             if len(text) > self.tokenizer.max_seq_len - 2:
                 text = text[:self.tokenizer.max_seq_len - 2]
 
             tokens = self.tokenizer.tokenize(text)
-            token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
+            token_mapping = self.tokenizer.get_token_mapping(text,
+                                                             tokens,
+                                                             is_mapping_index=False)
             index_token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
             start_mapping = {j[0]: i for i, j in enumerate(index_token_mapping) if j}
             end_mapping = {j[-1]: i for i, j in enumerate(index_token_mapping) if j}
 
-            input_ids, input_mask, segment_ids = self.tokenizer.sequence_to_ids(tokens)
+            input_ids, attention_mask, _ = self.tokenizer.sequence_to_ids(tokens)
 
             if not self.is_train:
                 triples = []
 
-                for triple in row_['label']:
+                for triple in row['label']:
                     sub_head_idx = triple[1]
                     sub_end_idx = triple[2]
                     obj_head_idx = triple[5]
                     obj_end_idx = triple[6]
 
-                    if sub_head_idx in start_mapping and obj_head_idx in start_mapping and sub_end_idx in end_mapping and obj_end_idx in end_mapping:
+                    if (sub_head_idx in start_mapping and obj_head_idx in start_mapping
+                            and sub_end_idx in end_mapping
+                            and obj_end_idx in end_mapping):
                         sub_head_idx = start_mapping[sub_head_idx]
                         obj_head_idx = start_mapping[obj_head_idx]
 
-                        triples.append((('H', sub_head_idx + 1, end_mapping[sub_end_idx] + 1 + 1),
-                                        ('T', obj_head_idx + 1, end_mapping[obj_end_idx] + 1 + 1),
-                                        self.cat2id[triple[3]]))
+                        triples.append(
+                            (('H', sub_head_idx + 1, end_mapping[sub_end_idx] + 1 + 1),
+                             ('T', obj_head_idx + 1,
+                              end_mapping[obj_end_idx] + 1 + 1), self.cat2id[triple[3]]))
 
                 feature = {
                     'input_ids': input_ids,
-                    'attention_mask': input_mask,
+                    'attention_mask': attention_mask,
                     'triples': triples,
                     'token_mapping': token_mapping
                 }
@@ -112,15 +125,13 @@ class PRGCREDataset(BaseDataset):
                 features.append(feature)
 
             else:
-                corres_tag = np.zeros((
-                    self.tokenizer.max_seq_len,
-                    self.tokenizer.max_seq_len
-                ))
+                corres_tag = np.zeros(
+                    (self.tokenizer.max_seq_len, self.tokenizer.max_seq_len))
 
                 rel_tag = len(self.cat2id) * [0]
                 rel_entities = defaultdict(set)
 
-                for triple in row_['label']:
+                for triple in row['label']:
                     sub_head_idx = triple[1]
                     sub_end_idx = triple[2]
                     obj_head_idx = triple[5]
@@ -129,12 +140,16 @@ class PRGCREDataset(BaseDataset):
                     # construct relation tag
                     rel_tag[self.cat2id[triple[3]]] = 1
 
-                    if sub_head_idx in start_mapping and obj_head_idx in start_mapping and sub_end_idx in end_mapping and obj_end_idx in end_mapping:
+                    if (sub_head_idx in start_mapping and obj_head_idx in start_mapping
+                            and sub_end_idx in end_mapping
+                            and obj_end_idx in end_mapping):
                         sub_head_idx = start_mapping[sub_head_idx]
                         obj_head_idx = start_mapping[obj_head_idx]
 
-                        corres_tag[sub_head_idx+1][obj_head_idx+1] = 1
-                        rel_entities[self.cat2id[triple[3]]].add((sub_head_idx, end_mapping[sub_end_idx], obj_head_idx, end_mapping[obj_end_idx]))
+                        corres_tag[sub_head_idx + 1][obj_head_idx + 1] = 1
+                        rel_entities[self.cat2id[triple[3]]].add(
+                            (sub_head_idx, end_mapping[sub_end_idx], obj_head_idx,
+                             end_mapping[obj_end_idx]))
 
                 for rel, en_ll in rel_entities.items():
                     # init
@@ -146,16 +161,20 @@ class PRGCREDataset(BaseDataset):
                         sub_head_idx, sub_end_idx, obj_head_idx, obj_end_idx = en
 
                         tags_sub[sub_head_idx + 1] = self.sublabel2id['B-H']
-                        tags_sub[sub_head_idx + 1 + 1: sub_end_idx + 1 + 1] = (sub_end_idx - sub_head_idx) * [self.sublabel2id['I-H']]
+                        tags_sub[sub_head_idx + 1 + 1:sub_end_idx + 1 +
+                                 1] = (sub_end_idx -
+                                       sub_head_idx) * [self.sublabel2id['I-H']]
 
                         tags_obj[obj_head_idx + 1] = self.oblabel2id['B-T']
-                        tags_obj[obj_head_idx + 1 + 1: obj_end_idx + 1 + 1] = (obj_end_idx - obj_head_idx) * [self.oblabel2id['I-T']]
+                        tags_obj[obj_head_idx + 1 + 1:obj_end_idx + 1 +
+                                 1] = (obj_end_idx -
+                                       obj_head_idx) * [self.oblabel2id['I-T']]
 
                     seq_tag = [tags_sub, tags_obj]
 
                     feature = {
                         'input_ids': input_ids,
-                        'attention_mask': input_mask,
+                        'attention_mask': attention_mask,
                         'corres_tags': corres_tag,
                         'seq_tags': seq_tag,
                         'potential_rels': rel,
@@ -170,6 +189,9 @@ class PRGCREDataset(BaseDataset):
     @property
     def to_device_cols(self):
         if self.is_train:
-            return ['input_ids', 'attention_mask', 'corres_tags', 'seq_tags', 'potential_rels', 'rel_tags']
+            return [
+                'input_ids', 'attention_mask', 'corres_tags', 'seq_tags',
+                'potential_rels', 'rel_tags'
+            ]
         else:
             return ['input_ids', 'attention_mask']

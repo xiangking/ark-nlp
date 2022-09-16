@@ -121,8 +121,8 @@ class PRGCREPredictor(object):
     Args:
         module: 深度学习模型
         tokernizer: 分词器
-        cat2id (:obj:`dict`): 标签映射
-        corres_threshold (:obj:`float`, optional, defaults to 0.5): global correspondence的阈值
+        cat2id (dict): 标签映射
+        corres_threshold (float, optional): global correspondence的阈值, 默认值为: 0.5
     """  # noqa: ignore flake8"
 
     def __init__(

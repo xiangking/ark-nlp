@@ -15,12 +15,12 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 import numpy as np
 import torch.nn as nn
 
 from torch.utils.data import DataLoader
+from ark_nlp.factory.metric import TripleMetric
 from ark_nlp.factory.task.base._sequence_classification import SequenceClassificationTask
 
 
@@ -89,7 +89,11 @@ def get_chunks(seq, tags):
     return chunks
 
 
-def tag_mapping_corres(predict_tags, pre_corres, pre_rels=None, label2idx_sub=None, label2idx_obj=None):
+def tag_mapping_corres(predict_tags,
+                       pre_corres,
+                       pre_rels=None,
+                       label2idx_sub=None,
+                       label2idx_obj=None):
     """
     Args:
         predict_tags: np.array, (xi, 2, max_sen_len)
@@ -118,34 +122,21 @@ def tag_mapping_corres(predict_tags, pre_corres, pre_rels=None, label2idx_sub=No
     return pre_triples
 
 
-def get_metrics(correct_num, predict_num, gold_num):
-    p = correct_num / predict_num if predict_num > 0 else 0
-    r = correct_num / gold_num if gold_num > 0 else 0
-    f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0
-    return {
-        'correct_num': correct_num,
-        'predict_num': predict_num,
-        'gold_num': gold_num,
-        'precision': p,
-        'recall': r,
-        'f1': f1
-    }
-
-
 class PRGCRETask(SequenceClassificationTask):
     """
     基于PRGC Bert的联合关系抽取任务的Task
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (:obj:`int` or :obj:`None`, optional, defaults to None): 标签数目
-        scheduler (:obj:`class`, optional, defaults to None): scheduler对象
-        n_gpu (:obj:`int`, optional, defaults to 1): GPU数目
-        device (:obj:`class`, optional, defaults to None): torch.device对象，当device为None时，会自动检测是否有GPU
-        cuda_device (:obj:`int`, optional, defaults to 0): GPU编号，当device为None时，根据cuda_device设置device
-        ema_decay (:obj:`int` or :obj:`None`, optional, defaults to None): EMA的加权系数
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
@@ -155,13 +146,18 @@ class PRGCRETask(SequenceClassificationTask):
         if hasattr(self.module, 'task') is False:
             self.module.task = 'TokenLevel'
 
+        if 'metric' not in kwargs:
+            self.metric = TripleMetric()
+
     def _train_collate_fn(self, batch):
         """将InputFeatures转换为Tensor"""
 
         input_ids = torch.tensor([f['input_ids'] for f in batch], dtype=torch.long)
-        attention_mask = torch.tensor([f['attention_mask'] for f in batch], dtype=torch.long)
+        attention_mask = torch.tensor([f['attention_mask'] for f in batch],
+                                      dtype=torch.long)
         seq_tags = torch.tensor([f['seq_tags'] for f in batch], dtype=torch.long)
-        poten_relations = torch.tensor([f['potential_rels'] for f in batch], dtype=torch.long)
+        poten_relations = torch.tensor([f['potential_rels'] for f in batch],
+                                       dtype=torch.long)
         corres_tags = torch.tensor([f['corres_tags'] for f in batch], dtype=torch.long)
         rel_tags = torch.tensor([f['rel_tags'] for f in batch], dtype=torch.long)
         token_mapping = [f['token_mapping'] for f in batch]
@@ -182,7 +178,8 @@ class PRGCRETask(SequenceClassificationTask):
         """将InputFeatures转换为Tensor"""
 
         input_ids = torch.tensor([f['input_ids'] for f in features], dtype=torch.long)
-        attention_mask = torch.tensor([f['attention_mask'] for f in features], dtype=torch.long)
+        attention_mask = torch.tensor([f['attention_mask'] for f in features],
+                                      dtype=torch.long)
         triples = [f['triples'] for f in features]
         token_mapping = [f['token_mapping'] for f in features]
 
@@ -195,25 +192,13 @@ class PRGCRETask(SequenceClassificationTask):
 
         return tensors
 
-    def _get_train_loss(
-        self,
-        inputs,
-        outputs,
-        **kwargs
-    ):
+    def get_train_loss(self, inputs, outputs, **kwargs):
         # 计算损失
-        loss = self._compute_loss(inputs, outputs, **kwargs)
-
-        self._compute_loss_record(**kwargs)
+        loss = self.compute_loss(inputs, outputs, **kwargs)
 
         return outputs, loss
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        **kwargs
-    ):
+    def compute_loss(self, inputs, logits, **kwargs):
         batch_size, _ = inputs['input_ids'].size()
 
         output_sub, output_obj, corres_pred, rel_pred = logits
@@ -226,9 +211,11 @@ class PRGCRETask(SequenceClassificationTask):
         # sequence label loss
         loss_func = nn.CrossEntropyLoss(reduction='none')
         loss_seq_sub = (loss_func(output_sub.view(-1, self.module.seq_tag_size),
-                                  inputs['seq_tags'][:, 0, :].reshape(-1)) * attention_mask).sum() / attention_mask.sum()
+                                  inputs['seq_tags'][:, 0, :].reshape(-1)) *
+                        attention_mask).sum() / attention_mask.sum()
         loss_seq_obj = (loss_func(output_obj.view(-1, self.module.seq_tag_size),
-                                  inputs['seq_tags'][:, 1, :].reshape(-1)) * attention_mask).sum() / attention_mask.sum()
+                                  inputs['seq_tags'][:, 1, :].reshape(-1)) *
+                        attention_mask).sum() / attention_mask.sum()
         loss_seq = (loss_seq_sub + loss_seq_obj) / 2
         # init
         loss_matrix, loss_rel = torch.tensor(0), torch.tensor(0)
@@ -239,8 +226,8 @@ class PRGCRETask(SequenceClassificationTask):
 
         loss_func = nn.BCEWithLogitsLoss(reduction='none')
 
-        loss_matrix = (loss_func(corres_pred,
-                                 corres_tags.float()) * corres_mask).sum() / corres_mask.sum()
+        loss_matrix = (loss_func(corres_pred, corres_tags.float()) *
+                       corres_mask).sum() / corres_mask.sum()
 
         loss_func = nn.BCEWithLogitsLoss(reduction='mean')
         loss_rel = loss_func(rel_pred, inputs['rel_tags'].float())
@@ -249,15 +236,17 @@ class PRGCRETask(SequenceClassificationTask):
 
         return loss
 
-    def _on_evaluate_begin(
-        self,
-        validation_data,
-        batch_size,
-        shuffle,
-        num_workers=0,
-        evaluate_to_device_cols=None,
-        **kwargs
-    ):
+    def on_evaluate_begin(self,
+                          validation_data,
+                          evaluate_batch_size,
+                          shuffle=False,
+                          worker_num=0,
+                          evaluate_to_device_cols=None,
+                          **kwargs):
+
+        # 设置categories
+        if not hasattr(self, 'categories') and hasattr(validation_data, 'categories'):
+            self.categories = validation_data.categories
 
         self.evaluate_id2sublabel = validation_data.sublabel2id
         self.evaluate_id2oblabel = validation_data.oblabel2id
@@ -267,44 +256,44 @@ class PRGCRETask(SequenceClassificationTask):
         else:
             self.evaluate_to_device_cols = evaluate_to_device_cols
 
-        evaluate_generator = DataLoader(
-            validation_data,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=num_workers,
-            collate_fn=self._evaluate_collate_fn
-        )
+        generator = DataLoader(validation_data,
+                               batch_size=evaluate_batch_size,
+                               shuffle=shuffle,
+                               num_workers=worker_num,
+                               collate_fn=self._evaluate_collate_fn)
+
+        if self.ema_decay:
+            self.ema.store(self.module.parameters())
+            self.ema.copy_to(self.module.parameters())
+
+        if self.metric:
+            self.metric.reset()
 
         self.module.eval()
 
-        self._on_evaluate_begin_record(**kwargs)
+        return generator
 
-        return evaluate_generator
-
-    def _on_evaluate_step_end(
-        self,
-        inputs,
-        logits,
-        corres_threshold=0.5,
-        **kwargs
-    ):
+    def on_evaluate_step_end(self, inputs, outputs, corres_threshold=0.5, **kwargs):
 
         batch_size, _ = inputs['input_ids'].size()
 
-        output_sub, output_obj, corres_pred, pred_rels, xi = logits
+        output_sub, output_obj, corres_pred, pred_rels, xi = outputs
 
         pred_seq_sub = torch.argmax(torch.softmax(output_sub, dim=-1), dim=-1)
         pred_seq_obj = torch.argmax(torch.softmax(output_obj, dim=-1), dim=-1)
-        pred_seqs = torch.cat([pred_seq_sub.unsqueeze(1), pred_seq_obj.unsqueeze(1)], dim=1)
+        pred_seqs = torch.cat([pred_seq_sub.unsqueeze(1),
+                               pred_seq_obj.unsqueeze(1)],
+                              dim=1)
 
         mask_tmp1 = inputs['attention_mask'].unsqueeze(-1)
         mask_tmp2 = inputs['attention_mask'].unsqueeze(1)
         corres_mask = mask_tmp1 * mask_tmp2
 
         corres_pred = torch.sigmoid(corres_pred) * corres_mask
-        pre_corres = torch.where(corres_pred > corres_threshold,
-                                         torch.ones(corres_pred.size(), device=corres_pred.device),
-                                         torch.zeros(corres_pred.size(), device=corres_pred.device))
+        pre_corres = torch.where(
+            corres_pred > corres_threshold,
+            torch.ones(corres_pred.size(), device=corres_pred.device),
+            torch.zeros(corres_pred.size(), device=corres_pred.device))
 
         pred_seqs = pred_seqs.detach().cpu().numpy()
         pre_corres = pre_corres.detach().cpu().numpy()
@@ -315,29 +304,13 @@ class PRGCRETask(SequenceClassificationTask):
         xi_index.insert(0, 0)
 
         for idx in range(batch_size):
-            pre_triples = tag_mapping_corres(predict_tags=pred_seqs[xi_index[idx]:xi_index[idx + 1]],
-                                             pre_corres=pre_corres[idx],
-                                             pre_rels=pred_rels[xi_index[idx]:xi_index[idx + 1]],
-                                             label2idx_sub=self.evaluate_id2sublabel,
-                                             label2idx_obj=self.evaluate_id2oblabel)
+            pre_triples = tag_mapping_corres(
+                predict_tags=pred_seqs[xi_index[idx]:xi_index[idx + 1]],
+                pre_corres=pre_corres[idx],
+                pre_rels=pred_rels[xi_index[idx]:xi_index[idx + 1]],
+                label2idx_sub=self.evaluate_id2sublabel,
+                label2idx_obj=self.evaluate_id2oblabel)
 
-            self.evaluate_logs['correct_num'] += len(set(pre_triples) & set(inputs['triples'][idx]))
-            self.evaluate_logs['predict_num'] += len(set(pre_triples))
-            self.evaluate_logs['gold_num'] += len(set(inputs['triples'][idx]))
-
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch=1,
-        is_evaluate_print=True,
-        **kwargs
-    ):
-
-        metrics = get_metrics(
-            self.evaluate_logs['correct_num'],
-            self.evaluate_logs['predict_num'],
-            self.evaluate_logs['gold_num']
-        )
-        metrics_str = "; ".join("{}: {:05.3f}".format(k, v) for k, v in metrics.items())
-
-        print(metrics_str)
+            if self.metric:
+                self.metric.update(preds=set(pre_triples),
+                                   labels=set(inputs['triples'][idx]))

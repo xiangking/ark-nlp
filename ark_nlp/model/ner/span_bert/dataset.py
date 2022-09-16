@@ -15,9 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
+from tqdm import tqdm
 from ark_nlp.dataset import TokenClassificationDataset
 
 
@@ -26,66 +26,72 @@ class SpanBertNERDataset(TokenClassificationDataset):
     用于Span模式的命名实体识别任务的Dataset
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional): 数据类别, 默认值为: None
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def _get_categories(self):
-        categories = sorted(list(set([label_['type']
-                                      for data in self.dataset for label_ in data['label']])))
+        categories = sorted(
+            list(
+                set([label_['type'] for data in self.dataset
+                     for label_ in data['label']])))
         if 'O' in categories:
             categories.remove('O')
         categories.insert(0, 'O')
         return categories
 
-    def _convert_to_transfomer_ids(self, bert_tokenizer):
+    def _convert_to_transformer_ids(self, tokenizer):
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
-            tokens = bert_tokenizer.tokenize(row_['text'])[:bert_tokenizer.max_seq_len-2]
-            token_mapping = bert_tokenizer.get_token_mapping(row_['text'], tokens)
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to transformer ids',
+                )):
+            tokens = tokenizer.tokenize(row['text'])[:tokenizer.max_seq_len - 2]
+            token_mapping = tokenizer.get_token_mapping(row['text'], tokens)
 
             start_mapping = {j[0]: i for i, j in enumerate(token_mapping) if j}
             end_mapping = {j[-1]: i for i, j in enumerate(token_mapping) if j}
 
-            input_ids = bert_tokenizer.sequence_to_ids(tokens)
+            input_ids = tokenizer.sequence_to_ids(tokens)
+            input_ids, attention_mask, token_type_ids = input_ids
 
-            input_ids, input_mask, segment_ids = input_ids
+            start_label = torch.zeros((tokenizer.max_seq_len))
+            end_label = torch.zeros((tokenizer.max_seq_len))
 
-            start_label = torch.zeros((bert_tokenizer.max_seq_len))
-
-            end_label = torch.zeros((bert_tokenizer.max_seq_len))
-
-            label_ = set()
-            for info_ in row_['label']:
-                if info_['start_idx'] in start_mapping and info_['end_idx'] in end_mapping:
-                    start_idx = start_mapping[info_['start_idx']]
-                    end_idx = end_mapping[info_['end_idx']]
-                    if start_idx > end_idx or info_['entity'] == '':
+            label = set()
+            for info in row['label']:
+                if info['start_idx'] in start_mapping and info['end_idx'] in end_mapping:
+                    start_idx = start_mapping[info['start_idx']]
+                    end_idx = end_mapping[info['end_idx']]
+                    if start_idx > end_idx or info['entity'] == '':
                         continue
 
-                    start_label[start_idx+1] = self.cat2id[info_['type']]
-                    end_label[end_idx+1] = self.cat2id[info_['type']]
+                    start_label[start_idx + 1] = self.cat2id[info['type']]
+                    end_label[end_idx + 1] = self.cat2id[info['type']]
 
-                    label_.add((self.cat2id[info_['type']], start_idx, end_idx))
+                    label.add((self.cat2id[info['type']], start_idx, end_idx))
 
             features.append({
                 'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids,
+                'attention_mask': attention_mask,
+                'token_type_ids': token_type_ids,
                 'start_label_ids': start_label,
                 'end_label_ids': end_label,
-                'label_ids': list(label_)
+                'label_ids': list(label)
             })
 
         return features
 
     @property
     def to_device_cols(self):
-        _cols = list(self.dataset[0].keys())
-        _cols.remove('label_ids')
-        return _cols
+        cols = list(self.dataset[0].keys())
+        cols.remove('label_ids')
+        return cols

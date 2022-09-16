@@ -15,10 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
-from ark_nlp.factory.utils import conlleval
+from ark_nlp.factory.utils.span_decode import get_entities
 from ark_nlp.factory.task.base._token_classification import TokenClassificationTask
 
 
@@ -28,90 +27,53 @@ class CrfBertNERTask(TokenClassificationTask):
     
     Args:
         module: 深度学习模型
-        optimizer: 训练模型使用的优化器名或者优化器对象
-        loss_function: 训练模型使用的损失函数名或损失函数对象
-        class_num (int or None, optional): 标签数目, 默认值为None
-        scheduler (class, optional): scheduler对象, 默认值为None
-        n_gpu (int, optional): GPU数目, 默认值为1
-        device (class, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU, 默认值为None
-        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为0
-        ema_decay (int or None, optional): EMA的加权系数, 默认值为None
+        optimizer (str or torch.optim.Optimizer or None, optional): 训练模型使用的优化器名或者优化器对象, 默认值为: None
+        loss_function (str or object or None, optional): 训练模型使用的损失函数名或损失函数对象, 默认值为: None
+        scheduler (torch.optim.lr_scheduler.LambdaLR, optional): scheduler对象, 默认值为: None
+        tokenizer (object or None, optional): 分词器, 默认值为: None
+        class_num (int or None, optional): 标签数目, 默认值为: None
+        gpu_num (int, optional): GPU数目, 默认值为: 1
+        device (torch.device, optional): torch.device对象, 当device为None时, 会自动检测是否有GPU
+        cuda_device (int, optional): GPU编号, 当device为None时, 根据cuda_device设置device, 默认值为: 0
+        ema_decay (int or None, optional): EMA的加权系数, 默认值为: None
         **kwargs (optional): 其他可选参数
     """  # noqa: ignore flake8"
 
-    def _compute_loss(
-        self,
-        inputs,
-        logits,
-        verbose=True,
-        **kwargs
-    ):
-        loss = -1 * self.module.crf(
-            emissions=logits,
-            tags=inputs['label_ids'].long(),
-            mask=inputs['attention_mask']
-        )
+    def compute_loss(self, inputs, logits, **kwargs):
+        loss = -1 * self.module.crf(emissions=logits,
+                                    tags=inputs['label_ids'].long(),
+                                    mask=inputs['attention_mask'])
 
         return loss
 
-    def _on_evaluate_step_end(self, inputs, outputs, **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, markup='bio', **kwargs):
 
         with torch.no_grad():
             # compute loss
             logits, loss = self._get_evaluate_loss(inputs, outputs, **kwargs)
+            self.evaluate_logs['loss'] += loss.item()
 
             tags = self.module.crf.decode(logits, inputs['attention_mask'])
             tags = tags.squeeze(0)
 
-        self.evaluate_logs['labels'].append(inputs['label_ids'].cpu())
-        self.evaluate_logs['logits'].append(tags.cpu())
-        self.evaluate_logs['input_lengths'].append(inputs['input_lengths'].cpu())
+            preds = tags.cpu().numpy().tolist()
+            labels = inputs['label_ids'].cpu().numpy().tolist()
+            sequence_length_list = inputs['sequence_length'].cpu().numpy().tolist()
 
-        self.evaluate_logs['eval_example'] += len(inputs['label_ids'])
-        self.evaluate_logs['eval_step'] += 1
-        self.evaluate_logs['eval_loss'] += loss.item()
+            for index, label in enumerate(labels):
+                label_list = []
+                pred_list = []
+                for jndex, _ in enumerate(label):
+                    if jndex == 0:
+                        continue
+                    elif jndex == sequence_length_list[index] - 1:
+                        self.metric.update(preds=get_entities(pred_list, self.id2cat,
+                                                              markup),
+                                           labels=get_entities(label_list, self.id2cat,
+                                                               markup))
+                        break
+                    else:
+                        label_list.append(labels[index][jndex])
+                        pred_list.append(preds[index][jndex])
 
-    def _on_evaluate_epoch_end(
-        self,
-        validation_data,
-        epoch=1,
-        is_evaluate_print=True,
-        id2cat=None,
-        markup='bio',
-        **kwargs
-    ):
-
-        if id2cat is None:
-            id2cat = self.id2cat
-
-        self.ner_metric = conlleval.SeqEntityScore(id2cat, markup=markup)
-
-        preds_ = torch.cat(self.evaluate_logs['logits'], dim=0).numpy().tolist()
-        labels_ = torch.cat(self.evaluate_logs['labels'], dim=0).numpy().tolist()
-        input_lens_ = torch.cat(self.evaluate_logs['input_lengths'], dim=0).numpy()
-
-        for index_, label_ in enumerate(labels_):
-            label_list_ = []
-            pred_list_ = []
-            for jndex_, _ in enumerate(label_):
-                if jndex_ == 0:
-                    continue
-                elif jndex_ == input_lens_[index_]-1:
-                    self.ner_metric.update(
-                        pred_paths=[pred_list_],
-                        label_paths=[label_list_]
-                    )
-                    break
-                else:
-                    label_list_.append(labels_[index_][jndex_])
-                    pred_list_.append(preds_[index_][jndex_])
-
-        eval_info, entity_info = self.ner_metric.result()
-
-        if is_evaluate_print:
-            print('eval loss is {:.6f}, precision is:{}, recall is:{}, f1_score is:{}'.format(
-                self.evaluate_logs['eval_loss'] / self.evaluate_logs['eval_step'],
-                eval_info['acc'],
-                eval_info['recall'],
-                eval_info['f1'])
-            )
+        return logits, loss
