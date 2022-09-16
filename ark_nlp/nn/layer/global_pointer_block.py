@@ -23,46 +23,18 @@ from torch.nn import Module
 from ark_nlp.nn.layer.position_embedding_block import SinusoidalPositionEmbedding
 
 
-def sequence_masking(x, mask, value='-inf', axis=None):
-    if mask is None:
-        return x
-    else:
-        if value == '-inf':
-            value = -1e12
-        elif value == 'inf':
-            value = 1e12
-        assert axis > 0, 'axis must be greater than 0'
-        for _ in range(axis - 1):
-            mask = torch.unsqueeze(mask, 1)
-        for _ in range(x.ndim - mask.ndim):
-            mask = torch.unsqueeze(mask, mask.ndim)
-        return x * mask + value * (1 - mask)
-
-
-def add_mask_tril(logits, mask):
-    if mask.dtype != logits.dtype:
-        mask = mask.type(logits.dtype)
-    logits = sequence_masking(logits, mask, '-inf', logits.ndim - 2)
-    logits = sequence_masking(logits, mask, '-inf', logits.ndim - 1)
-    # 排除下三角
-    mask = torch.tril(torch.ones_like(logits), diagonal=-1)
-    logits = logits - mask * 1e12
-    return logits
-
-
 class GlobalPointer(Module):
     """全局指针模块
     将序列的每个(start, end)作为整体来进行判断
     """
-    def __init__(self, heads, head_size, hidden_size, RoPE=True):
+    def __init__(self, heads, head_size, hidden_size, RoPE=True, tril_mask=True):
         super(GlobalPointer, self).__init__()
         self.heads = heads
         self.head_size = head_size
         self.RoPE = RoPE
-        self.dense = nn.Linear(hidden_size, self.head_size * self.heads * 2)
+        self.tril_mask = tril_mask
 
-#     def reset_params(self):
-#         nn.init.xavier_uniform_(self.dense.weight)
+        self.dense = nn.Linear(hidden_size, self.head_size * self.heads * 2)
 
     def forward(self, inputs, mask=None):
         inputs = self.dense(inputs)
@@ -85,8 +57,15 @@ class GlobalPointer(Module):
             kw = kw * cos_pos + kw2 * sin_pos
         # 计算内积
         logits = torch.einsum('bmhd , bnhd -> bhmn', qw, kw)
-        # 排除padding 排除下三角
-        logits = add_mask_tril(logits, mask)
+
+        # 排除padding
+        padding_mask = (1 - mask[:, None, None, :] * mask[:, None, :, None])
+        logits = logits - padding_mask * 1e12
+        
+        # 排除下三角
+        if self.tril_mask:
+            mask = torch.tril(torch.ones_like(logits), diagonal=-1)
+            logits = logits - mask * 1e12
 
         # scale返回
         return logits / self.head_size ** 0.5
@@ -120,12 +99,19 @@ class EfficientGlobalPointer(Module):
             kw2 = torch.stack([-kw[..., 1::2], kw[..., ::2]], 3)
             kw2 = torch.reshape(kw2, kw.shape)
             kw = kw * cos_pos + kw2 * sin_pos
+
         # 计算内积
         logits = torch.einsum('bmd , bnd -> bmn', qw, kw) / self.head_size ** 0.5
         bias = torch.einsum('bnh -> bhn', self.dense_2(inputs)) / 2
         logits = logits[:, None] + bias[:, :self.heads, None] + bias[:, self.heads:, :, None]
-        # 排除padding 排除下三角
-        logits = add_mask_tril(logits, mask)
+        
+        # 排除padding
+        padding_mask = (1 - mask[:, None, None, :] * mask[:, None, :, None])
+        logits = logits - padding_mask * 1e12
+        
+        # 排除下三角
+        if self.tril_mask:
+            mask = torch.tril(torch.ones_like(logits), diagonal=-1)
+            logits = logits - mask * 1e12
 
-        # scale返回
         return logits
