@@ -23,12 +23,13 @@ class TokenClassificationDataset(BaseDataset):
     用于字符分类任务的Dataset
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional): 数据类别, 默认值为: None
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def _convert_to_dataset(self, data_df):
@@ -37,14 +38,14 @@ class TokenClassificationDataset(BaseDataset):
 
         data_df['text'] = data_df['text'].apply(lambda x: x.strip())
         if not self.is_test:
-            data_df['label'] = data_df['label'].apply(
-                lambda x: eval(x) if type(x) == str else x)
+            data_df['label'] = data_df['label'].apply(lambda x: eval(x)
+                                                      if type(x) == str else x)
 
         feature_names = list(data_df.columns)
-        for index_, row_ in enumerate(data_df.itertuples()):
+        for index, row in enumerate(data_df.itertuples()):
             dataset.append({
-                feature_name_: getattr(row_, feature_name_)
-                for feature_name_ in feature_names
+                feature_name: getattr(row, feature_name)
+                for feature_name in feature_names
             })
 
         return dataset

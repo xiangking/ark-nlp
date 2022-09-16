@@ -20,9 +20,8 @@ import torch
 
 from torch import nn
 from transformers import BertModel
+from transformers import BertPreTrainedModel
 from transformers.models.bert.modeling_bert import BertPredictionHeadTransform
-
-from ark_nlp.nn.base.bert import Bert
 
 
 class BertLMPredictionHead(nn.Module):
@@ -42,14 +41,13 @@ class BertLMPredictionHead(nn.Module):
         return hidden_states
 
 
-class BertForPromptMaskedLM(Bert):
+class BertForPromptMaskedLM(BertPreTrainedModel):
     """
     针对prompt的基于BERT的mlm任务
 
-    :param config: (obejct) 模型的配置对象
-    :param bert_trained: (bool) bert参数是否可训练, 默认可训练
-
-    :returns:
+    Args:
+        config (obejct): 模型的配置对象
+        encoder_trained (bool optional): bert参数是否可训练, 默认值为True
 
     Reference:
         [1] BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding

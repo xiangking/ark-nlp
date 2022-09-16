@@ -5,8 +5,4 @@ from ark_nlp.factory.predictor.base._sequence_classification import SequenceClas
 from ark_nlp.factory.predictor.text_classification import TCPredictor
 from ark_nlp.factory.predictor.text_match import TMPredictor
 from ark_nlp.factory.predictor.bio_named_entity_recognition import BIONERPredictor
-from ark_nlp.factory.predictor.crf_named_entity_recognition import CRFNERPredictor
-from ark_nlp.factory.predictor.biaffine_named_entity_recognition import BiaffineNERPredictor
-from ark_nlp.factory.predictor.span_named_entity_recognition import SpanNERPredictor
-from ark_nlp.factory.predictor.global_pointer_named_entity_recognition import GlobalPointerNERPredictor
 from ark_nlp.factory.predictor.prompt_masked_language_model import PromptMLMPredictor

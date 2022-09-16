@@ -1,8 +1,8 @@
 from ark_nlp.dataset import SentenceClassificationDataset as Dataset
 from ark_nlp.dataset import SentenceClassificationDataset as ErnieTCDataset
 
-from ark_nlp.processor.tokenizer.transfomer import SentenceTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import SentenceTokenizer as ErnieTCTokenizer
+from ark_nlp.processor.tokenizer.transformer import SentenceTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import SentenceTokenizer as ErnieTCTokenizer
 
 from ark_nlp.nn import ErnieConfig
 from ark_nlp.nn import ErnieConfig as ModuleConfig

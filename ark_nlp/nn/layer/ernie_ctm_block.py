@@ -78,7 +78,7 @@ class ErnieCtmEmbeddings(nn.Module):
         # 由于ErnieCtm类模型会增加[CLS]的数量，所以需要将默认的位置向量的0位置扩充
         self.register_buffer(
             "position_ids",
-            torch.concat([torch.zeros(size=[self.cls_num], dtype=torch.int64), torch.arange(1, config.max_position_embeddings)]).expand((1, -1))
+            torch.cat([torch.zeros(size=[self.cls_num], dtype=torch.int64), torch.arange(1, config.max_position_embeddings)]).expand((1, -1))
         )
         # 初始化时token_type_ids按position_ids的size生成，在forward会根据input_ids输入长度进行截断
         self.register_buffer(
@@ -255,7 +255,7 @@ class ErnieCtmModel(BertPreTrainedModel):
 
             content_output = content_output.unsqueeze(1).repeat(1, sequence_output.shape[1], 1)
 
-            sequence_output = torch.concat(
+            sequence_output = torch.cat(
                 (sequence_output, content_output), 2)
 
             sequence_output = self.feature_fuse(sequence_output)

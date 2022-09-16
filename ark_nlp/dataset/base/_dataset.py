@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import json
 import copy
 import codecs
@@ -31,28 +30,30 @@ class BaseDataset(Dataset):
     Dataset基类
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional, defaults to `None`): 数据类别
+        do_retain_df (bool, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
+        do_retain_dataset (bool, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
+        is_train (bool, optional, defaults to True): 数据集是否为训练集数据
+        is_test (bool, optional, defaults to False): 数据集是否为测试集数据
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
-    def __init__(
-        self,
-        data,
-        categories=None,
-        is_retain_df=False,
-        is_retain_dataset=False,
-        is_train=True,
-        is_test=False
-    ):
+    def __init__(self,
+                 data,
+                 categories=None,
+                 do_retain_df=False,
+                 do_retain_dataset=False,
+                 is_train=True,
+                 is_test=False,
+                 progress_verbose=True):
 
         self.is_test = is_test
         self.is_train = is_train
-        self.is_retain_df = is_retain_df
-        self.is_retain_dataset = is_retain_dataset
+        self.do_retain_df = do_retain_df
+        self.do_retain_dataset = do_retain_dataset
+
+        self.progress_verbose = progress_verbose
 
         if self.is_test is True:
             self.is_train = False
@@ -61,7 +62,7 @@ class BaseDataset(Dataset):
             if 'label' in data.columns:
                 data['label'] = data['label'].apply(lambda x: str(x))
 
-            if self.is_retain_df:
+            if self.do_retain_df:
                 self.df = data
 
             self.dataset = self._convert_to_dataset(data)
@@ -87,12 +88,12 @@ class BaseDataset(Dataset):
         加载数据集
 
         Args:
-            data_path (:obj:`string`): 数据地址
+            data_path (string): 数据地址
         """  # noqa: ignore flake8"
 
         data_df = self._read_data(data_path)
 
-        if self.is_retain_df:
+        if self.do_retain_df:
             self.df = data_df
 
         return self._convert_to_dataset(data_df)
@@ -100,19 +101,14 @@ class BaseDataset(Dataset):
     def _convert_to_dataset(self, data_df):
         pass
 
-    def _read_data(
-        self,
-        data_path,
-        data_format=None,
-        skiprows=-1
-    ):
+    def _read_data(self, data_path, data_format=None, skiprows=-1):
         """
         读取所需数据
 
         Args:
-            data_path (:obj:`string`): 数据地址
-            data_format (:obj:`string`, defaults to `None`): 数据存储格式
-            skiprows (:obj:`int`, defaults to -1): 读取跳过指定行数，默认为不跳过
+            data_path (string): 数据地址
+            data_format (string or None, optional): 数据存储格式, 默认值为None
+            skiprows (int, optional): 读取跳过指定行数，默认为-1, 不跳过
         """  # noqa: ignore flake8"
 
         if data_format is None:
@@ -123,7 +119,7 @@ class BaseDataset(Dataset):
         elif data_format == 'json':
             try:
                 data_df = pd.read_json(data_path, dtype={'label': str})
-            except:
+            except Exception:
                 data_df = self.read_line_json(data_path)
         elif data_format == 'tsv':
             data_df = pd.read_csv(data_path, sep='\t', dtype={'label': str})
@@ -134,17 +130,13 @@ class BaseDataset(Dataset):
 
         return data_df
 
-    def read_line_json(
-        self,
-        data_path,
-        skiprows=-1
-    ):
+    def read_line_json(self, data_path, skiprows=-1):
         """
         读取所需数据
 
         Args:
-            data_path (:obj:`string`): 数据所在路径
-            skiprows (:obj:`int`, defaults to -1): 读取跳过指定行数，默认为不跳过
+            data_path (string): 数据地址
+            skiprows (int, optional): 读取跳过指定行数，默认为-1, 不跳过
         """
         datasets = []
 
@@ -153,10 +145,7 @@ class BaseDataset(Dataset):
             for index, line in enumerate(reader):
                 if index == skiprows:
                     continue
-                line = json.loads(line)
-                tokens = line['text']
-                label = line['label']
-                datasets.append({'text': tokens.strip(), 'label': label})
+                datasets.append(json.loads(line))
 
         return pd.DataFrame(datasets)
 
@@ -169,19 +158,19 @@ class BaseDataset(Dataset):
         """
         if tokenizer.tokenizer_type == 'vanilla':
             features = self._convert_to_vanilla_ids(tokenizer)
-        elif tokenizer.tokenizer_type == 'transfomer':
-            features = self._convert_to_transfomer_ids(tokenizer)
+        elif tokenizer.tokenizer_type == 'transformer':
+            features = self._convert_to_transformer_ids(tokenizer)
         elif tokenizer.tokenizer_type == 'customized':
             features = self._convert_to_customized_ids(tokenizer)
         else:
             raise ValueError("The tokenizer type does not exist")
 
-        if self.is_retain_dataset:
+        if self.do_retain_dataset:
             self.retain_dataset = copy.deepcopy(self.dataset)
 
         self.dataset = features
 
-    def _convert_to_transfomer_ids(self, bert_tokenizer):
+    def _convert_to_transformer_ids(self, bert_tokenizer):
         pass
 
     def _convert_to_vanilla_ids(self, vanilla_tokenizer):
@@ -190,7 +179,7 @@ class BaseDataset(Dataset):
     def _convert_to_customized_ids(self, customized_tokenizer):
         pass
 
-    def _get_input_length(self, text, bert_tokenizer):
+    def _get_sequence_length(self, text, bert_tokenizer):
         pass
 
     @property
@@ -206,17 +195,30 @@ class BaseDataset(Dataset):
         return len(self.dataset)
 
     @property
-    def dataset_analysis(self):
+    def dataset_report(self):
 
-        _result = defaultdict(list)
-        for _row in self.dataset:
-            for _col in self.dataset_cols:
-                if type(_row[_col]) == str:
-                    _result[_col].append(len(_row[_col]))
+        result = defaultdict(list)
+        for row in self.dataset:
+            for col_name in self.dataset_cols:
+                if type(row[col_name]) == str:
+                    result[col_name].append(len(row[col_name]))
 
-        _report = pd.DataFrame(_result).describe()
+        report_df = pd.DataFrame(result).describe()
 
-        return _report
+        return report_df
+
+    @property
+    def max_text_length(self):
+
+        records = dict()
+        if 'text' in self.dataset[0]:
+            records['text'] = max([len(row['text']) for row in self.dataset])
+        if 'text_a' in self.dataset[0]:
+            records['text_a'] = max([len(row['text_a']) for row in self.dataset])
+        if 'text_b' in self.dataset[0]:
+            records['text_b'] = max([len(row['text_b']) for row in self.dataset])
+
+        return records
 
     def __getitem__(self, index):
         return self.dataset[index]

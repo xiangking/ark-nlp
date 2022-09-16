@@ -7,9 +7,9 @@ class EMA(object):
     使用ema累积模型参数
 
     Args:
-        parameters (:obj:`list`): 需要训练的模型参数
-        decay (:obj:`float`): 指数衰减率
-        use_num_updates (:obj:`bool`, optional, defaults to True): Whether to use number of updates when computing averages
+        parameters (list): 需要训练的模型参数
+        decay (float): 指数衰减率
+        use_num_updates (bool, optional): Whether to use number of updates when computing averages, 默认值为: True
 
     Examples::
 

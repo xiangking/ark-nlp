@@ -15,7 +15,7 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
+from tqdm import tqdm
 from ark_nlp.dataset.base._dataset import BaseDataset
 
 
@@ -24,12 +24,13 @@ class SentenceClassificationDataset(BaseDataset):
     用于序列分类任务的Dataset
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional): 数据类别, 默认值为: None
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def _get_categories(self):
@@ -42,51 +43,61 @@ class SentenceClassificationDataset(BaseDataset):
         data_df['text'] = data_df['text'].apply(lambda x: x.lower().strip())
 
         feature_names = list(data_df.columns)
-        for index_, row_ in enumerate(data_df.itertuples()):
+        for index, row in enumerate(data_df.itertuples()):
             dataset.append({
-                feature_name_: getattr(row_, feature_name_)
-                for feature_name_ in feature_names
+                feature_name: getattr(row, feature_name)
+                for feature_name in feature_names
             })
 
         return dataset
 
-    def _convert_to_transfomer_ids(self, bert_tokenizer):
+    def _convert_to_transformer_ids(self, tokenizer):
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
-            input_ids = bert_tokenizer.sequence_to_ids(row_['text'])
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to transformer ids',
+                )):
+            input_ids = tokenizer.sequence_to_ids(row['text'])
 
-            input_ids, input_mask, segment_ids = input_ids
+            input_ids, attention_mask, token_type_ids = input_ids
 
             feature = {
                 'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids
+                'attention_mask': attention_mask,
+                'token_type_ids': token_type_ids
             }
 
             if not self.is_test:
-                label_ids = self.cat2id[row_['label']]
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
             features.append(feature)
 
         return features
 
-    def _convert_to_vanilla_ids(self, vanilla_tokenizer):
+    def _convert_to_vanilla_ids(self, tokenizer):
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
-            tokens = vanilla_tokenizer.tokenize(row_['text'])
-            length = len(tokens)
-            input_ids = vanilla_tokenizer.sequence_to_ids(tokens)
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to  ids',
+                )):
+            tokens = tokenizer.tokenize(row['text'])
+            input_ids = tokenizer.sequence_to_ids(tokens)
 
             feature = {
                 'input_ids': input_ids,
-                'length': length if length < vanilla_tokenizer.max_seq_len else vanilla_tokenizer.max_seq_len
+                'sequence_length': len(tokens)
+                if len(tokens) < tokenizer.max_seq_len else tokenizer.max_seq_len
             }
 
             if not self.is_test:
-                label_ids = self.cat2id[row_['label']]
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
             features.append(feature)
@@ -96,15 +107,16 @@ class SentenceClassificationDataset(BaseDataset):
 
 class PairMergeSentenceClassificationDataset(BaseDataset):
     """
-    用于句子对合并后进行序列分类任务的Dataset，例如BERT分类任务
+    用于句子对合并后进行序列分类任务的Dataset, 例如BERT分类任务
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional): 数据类别, 默认值为: None
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def _get_categories(self):
@@ -126,22 +138,27 @@ class PairMergeSentenceClassificationDataset(BaseDataset):
 
         return dataset
 
-    def _convert_to_transfomer_ids(self, bert_tokenizer):
+    def _convert_to_transformer_ids(self, tokenizer):
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
-            input_ids = bert_tokenizer.sequence_to_ids(row_['text_a'], row_['text_b'])
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to transformer ids',
+                )):
+            input_ids = tokenizer.sequence_to_ids(row['text_a'], row['text_b'])
 
-            input_ids, input_mask, segment_ids = input_ids
+            input_ids, attention_mask, token_type_ids = input_ids
 
             feature = {
                 'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids
+                'attention_mask': attention_mask,
+                'token_type_ids': token_type_ids
             }
 
             if not self.is_test:
-                label_ids = self.cat2id[row_['label']]
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
             features.append(feature)
@@ -149,17 +166,18 @@ class PairMergeSentenceClassificationDataset(BaseDataset):
         return features
 
 
-class TwinTowersSentenceClassificationDataset(BaseDataset):
+class PairWiseSentenceClassificationDataset(BaseDataset):
     """
-    用于双塔序列分类任务的Dataset，即句子对不组合，分开输入模型
+    用于双塔序列分类任务的Dataset, 即句子对不组合, 分开输入模型
 
     Args:
-        data (:obj:`DataFrame` or :obj:`string`): 数据或者数据地址
-        categories (:obj:`list`, optional, defaults to `None`): 数据类别
-        is_retain_df (:obj:`bool`, optional, defaults to False): 是否将DataFrame格式的原始数据复制到属性retain_df中
-        is_retain_dataset (:obj:`bool`, optional, defaults to False): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中
-        is_train (:obj:`bool`, optional, defaults to True): 数据集是否为训练集数据
-        is_test (:obj:`bool`, optional, defaults to False): 数据集是否为测试集数据
+        data (DataFrame or string): 数据或者数据地址
+        categories (list or None, optional): 数据类别, 默认值为: None
+        do_retain_df (bool, optional): 是否将DataFrame格式的原始数据复制到属性retain_df中, 默认值为: False
+        do_retain_dataset (bool, optional): 是否将处理成dataset格式的原始数据复制到属性retain_dataset中, 默认值为: False
+        is_train (bool, optional): 数据集是否为训练集数据, 默认值为: True
+        is_test (bool, optional): 数据集是否为测试集数据, 默认值为: False
+        progress_verbose (bool, optional): 是否显示数据进度, 默认值为: True
     """  # noqa: ignore flake8"
 
     def _get_categories(self):
@@ -181,49 +199,56 @@ class TwinTowersSentenceClassificationDataset(BaseDataset):
 
         return dataset
 
-    def _convert_to_transfomer_ids(self, bert_tokenizer):
+    def _convert_to_transformer_ids(self, tokenizer):
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to transformer ids',
+                )):
 
-            input_ids_a = bert_tokenizer.sequence_to_ids(row_['text_a'])
-            input_ids_b = bert_tokenizer.sequence_to_ids(row_['text_b'])
+            input_ids_a = tokenizer.sequence_to_ids(row['text_a'])
+            input_ids_b = tokenizer.sequence_to_ids(row['text_b'])
 
-            input_ids_a, input_mask_a, segment_ids_a = input_ids_a
-            input_ids_b, input_mask_b, segment_ids_b = input_ids_b
+            input_ids_a, attention_mask_a, token_type_ids_a = input_ids_a
+            input_ids_b, attention_mask_b, token_type_ids_b = input_ids_b
 
             feature = {
                 'input_ids_a': input_ids_a,
-                'attention_mask_a': input_mask_a,
-                'token_type_ids_a': segment_ids_a,
+                'attention_mask_a': attention_mask_a,
+                'token_type_ids_a': token_type_ids_a,
                 'input_ids_b': input_ids_b,
-                'attention_mask_b': input_mask_b,
-                'token_type_ids_b': segment_ids_b
+                'attention_mask_b': attention_mask_b,
+                'token_type_ids_b': token_type_ids_b
             }
 
             if not self.is_test:
-                label_ids = self.cat2id[row_['label']]
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
             features.append(feature)
 
         return features
 
-    def _convert_to_vanilla_ids(self, vanilla_tokenizer):
+    def _convert_to_vanilla_ids(self, tokenizer):
 
         features = []
-        for (index_, row_) in enumerate(self.dataset):
+        for index, row in enumerate(
+                tqdm(
+                    self.dataset,
+                    disable=not self.progress_verbose,
+                    desc='Converting sequence to ids',
+                )):
 
-            input_ids_a = vanilla_tokenizer.sequence_to_ids(row_['text_a'])
-            input_ids_b = vanilla_tokenizer.sequence_to_ids(row_['text_b'])
+            input_ids_a = tokenizer.sequence_to_ids(row['text_a'])
+            input_ids_b = tokenizer.sequence_to_ids(row['text_b'])
 
-            feature = {
-                'input_ids_a': input_ids_a,
-                'input_ids_b': input_ids_b
-            }
+            feature = {'input_ids_a': input_ids_a, 'input_ids_b': input_ids_b}
 
             if not self.is_test:
-                label_ids = self.cat2id[row_['label']]
+                label_ids = self.cat2id[row['label']]
                 feature['label_ids'] = label_ids
 
             features.append(feature)

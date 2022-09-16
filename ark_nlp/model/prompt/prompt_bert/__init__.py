@@ -1,9 +1,9 @@
 from ark_nlp.dataset import PromptDataset as Dataset
 from ark_nlp.dataset import PromptDataset as PromptBertDataset
 
-from ark_nlp.processor.tokenizer.transfomer import PromptMLMTransformerTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transfomer import PromptMLMTransformerTokenizer as PromptBertTokenizer
-from ark_nlp.processor.tokenizer.transfomer import PromptMLMTransformerTokenizer
+from ark_nlp.processor.tokenizer.transformer import PromptMLMTransformerTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import PromptMLMTransformerTokenizer as PromptBertTokenizer
+from ark_nlp.processor.tokenizer.transformer import PromptMLMTransformerTokenizer
 
 from ark_nlp.nn import BertConfig as PromptBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

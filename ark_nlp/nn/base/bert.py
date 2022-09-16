@@ -24,43 +24,8 @@ from transformers import BertModel
 from transformers import BertPreTrainedModel
 
 
-class Bert(BertPreTrainedModel):
-    """
-    原始的BERT模型
-
-    Args:
-        config:
-            模型的配置对象
-        encoder_trained (:obj:`bool`, optional, defaults to True):
-            bert参数是否可训练，默认可训练
-        pooling (:obj:`str`, optional, defaults to "cls"):
-            bert输出的池化方式，默认为"cls_with_pooler"，
-            可选有["cls", "cls_with_pooler", "first_last_avg", "last_avg", "last_2_avg"]
-
-    Reference:
-        [1] BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding  
-    """  # noqa: ignore flake8"
-
-    def __init__(
-        self,
-        config,
-        encoder_trained=True,
-        pooling='cls_with_pooler'
-    ):
-        super(Bert, self).__init__(config)
-
-        self.bert = BertModel(config)
-        self.pooling = pooling
-
-        for param in self.bert.parameters():
-            param.requires_grad = encoder_trained
-
-        self.num_labels = config.num_labels
-
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, self.num_labels)
-
-        self.init_weights()
+class BertMixin(object):
+    """提供各种支持bert应用于下游任务的方法的Mixin类, 包括bert池化"""
 
     def mask_pooling(self, x: Tensor, attention_mask=None):
         if attention_mask is None:
@@ -104,6 +69,45 @@ class Bert(BertPreTrainedModel):
             return encoder_output[-1]
         else:
             return encoder_output[-1][:, 0, :]
+
+
+class Bert(BertMixin, BertPreTrainedModel):
+    """
+    原始的BERT模型
+
+    Args:
+        config:
+            模型的配置对象
+        encoder_trained (:obj:`bool`, optional, defaults to True):
+            bert参数是否可训练，默认可训练
+        pooling (:obj:`str`, optional, defaults to "cls"):
+            bert输出的池化方式，默认为"cls_with_pooler"，
+            可选有["cls", "cls_with_pooler", "first_last_avg", "last_avg", "last_2_avg"]
+
+    Reference:
+        [1] BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding  
+    """  # noqa: ignore flake8"
+
+    def __init__(
+        self,
+        config,
+        encoder_trained=True,
+        pooling='cls_with_pooler'
+    ):
+        super(Bert, self).__init__(config)
+
+        self.bert = BertModel(config)
+        self.pooling = pooling
+
+        for param in self.bert.parameters():
+            param.requires_grad = encoder_trained
+
+        self.num_labels = config.num_labels
+
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, self.num_labels)
+
+        self.init_weights()
 
     def forward(
         self,

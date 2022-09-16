@@ -29,7 +29,7 @@ class SequenceClassificationPredictor(Predictor):
     Args:
         module: 深度学习模型
         tokernizer: 分词器
-        cat2id (:obj:`dict`): 标签映射
+        cat2id (dict): 标签映射
     """  # noqa: ignore flake8"
 
     def __init__(self, *args, **kwargs):
@@ -48,10 +48,10 @@ class SequenceClassificationPredictor(Predictor):
         单样本预测
 
         Args:
-            text (:obj:`string`): 输入文本
-            topk (:obj:`int`, optional, defaults to 1): 返回TopK结果
-            return_label_name (:obj:`bool`, optional, defaults to True): 返回结果的标签ID转化成原始标签
-            return_proba (:obj:`bool`, optional, defaults to False): 返回结果是否带上预测的概率
+            text (string): 输入文本
+            topk (int or None, optional): 返回TopK结果, 默认值为: 1
+            return_label_name (bool, optional): 返回结果的标签ID转化成原始标签, 默认值为: True
+            return_proba (bool, optional): 返回结果是否带上预测的概率, 默认值为: False
         """  # noqa: ignore flake8"
 
         if topk is None:
