@@ -51,8 +51,8 @@ class SequenceClassificationMetric(object):
 
     def result(self, categories=None, **kwargs):
 
-        labels = np.concatenate(self.preds)
-        preds = np.concatenate(self.labels)
+        labels = np.concatenate(self.labels)
+        preds = np.concatenate(self.preds)
 
         accuracy, f1, report, confusion_matrix = self.compute(preds, labels, categories)
 

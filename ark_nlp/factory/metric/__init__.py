@@ -9,6 +9,7 @@ from ark_nlp.factory.metric.biaffine_span_metric import BiaffineSpanMetric
 from ark_nlp.factory.metric.global_pointer_metric import GlobalPointerMetric
 from ark_nlp.factory.metric.sequence_classification_metric import SequenceClassificationMetric
 from ark_nlp.factory.metric.spearman_correlation_metric import SpearmanCorrelationMetric
+from ark_nlp.factory.metric.relation_extraction_metric import RelationExtractionMetric
 
 
 def topk_accuracy(
