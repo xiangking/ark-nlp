@@ -1,8 +1,8 @@
 from ark_nlp.model.ner.biaffine_bert.dataset import BiaffineBertNERDataset as Dataset
 from ark_nlp.model.ner.biaffine_bert.dataset import BiaffineBertNERDataset
 
-from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as BiaffineBertNERTokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as BiaffineBertNERTokenizer
 
 from ark_nlp.nn import BertConfig as BiaffineBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

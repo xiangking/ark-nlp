@@ -1,8 +1,8 @@
 from ark_nlp.model.ner.global_pointer_bert.dataset import GlobalPointerBertNERDataset as Dataset 
 from ark_nlp.model.ner.global_pointer_bert.dataset import GlobalPointerBertNERDataset
 
-from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transformer import SpanTokenizer as GlobalPointerBertNERTokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as GlobalPointerBertNERTokenizer
 
 from ark_nlp.nn import BertConfig as GlobalPointerBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig

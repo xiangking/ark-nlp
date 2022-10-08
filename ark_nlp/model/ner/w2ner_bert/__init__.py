@@ -1,8 +1,8 @@
 from ark_nlp.model.ner.w2ner_bert.dataset import W2NERDataset as Dataset
 from ark_nlp.model.ner.w2ner_bert.dataset import W2NERDataset
 
-from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as Tokenizer
-from ark_nlp.processor.tokenizer.transformer import TokenTokenizer as W2NERTokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as Tokenizer
+from ark_nlp.processor.tokenizer.transformer import TransformerTokenizer as W2NERTokenizer
 
 from ark_nlp.nn import BertConfig as W2NERBertConfig
 from ark_nlp.nn import BertConfig as ModuleConfig
