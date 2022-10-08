@@ -15,8 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-import os
-import time
 import torch
 import warnings
 import numpy as np
@@ -163,7 +161,7 @@ class TaskMixin(Task):
     def on_step_end_record(self, validation_data, step, **kwargs):
 
         if (step + 1) % self.handler.gradient_accumulation_step == 0:
-            
+
             # tensorboar记录参数信息
             if self.tb_writer and self.scheduler:
                 self.tb_writer.add_scalar("learning_rate",
@@ -185,7 +183,7 @@ class TaskMixin(Task):
                     (step + 1) // self.handler.gradient_accumulation_step,
                     (self.logs['global_loss'] - self.logs['logging_loss']) /
                     self.handler.logging_step))
-                
+
                 # tensorboar记录训练loss信息
                 if self.tb_writer:
                     self.tb_writer.add_scalar(
@@ -194,14 +192,17 @@ class TaskMixin(Task):
                         self.handler.logging_step,
                         self.handler.global_step,
                     )
-                    
+
                 # wandb记录训练loss信息
                 if self.do_wandb_logging:
                     wandb.log({
-                        "training_loss": (self.logs['global_loss'] - self.logs['logging_loss']) / self.handler.logging_step,
-                        "global_step": self.handler.global_step,
+                        "training_loss":
+                        (self.logs['global_loss'] - self.logs['logging_loss']) /
+                        self.handler.logging_step,
+                        "global_step":
+                        self.handler.global_step,
                     })
-                
+
                 self.logs['logging_loss'] = self.logs['global_loss']
 
             # 保存模型
@@ -241,21 +242,24 @@ class TaskMixin(Task):
                             if self.handler.early_stopping_patience <= self.handler.early_stopping_counter:
                                 self.handler.should_training_stop = True
                                 self.handler.should_epoch_stop = True
-                                
-                # tensorboar记录评估信息              
+
+                # tensorboar记录评估信息
                 if self.tb_writer:
                     for name, metric in self.evaluate_logs.items():
                         if name == 'loss':
                             name = 'evaluating_loss'
-                        if type(metric) == float or type(metric) == int or type(metric) == np.float64:
-                            self.tb_writer.add_scalar(name, metric, self.handler.global_step)
-                            
-                # wanbd记录评估信息              
+                        if type(metric) == float or type(metric) == int or type(
+                                metric) == np.float64:
+                            self.tb_writer.add_scalar(name, metric,
+                                                      self.handler.global_step)
+
+                # wanbd记录评估信息
                 if self.do_wandb_logging:
                     for name, metric in self.evaluate_logs.items():
                         if name == 'loss':
                             name = 'evaluating_loss'
-                        if type(metric) == float or type(metric) == int or type(metric) == np.float64:
+                        if type(metric) == float or type(metric) == int or type(
+                                metric) == np.float64:
                             wandb.log({name: metric})
 
             # tensorboar flush
