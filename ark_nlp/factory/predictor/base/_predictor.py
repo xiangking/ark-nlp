@@ -21,7 +21,7 @@ import torch
 
 class Predictor(object):
     """
-    所有Predictor类的基类，封装Predictor类通用的方法和属性
+    所有Predictor类的基类, 封装Predictor类通用的方法和属性
 
     Args:
         module: 深度学习模型
@@ -52,13 +52,13 @@ class Predictor(object):
         if self.tokenizer.tokenizer_type == 'vanilla':
             return self._convert_to_vanilla_ids(text)
         elif self.tokenizer.tokenizer_type == 'transformer':
-            return self._convert_to_transfomer_ids(text)
+            return self._convert_to_transformer_ids(text)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist")
 
-    def _convert_to_transfomer_ids(
+    def _convert_to_transformer_ids(
         self,
         text
     ):

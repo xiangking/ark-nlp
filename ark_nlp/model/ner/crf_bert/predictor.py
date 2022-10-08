@@ -15,10 +15,9 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 
-from ark_nlp.factory.utils.conlleval import get_entities
+from ark_nlp.factory.utils.span_decode import get_entities
 
 
 class CrfBertNERPredictor(object):
@@ -31,13 +30,7 @@ class CrfBertNERPredictor(object):
         cat2id (dict): 标签映射
     """  # noqa: ignore flake8"
 
-    def __init__(
-        self,
-        module,
-        tokernizer,
-        cat2id,
-        markup='bio'
-    ):
+    def __init__(self, module, tokernizer, cat2id, markup='bio'):
         self.markup = markup
 
         self.module = module
@@ -51,57 +44,38 @@ class CrfBertNERPredictor(object):
         for cat_, idx_ in self.cat2id.items():
             self.id2cat[idx_] = cat_
 
-    def _convert_to_transformer_ids(
-        self,
-        text
-    ):
-        input_ids = self.tokenizer.sequence_to_ids(text)
+        self.module.eval()
+
+    def _convert_to_transformer_ids(self, text):
+        tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len - 2]
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
+
+        input_ids = self.tokenizer.sequence_to_ids(tokens)
         input_ids, input_mask, segment_ids = input_ids
 
         features = {
-                'input_ids': input_ids,
-                'attention_mask': input_mask,
-                'token_type_ids': segment_ids
-            }
-        return features
+            'input_ids': input_ids,
+            'attention_mask': input_mask,
+            'token_type_ids': segment_ids,
+        }
 
-    def _convert_to_vanilla_ids(
-        self,
-        text
-    ):
-        tokens = self.tokenizer.tokenize(text)
-        length = len(tokens)
-        input_ids = self.tokenizer.sequence_to_ids(tokens)
+        return features, token_mapping
 
-        features = {
-                'input_ids': input_ids,
-                'length': length if length < self.tokenizer.max_seq_len else self.tokenizer.max_seq_len,
-            }
-        return features
-
-    def _get_input_ids(
-        self,
-        text
-    ):
-        if self.tokenizer.tokenizer_type == 'vanilla':
-            return self._convert_to_vanilla_ids(text)
-        elif self.tokenizer.tokenizer_type == 'transformer':
+    def _get_input_ids(self, text):
+        if self.tokenizer.tokenizer_type == 'transformer':
             return self._convert_to_transformer_ids(text)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist")
 
-    def _get_module_one_sample_inputs(
-        self,
-        features
-    ):
-        return {col: torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device) for col in features}
+    def _get_module_one_sample_inputs(self, features):
+        return {
+            col: torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device)
+            for col in features
+        }
 
-    def predict_one_sample(
-        self,
-        text=''
-    ):
+    def predict_one_sample(self, text=''):
         """
         单样本预测
 
@@ -109,33 +83,46 @@ class CrfBertNERPredictor(object):
             text (string): 输入文本
         """  # noqa: ignore flake8"
 
-        features = self._get_input_ids(text)
-        self.module.eval()
+        features, token_mapping = self._get_input_ids(text)
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
-            logit = self.module(**inputs)
+            logits = self.module(**inputs)
 
-        tags = self.module.crf.decode(logit, inputs['attention_mask'])
+        tags = self.module.crf.decode(logits, inputs['attention_mask'])
         tags = tags.squeeze(0)
 
-        preds = tags.detach().cpu().numpy().tolist()
-        preds = preds[0][1:]
-        preds = preds[:len(text)]
+        preds = tags.cpu().numpy().tolist()[0][:inputs['attention_mask'].cpu().numpy().
+                                               sum()]
+        preds = preds[1:-1]
 
-        tags = [self.id2cat[x] for x in preds]
-        label_entities = get_entities(preds, self.id2cat, self.markup)
+        tags = []
+        for index, tag in enumerate(preds):
+            token_start_idx = token_mapping[index][0]
+            token_end_idx = token_mapping[index][-1]
+
+            if token_start_idx > 0 and token_start_idx != token_mapping[index -
+                                                                        1][-1] + 1:
+                if self.id2cat[tag].split('-')[0] == 'I':
+                    tags.append(self.id2cat[tag])
+                else:
+                    tags.append(self.id2cat[0])
+
+            for _ in range(token_start_idx, token_end_idx + 1):
+                tags.append(self.id2cat[tag])
+
+        label_entities = get_entities(tags, self.id2cat, self.markup)
 
         entities = set()
         for entity_ in label_entities:
-            entities.add(text[entity_[1]: entity_[2]+1] + '-' + entity_[0])
+            entities.add(text[entity_[1]:entity_[2] + 1] + '-' + entity_[0])
 
         entities = []
         for entity_ in label_entities:
             entities.append({
                 "start_idx": entity_[1],
                 "end_idx": entity_[2],
-                "entity": text[entity_[1]: entity_[2]+1],
+                "entity": text[entity_[1]:entity_[2] + 1],
                 "type": entity_[0]
             })
 

@@ -114,7 +114,7 @@ def get_entities(seq, id2label=None, markup='bios'):
     Example:
         .. code-block::
         
-            seq = seq = ['B-PER', 'I-PER', 'O', 'S-LOC']
+            seq = ['B-PER', 'I-PER', 'O', 'S-LOC']
             get_entities(seq)
             # output: [['PER', 0,1], ['LOC', 3, 3]]
     """  # noqa: ignore flake8"
@@ -190,4 +190,3 @@ def get_entities_for_w2ner(instance, l):
         [convert_index_to_text(x, ht_type_dict[(x[0], x[-1])]) for x in predicts])
 
     return predicts
-

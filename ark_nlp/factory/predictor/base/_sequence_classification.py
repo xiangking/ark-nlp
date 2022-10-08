@@ -88,7 +88,6 @@ class SequenceClassificationPredictor(Predictor):
         self,
         test_data,
         batch_size=16,
-        shuffle=False,
         return_label_name=True,
         return_proba=False
     ):
@@ -98,7 +97,6 @@ class SequenceClassificationPredictor(Predictor):
         Args:
             test_data (:obj:`ark_nlp dataset`): 输入batch文本
             batch_size (:obj:`int`, optional, defaults to 16): batch大小
-            shuffle (:obj:`bool`, optional, defaults to False): 是否打扰数据集
             return_proba (:obj:`bool`, optional, defaults to False): 返回结果是否带上预测的概率
         """  # noqa: ignore flake8"
 
