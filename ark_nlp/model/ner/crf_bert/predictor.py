@@ -51,7 +51,7 @@ class CrfBertNERPredictor(object):
         for cat_, idx_ in self.cat2id.items():
             self.id2cat[idx_] = cat_
 
-    def _convert_to_transfomer_ids(
+    def _convert_to_transformer_ids(
         self,
         text
     ):
@@ -86,7 +86,7 @@ class CrfBertNERPredictor(object):
         if self.tokenizer.tokenizer_type == 'vanilla':
             return self._convert_to_vanilla_ids(text)
         elif self.tokenizer.tokenizer_type == 'transformer':
-            return self._convert_to_transfomer_ids(text)
+            return self._convert_to_transformer_ids(text)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text)
         else:

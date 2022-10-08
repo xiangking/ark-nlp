@@ -153,7 +153,6 @@ class TCPredictor(object):
         self,
         test_data,
         batch_size=16,
-        shuffle=False,
         return_label_name=True,
         return_proba=False
     ):
