@@ -29,31 +29,24 @@ class PURERCPredictor(object):
         cat2id (dict): 标签映射
     """  # noqa: ignore flake8"
 
-    def __init__(
-        self,
-        module,
-        tokernizer,
-        cat2id
-    ):
+    def __init__(self, module, tokenizer, cat2id):
 
         self.module = module
         self.module.task = 'SequenceLevel'
 
         self.cat2id = cat2id
-        self.tokenizer = tokernizer
+        self.tokenizer = tokenizer
         self.device = list(self.module.parameters())[0].device
 
         self.id2cat = {}
-        for cat_, idx_ in self.cat2id.items():
-            self.id2cat[idx_] = cat_
+        for cat, index in self.cat2id.items():
+            self.id2cat[index] = cat
 
-    def _convert_to_transfomer_ids(
-            self,
-            text,
-            entities
-    ):
+        self.module.eval()
+
+    def _convert_to_transformer_ids(self, text, entities):
         tokens = self.tokenizer.tokenize(text)
-        token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
+
         index_token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
         start_mapping = {j[0]: i for i, j in enumerate(index_token_mapping) if j}
@@ -64,7 +57,8 @@ class PURERCPredictor(object):
         num = 0
         for eidx, entity in enumerate(entities):
             if entity[2] in start_mapping and entity[3] in end_mapping:
-                if self.tokenizer.max_seq_len - 3 - (num + 1) * 2 < end_mapping[entity[3]]:
+                if self.tokenizer.max_seq_len - 3 - (num + 1) * 2 < end_mapping[
+                        entity[3]]:
                     break
                 else:
                     eidxs_.append(eidx)
@@ -103,10 +97,8 @@ class PURERCPredictor(object):
             'position_ids': position_ids,
         }
 
-        corres_tag = np.ones((
-            self.tokenizer.max_seq_len,
-            self.tokenizer.max_seq_len
-        )) * self.cat2id['None']
+        corres_tag = np.ones((self.tokenizer.max_seq_len,
+                              self.tokenizer.max_seq_len)) * self.cat2id['None']
 
         relations_idx = []
         entity_pair = []
@@ -120,7 +112,8 @@ class PURERCPredictor(object):
                 obj_head_idx = entity2marker[obj[2]]
                 obj_end_idx = entity2marker[obj[3]]
 
-                relations_idx.append([sub_head_idx, sub_end_idx, obj_head_idx, obj_end_idx])
+                relations_idx.append(
+                    [sub_head_idx, sub_end_idx, obj_head_idx, obj_end_idx])
                 entity_pair.append([eidx_sub, eidx_obj])
                 label_ids.append(corres_tag[sub_head_idx][obj_head_idx])
 
@@ -130,34 +123,30 @@ class PURERCPredictor(object):
         return feature
 
     def _get_input_ids(
-            self,
-            text,
-            entities,
+        self,
+        text,
+        entities,
     ):
-        if self.tokenizer.tokenizer_type == 'vanilla':
-            return self._convert_to_vanilla_ids(text)
-        elif self.tokenizer.tokenizer_type == 'transformer':
-            return self._convert_to_transfomer_ids(text, entities)
+        if self.tokenizer.tokenizer_type == 'transformer':
+            return self._convert_to_transformer_ids(text, entities)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist")
 
-    def _get_module_one_sample_inputs(
-            self,
-            features
-    ):
-        tensors = {col: torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device) for col in features}
+    def _get_module_one_sample_inputs(self, features):
+        tensors = {
+            col: torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device)
+            for col in features
+        }
         return tensors
 
-    def predict_one_sample(
-        self,
-        text='',
-        entities=None,
-        topk=None,
-        return_label_name=True,
-        return_proba=False
-    ):
+    def predict_one_sample(self,
+                           text='',
+                           entities=None,
+                           topk=None,
+                           return_label_name=True,
+                           return_proba=False):
         """
         单样本预测
 
@@ -169,11 +158,13 @@ class PURERCPredictor(object):
             return_proba (bool, optional): 返回结果是否带上预测的概率, 默认值为: False
         """  # noqa: ignore flake8"
 
-        if entities is None: entities = list()
-        if topk is None: topk = len(self.cat2id) if len(self.cat2id) > 2 else 1
+        if entities is None:
+            entities = list()
+
+        if topk is None:
+            topk = len(self.cat2id) if len(self.cat2id) > 2 else 1
 
         features = self._get_input_ids(text, entities)
-        self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
@@ -191,7 +182,8 @@ class PURERCPredictor(object):
                 if return_label_name:
                     pred_ = self.id2cat[pred_]
 
-                preds.append([entities[entity_pair_[0]], pred_, entities[entity_pair_[1]]])
+                preds.append(
+                    [entities[entity_pair_[0]], pred_, entities[entity_pair_[1]]])
 
                 if return_proba:
                     probas.append(proba_)

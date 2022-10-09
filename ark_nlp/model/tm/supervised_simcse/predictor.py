@@ -31,24 +31,24 @@ class SupervisedSimCSEPredictor(SequenceClassificationPredictor):
         cat2id (:obj:`dict`): 标签映射
     """  # noqa: ignore flake8"
 
-    def __init__(self, module, tokernizer, cat2id=None):
+    def __init__(self, module, tokenizer, cat2id=None):
         self.module = module
 
         self.cat2id = cat2id
         if self.cat2id is None:
             self.cat2id = {'0': 0, '1': 1}
 
-        self.tokenizer = tokernizer
+        self.tokenizer = tokenizer
         self.device = list(self.module.parameters())[0].device
 
         self.id2cat = {}
-        for cat_, idx_ in self.cat2id.items():
-            self.id2cat[idx_] = cat_
+        for cat, index in self.cat2id.items():
+            self.id2cat[index] = cat
+
+        self.module.eval()
 
     def _get_input_ids(self, text_a, text_b):
-        if self.tokenizer.tokenizer_type == 'vanilla':
-            return self._convert_to_vanilla_ids(text_a, text_b)
-        elif self.tokenizer.tokenizer_type == 'transformer':
+        if self.tokenizer.tokenizer_type == 'transformer':
             return self._convert_to_transformer_ids(text_a, text_b)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text_a, text_b)
@@ -80,7 +80,6 @@ class SupervisedSimCSEPredictor(SequenceClassificationPredictor):
                            return_proba=False):
         text_a, text_b = text
         features = self._get_input_ids(text_a, text_b)
-        self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
@@ -107,7 +106,6 @@ class SupervisedSimCSEPredictor(SequenceClassificationPredictor):
 
         preds = []
 
-        self.module.eval()
         generator = DataLoader(test_data, batch_size=batch_size, shuffle=shuffle)
 
         with torch.no_grad():

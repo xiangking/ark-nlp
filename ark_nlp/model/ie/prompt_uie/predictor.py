@@ -30,33 +30,35 @@ class PromptUIEPredictor(object):
         tokernizer: 分词器
     """  # noqa: ignore flake8"
 
-    def __init__(self, module, tokernizer):
+    def __init__(self, module, tokenizer):
         self.module = module
         self.module.task = 'TokenLevel'
 
-        self.tokenizer = tokernizer
+        self.tokenizer = tokenizer
         self.device = list(self.module.parameters())[0].device
 
-    def _convert_to_transfomer_ids(self, text, prompt):
-        tokens = self.tokenizer.tokenize(text)
-        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
+        self.module.eval()
+
+    def _convert_to_transformer_ids(self, text, prompt):
 
         prompt_tokens = self.tokenizer.tokenize(prompt)
+        tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len - 3 - len(prompt_tokens)]
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
         input_ids = self.tokenizer.sequence_to_ids(prompt_tokens, tokens, truncation_method='last')
-        input_ids, input_mask, segment_ids = input_ids
+        input_ids, attention_mask, token_type_ids = input_ids
 
         features = {
             'input_ids': input_ids,
-            'attention_mask': input_mask,
-            'token_type_ids': segment_ids,
+            'attention_mask': attention_mask,
+            'token_type_ids': token_type_ids,
         }
 
         return features, token_mapping
 
     def _get_input_ids(self, text, prompt):
         if self.tokenizer.tokenizer_type == 'transformer':
-            return self._convert_to_transfomer_ids(text, prompt)
+            return self._convert_to_transformer_ids(text, prompt)
         else:
             raise ValueError("The tokenizer type does not exist")
 
@@ -80,8 +82,6 @@ class PromptUIEPredictor(object):
         text, prompt = text
         features, token_mapping = self._get_input_ids(text, prompt)
 
-        self.module.eval()
-
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
             start_logits, end_logits = self.module(**inputs)
@@ -98,12 +98,12 @@ class PromptUIEPredictor(object):
             if span[0] >= len(token_mapping) or span[-1] >= len(token_mapping):
                 continue
 
-            entitie_ = {
+            entity = {
                 "start_idx": token_mapping[span[0]][0],
                 "end_idx": token_mapping[span[-1]][-1],
                 "type": prompt,
-                "entity": text[token_mapping[span[0]][0]:token_mapping[span[-1]][-1] + 1]
+                "entity": text[token_mapping[span[0]][0]: token_mapping[span[-1]][-1] + 1]
             }
-            entities.append(entitie_)
+            entities.append(entity)
 
         return entities

@@ -46,7 +46,7 @@ def get_chunks(seq, tags):
     Example:
         seq = [4, 5, 0, 3]
         tags = {"B-PER": 4, "I-PER": 5, "B-LOC": 3}
-        result = [("PER", 0, 2), ("LOC", 3, 4)]
+        result = [("PER", 0, 1), ("LOC", 3, 3)]
     """
     default1 = tags['O']
     idx_to_tag = {idx: tag for tag, idx in tags.items()}
@@ -56,7 +56,7 @@ def get_chunks(seq, tags):
         # End of a chunk 1
         if tok == default1 and chunk_type is not None:
             # Add a chunk.
-            chunk = (chunk_type, chunk_start, i)
+            chunk = (chunk_type, chunk_start, i - 1)
             chunks.append(chunk)
             chunk_type, chunk_start = None, None
 
@@ -70,15 +70,15 @@ def get_chunks(seq, tags):
             if chunk_type is None:
                 chunk_type, chunk_start = tok_chunk_type, i
             elif tok_chunk_type != chunk_type or tok_chunk_class == "B":
-                chunk = (chunk_type, chunk_start, i)
+                chunk = (chunk_type, chunk_start, i - 1)
                 chunks.append(chunk)
                 chunk_type, chunk_start = tok_chunk_type, i
         else:
-            pass
+            continue
 
     # end condition
     if chunk_type is not None:
-        chunk = (chunk_type, chunk_start, len(seq))
+        chunk = (chunk_type, chunk_start, len(seq) - 1)
         chunks.append(chunk)
 
     return chunks
@@ -125,14 +125,11 @@ class PRGCREPredictor(object):
         module: 深度学习模型
         tokenizer: 分词器
         cat2id (dict): 标签映射
-        corres_threshold (float, optional): global correspondence的阈值, 默认值为: 0.5
     """  # noqa: ignore flake8"
 
-    def __init__(self, module, tokenizer, cat2id, corres_threshold=0.5):
+    def __init__(self, module, tokenizer, cat2id):
         self.module = module
         self.module.task = 'TokenLevel'
-
-        self.corres_threshold = corres_threshold
 
         self.cat2id = cat2id
         self.tokenizer = tokenizer
@@ -180,7 +177,18 @@ class PRGCREPredictor(object):
     def predict_one_sample(
         self,
         text='',
+        corres_threshold=0.5,
+        return_entity_index=False,
     ):
+        """
+        单条样本的预测方法
+
+        Args:
+            text: 待预测的文本
+            corres_threshold (float, optional): global correspondence的阈值, 默认值为: 0.5
+            return_entity_index (bool, optional): 是否返回头尾实体的位置索引, 默认值为: False
+        """  # noqa: ignore flake8"
+
         features, token_mapping = self._get_input_ids(text)
 
         with torch.no_grad():
@@ -203,7 +211,7 @@ class PRGCREPredictor(object):
 
             corres_pred = torch.sigmoid(corres_pred) * corres_mask
             pre_corres = torch.where(
-                corres_pred > self.corres_threshold,
+                corres_pred > corres_threshold,
                 torch.ones(corres_pred.size(), device=corres_pred.device),
                 torch.zeros(corres_pred.size(), device=corres_pred.device))
 
@@ -223,15 +231,33 @@ class PRGCREPredictor(object):
                 label2idx_obj=self.oblabel2id)
 
             triple_set = set()
-            for _pre_triple in pre_triples:
+            for pre_triple in pre_triples:
 
-                sub = text[token_mapping[_pre_triple[0][1] -
-                                         1][0]:token_mapping[_pre_triple[0][2] - 1][-1]]
-                obj = text[token_mapping[_pre_triple[1][1] -
-                                         1][0]:token_mapping[_pre_triple[1][2] - 1][-1]]
+                if pre_triple[0][2] - 1 >= len(
+                        token_mapping) or pre_triple[1][2] - 1 >= len(token_mapping):
+                    continue
 
-                rel = self.id2cat[_pre_triple[2]]
+                sub = text[token_mapping[pre_triple[0][1] -
+                                         1][0]:token_mapping[pre_triple[0][2] - 1][-1] +
+                           1]
+                obj = text[token_mapping[pre_triple[1][1] -
+                                         1][0]:token_mapping[pre_triple[1][2] - 1][-1] +
+                           1]
 
-                triple_set.add((sub, rel, obj))
+                if sub == '' or obj == '':
+                    continue
+
+                rel = self.id2cat[pre_triple[2]]
+
+                if return_entity_index:
+                    triple_set.add((sub,
+                                    token_mapping[pre_triple[0][1] - 1][0],
+                                    token_mapping[pre_triple[0][2] - 1][-1],
+                                    rel,
+                                    obj,
+                                    token_mapping[pre_triple[1][1] - 1][0],
+                                    token_mapping[pre_triple[1][2] - 1][-1]))
+                else:
+                    triple_set.add((sub, rel, obj))
 
         return list(triple_set)

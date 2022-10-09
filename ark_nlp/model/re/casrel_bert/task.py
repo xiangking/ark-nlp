@@ -15,6 +15,7 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
+
 import torch
 import numpy as np
 
@@ -26,7 +27,7 @@ from ark_nlp.factory.task.base import SequenceClassificationTask
 def to_tup(triple_list):
     ret = []
     for triple in triple_list:
-        ret.append(tuple([triple[0], triple[3], triple[4]]))
+        ret.append(tuple([triple[1], triple[2], triple[3], triple[5], triple[6]]))
     return ret
 
 
@@ -173,12 +174,7 @@ class CasRelRETask(SequenceClassificationTask):
 
         return encoded_text, pred_sub_heads, pred_sub_tails
 
-    def on_evaluate_step_end(self,
-                             inputs,
-                             outputs,
-                             h_bar=0.5,
-                             t_bar=0.5,
-                             **kwargs):
+    def on_evaluate_step_end(self, inputs, outputs, h_bar=0.5, t_bar=0.5, **kwargs):
 
         encoded_text, pred_sub_heads, pred_sub_tails = outputs
         token_mapping = inputs['token_mapping'][0]
@@ -191,60 +187,46 @@ class CasRelRETask(SequenceClassificationTask):
             for sub_head in sub_heads:
                 sub_tail = sub_tails[sub_tails >= sub_head]
                 if len(sub_tail) > 0:
-
-                    sub_tail = sub_tail[0]
-                    subject = ''.join([
-                        token_mapping[index_] if index_ < len(token_mapping) else ''
-                        for index_ in range(sub_head - 1, sub_tail)
-                    ])
-
-                    if subject == '':
-                        continue
-                    subjects.append((subject, sub_head, sub_tail))
+                    subjects.append((sub_head, sub_tail[0]))
 
             if subjects:
-                triple_list = []
+                pred_triples = set()
                 repeated_encoded_text = encoded_text.repeat(len(subjects), 1, 1)
                 sub_head_mapping = torch.Tensor(len(subjects), 1,
                                                 encoded_text.size(1)).zero_()
                 sub_tail_mapping = torch.Tensor(len(subjects), 1,
                                                 encoded_text.size(1)).zero_()
                 for subject_idx, subject in enumerate(subjects):
-                    sub_head_mapping[subject_idx][0][subject[1]] = 1
-                    sub_tail_mapping[subject_idx][0][subject[2]] = 1
+                    sub_head_mapping[subject_idx][0][subject[0]] = 1
+                    sub_tail_mapping[subject_idx][0][subject[1]] = 1
                 sub_tail_mapping = sub_tail_mapping.to(repeated_encoded_text)
                 sub_head_mapping = sub_head_mapping.to(repeated_encoded_text)
 
                 pred_obj_heads, pred_obj_tails = self.module.get_objs_for_specific_sub(
                     sub_head_mapping, sub_tail_mapping, repeated_encoded_text)
-                for subject_idx, subject in enumerate(subjects):
-                    sub = subject[0]
+                for subject_idx, sub in enumerate(subjects):
 
                     obj_heads, obj_tails = np.where(
                         pred_obj_heads.cpu()[subject_idx] > h_bar), np.where(
                             pred_obj_tails.cpu()[subject_idx] > t_bar)
+
                     for obj_head, rel_head in zip(*obj_heads):
                         for obj_tail, rel_tail in zip(*obj_tails):
                             if obj_head <= obj_tail and rel_head == rel_tail:
                                 rel = self.id2cat[int(rel_head)]
-                                obj = ''.join([
-                                    token_mapping[index_]
-                                    if index_ < len(token_mapping) else ''
-                                    for index_ in range(obj_head - 1, obj_tail)
-                                ])
 
-                                triple_list.append((sub, rel, obj))
+                                if sub[1] - 1 >= len(token_mapping) or obj_tail - 1 >= len(token_mapping):
+                                    continue
+
+                                pred_triples.add((token_mapping[sub[0] - 1][0],
+                                                  token_mapping[sub[1] - 1][-1],
+                                                  rel,
+                                                  token_mapping[obj_head - 1][0],
+                                                  token_mapping[obj_tail - 1][-1]))
+
                                 break
-                triple_set = set()
-                for s, r, o in triple_list:
-                    if o == '' or s == '':
-                        continue
-                    triple_set.add((s, r, o))
-                pred_list = list(triple_set)
             else:
-                pred_list = []
-
-            pred_triples = set(pred_list)
+                pred_triples = set()
 
             gold_triples = set(to_tup(inputs['label_ids'][0]))
 

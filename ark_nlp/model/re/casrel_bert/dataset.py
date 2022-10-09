@@ -15,6 +15,7 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
+
 import copy
 import random
 import numpy as np
@@ -77,31 +78,25 @@ class CasRelREDataset(BaseDataset):
         ins_json_data = self.dataset[idx]
         text = ins_json_data['text']
 
-        if len(text) > self.tokenizer.max_seq_len - 2:
-            text = text[:self.tokenizer.max_seq_len - 2]
-
-        tokens = self.tokenizer.tokenize(text)
-        token_mapping = self.tokenizer.get_token_mapping(text,
-                                                         tokens,
-                                                         is_mapping_index=False)
+        tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len - 2]
         index_token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
         start_mapping = {j[0]: i for i, j in enumerate(index_token_mapping) if j}
         end_mapping = {j[-1]: i for i, j in enumerate(index_token_mapping) if j}
 
         if not self.is_train:
-            token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
+            token_ids, attention_mask, _ = self.tokenizer.sequence_to_ids(text)
             text_len = len(token_ids)
             sub_heads, sub_tails = np.zeros(text_len), np.zeros(text_len)
             sub_head, sub_tail = np.zeros(text_len), np.zeros(text_len)
             obj_heads, obj_tails = np.zeros((text_len, self.class_num)), np.zeros(
                 (text_len, self.class_num))
             if self.is_test:
-                return token_ids, masks, text_len, tokens
+                return token_ids, attention_mask, text_len, tokens
             else:
-                return (token_ids, masks, text_len, sub_heads, sub_tails, sub_head,
+                return (token_ids, attention_mask, text_len, sub_heads, sub_tails, sub_head,
                         sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens,
-                        token_mapping)
+                        index_token_mapping)
         else:
             s2ro_map = {}
             for triple in ins_json_data['label']:
@@ -123,11 +118,12 @@ class CasRelREDataset(BaseDataset):
                     if sub not in s2ro_map:
                         s2ro_map[sub] = []
 
-                    s2ro_map[sub].append((obj_head_idx + 1, end_mapping[obj_end_idx] + 1,
+                    s2ro_map[sub].append((obj_head_idx + 1,
+                                          end_mapping[obj_end_idx] + 1,
                                           self.cat2id[triple[1]]))
 
             if s2ro_map:
-                token_ids, masks, segment_ids = self.tokenizer.sequence_to_ids(text)
+                token_ids, attention_mask, _ = self.tokenizer.sequence_to_ids(text)
                 text_len = len(token_ids)
                 sub_heads, sub_tails = np.zeros(text_len), np.zeros(text_len)
                 for s in s2ro_map:
@@ -142,8 +138,8 @@ class CasRelREDataset(BaseDataset):
                 for ro in s2ro_map.get((sub_head_idx, sub_tail_idx), []):
                     obj_heads[ro[0]][ro[2]] = 1
                     obj_tails[ro[1]][ro[2]] = 1
-                return (token_ids, masks, text_len, sub_heads, sub_tails, sub_head,
+                return (token_ids, attention_mask, text_len, sub_heads, sub_tails, sub_head,
                         sub_tail, obj_heads, obj_tails, ins_json_data['label'], tokens,
-                        token_mapping)
+                        index_token_mapping)
             else:
                 return None

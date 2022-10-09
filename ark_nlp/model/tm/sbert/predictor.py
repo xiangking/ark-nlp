@@ -37,16 +37,14 @@ class SBertPredictor(SequenceClassificationPredictor):
         text_a,
         text_b
     ):
-        if self.tokenizer.tokenizer_type == 'vanilla':
-            return self._convert_to_vanilla_ids(text_a, text_b)
-        elif self.tokenizer.tokenizer_type == 'transformer':
-            return self._convert_to_transfomer_ids(text_a, text_b)
+        if self.tokenizer.tokenizer_type == 'transformer':
+            return self._convert_to_transformer_ids(text_a, text_b)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text_a, text_b)
         else:
             raise ValueError("The tokenizer type does not exist")
 
-    def _convert_to_transfomer_ids(
+    def _convert_to_transformer_ids(
         self,
         text_a,
         text_b
@@ -80,7 +78,6 @@ class SBertPredictor(SequenceClassificationPredictor):
             topk = len(self.cat2id) if len(self.cat2id) > 2 else 1
         text_a, text_b = text
         features = self._get_input_ids(text_a, text_b)
-        self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
@@ -112,7 +109,6 @@ class SBertPredictor(SequenceClassificationPredictor):
 
         preds = []
 
-        self.module.eval()
         generator = DataLoader(test_data, batch_size=batch_size, shuffle=shuffle)
 
         with torch.no_grad():

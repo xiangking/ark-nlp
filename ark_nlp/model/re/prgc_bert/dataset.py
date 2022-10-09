@@ -81,10 +81,7 @@ class PRGCREDataset(BaseDataset):
 
             text = row['text']
 
-            if len(text) > self.tokenizer.max_seq_len - 2:
-                text = text[:self.tokenizer.max_seq_len - 2]
-
-            tokens = self.tokenizer.tokenize(text)
+            tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len - 2]
             token_mapping = self.tokenizer.get_token_mapping(text,
                                                              tokens,
                                                              is_mapping_index=False)

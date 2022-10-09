@@ -28,17 +28,17 @@ class BiaffineBertNERPredictor(object):
         cat2id (dict): 标签映射
     """  # noqa: ignore flake8"
 
-    def __init__(self, module, tokernizer, cat2id):
+    def __init__(self, module, tokenizer, cat2id):
         self.module = module
         self.module.task = 'TokenLevel'
 
         self.cat2id = cat2id
-        self.tokenizer = tokernizer
+        self.tokenizer = tokenizer
         self.device = list(self.module.parameters())[0].device
 
         self.id2cat = {}
-        for cat_, idx_ in self.cat2id.items():
-            self.id2cat[idx_] = cat_
+        for cat, index in self.cat2id.items():
+            self.id2cat[index] = cat
 
         self.module.eval()
 
@@ -87,7 +87,7 @@ class BiaffineBertNERPredictor(object):
                                   dim=-1)[0].to(torch.device('cpu')).numpy().tolist()
 
         entities = []
-        for start_idx in range(len(scores)):
+        for start_idx in range(1, len(scores)):
             for end_idx in range(start_idx, len(scores[start_idx])):
                 if scores[start_idx][end_idx] > 0:
                     if end_idx - 1 >= len(token_mapping):

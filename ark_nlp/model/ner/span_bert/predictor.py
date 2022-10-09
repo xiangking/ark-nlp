@@ -97,7 +97,7 @@ class SpanBertNERPredictor(object):
 
             for index, end_idx_category in enumerate(end_scores[start_idx:]):
 
-                if start_idx + index > token_mapping[-1][-1]:
+                if start_idx + index >= len(token_mapping):
                     break
 
                 if start_idx_category == end_idx_category:

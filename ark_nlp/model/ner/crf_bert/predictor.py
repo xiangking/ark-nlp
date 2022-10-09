@@ -98,11 +98,14 @@ class CrfBertNERPredictor(object):
 
         tags = []
         for index, tag in enumerate(preds):
+
+            if index >= len(token_mapping):
+                break
+
             token_start_idx = token_mapping[index][0]
             token_end_idx = token_mapping[index][-1]
 
-            if token_start_idx > 0 and token_start_idx != token_mapping[index -
-                                                                        1][-1] + 1:
+            if token_start_idx > 0 and token_start_idx != token_mapping[index - 1][-1] + 1:
                 if self.id2cat[tag].split('-')[0] == 'I':
                     tags.append(self.id2cat[tag])
                 else:
