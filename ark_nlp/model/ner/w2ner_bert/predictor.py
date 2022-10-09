@@ -19,7 +19,8 @@
 import torch
 import numpy as np
 
-from ark_nlp.factory.utils.span_decode import get_entities_for_w2ner, convert_text_to_index
+from ark_nlp.factory.utils.span_decode import get_entities_for_w2ner
+from ark_nlp.factory.utils.span_decode import convert_text_to_index
 
 
 class W2NERPredictor(object):
@@ -33,31 +34,30 @@ class W2NERPredictor(object):
     """  # noqa: ignore flake8"
 
     def __init__(
-            self,
-            module,
-            tokernizer,
-            cat2id,
+        self,
+        module,
+        tokenizer,
+        cat2id,
     ):
 
         self.module = module
         self.module.task = 'TokenLevel'
 
         self.cat2id = cat2id
-        self.tokenizer = tokernizer
+        self.tokenizer = tokenizer
         self.device = list(self.module.parameters())[0].device
 
         self.id2cat = {}
-        for cat_, idx_ in self.cat2id.items():
-            self.id2cat[idx_] = cat_
+        for cat, index in self.cat2id.items():
+            self.id2cat[index] = cat
 
-    def _convert_to_transfomer_ids(
-            self,
-            text
-    ):
+        self.module.eval()
+
+    def _convert_to_transformer_ids(self, text):
         tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len - 2]
 
         input_ids = self.tokenizer.sequence_to_ids(tokens)
-        input_ids, input_mask, segment_ids = input_ids
+        input_ids, attention_mask, token_type_ids = input_ids
 
         # sequence_length 对应源码 sent_length
         sequence_length = len(tokens)
@@ -103,7 +103,8 @@ class W2NERPredictor(object):
 
         # 源码中 collate_fn 中处理成 max_lenth * max_lenth 矩阵代码
         def fill(data, new_data):
-            new_data[:data.shape[0], :data.shape[1]] = torch.tensor(data, dtype=torch.long)
+            new_data[:data.shape[0], :data.shape[1]] = torch.tensor(data,
+                                                                    dtype=torch.long)
             return new_data
 
         mask2d_mat = torch.zeros((self.tokenizer.max_seq_len, self.tokenizer.max_seq_len))
@@ -115,8 +116,8 @@ class W2NERPredictor(object):
 
         features = {
             'input_ids': input_ids,
-            'attention_mask': input_mask,
-            'token_type_ids': segment_ids,
+            'attention_mask': attention_mask,
+            'token_type_ids': token_type_ids,
             'grid_mask2d': _grid_mask2d,
             'dist_inputs': _dist_inputs,
             'pieces2word': _pieces2word,
@@ -125,37 +126,27 @@ class W2NERPredictor(object):
 
         return features
 
-    def _get_input_ids(
-            self,
-            text
-    ):
-        if self.tokenizer.tokenizer_type == 'vanilla':
-            return self._convert_to_vanilla_ids(text)
-        elif self.tokenizer.tokenizer_type == 'transformer':
-            return self._convert_to_transfomer_ids(text)
+    def _get_input_ids(self, text):
+        if self.tokenizer.tokenizer_type == 'transformer':
+            return self._convert_to_transformer_ids(text)
         elif self.tokenizer.tokenizer_type == 'customized':
             return self._convert_to_customized_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist")
 
-    def _get_module_one_sample_inputs(
-            self,
-            features
-    ):
+    def _get_module_one_sample_inputs(self, features):
         tensors = dict()
 
         for col in features:
             if col == 'sequence_length':
                 tensors[col] = torch.Tensor([features[col]])
             else:
-                tensors[col] = torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device)
+                tensors[col] = torch.Tensor(features[col]).type(
+                    torch.long).unsqueeze(0).to(self.device)
 
         return tensors
 
-    def predict_one_sample(
-            self,
-            text=''
-    ):
+    def predict_one_sample(self, text=''):
         """
         单样本预测
 
@@ -164,7 +155,6 @@ class W2NERPredictor(object):
         """  # noqa: ignore flake8"
 
         features = self._get_input_ids(text)
-        self.module.eval()
 
         with torch.no_grad():
             inputs = self._get_module_one_sample_inputs(features)
@@ -172,9 +162,10 @@ class W2NERPredictor(object):
 
         preds = torch.argmax(logit, -1)
 
-        instance, l = preds.cpu().numpy()[0], int(inputs['sequence_length'].cpu().numpy()[0])
+        instance, sequence_length = preds.cpu().numpy()[0], int(
+            inputs['sequence_length'].cpu().numpy()[0])
 
-        predicts = get_entities_for_w2ner(instance, l)
+        predicts = get_entities_for_w2ner(instance, sequence_length)
 
         entities = []
         for entity_ in predicts:

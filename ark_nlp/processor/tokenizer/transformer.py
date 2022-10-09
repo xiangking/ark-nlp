@@ -21,7 +21,6 @@ import transformers
 import numpy as np
 
 from typing import List
-from copy import deepcopy
 from ark_nlp.processor.tokenizer._tokenizer import BaseTokenizer
 from ark_nlp.processor.tokenizer.tokenizer_utils import Trie
 from ark_nlp.processor.tokenizer.tokenizer_utils import BasicTokenizer
@@ -36,22 +35,24 @@ class TransformerTokenizer(BaseTokenizer):
         vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化
         max_seq_len (int): 预设的文本最大长度
     """  # noqa: ignore flake8"
+
     def __init__(
-            self,
-            vocab,
-            max_seq_len,
-            *,
-            do_lower_case=True,
-            never_split=None,
-            unk_token=None,
-            sep_token=None,
-            pad_token=None,
-            cls_token=None,
-            mask_token=None,
-            bos_token=None,
-            eos_token=None,
-            space_token=None,
-            additional_special_tokens=None,
+        self,
+        vocab,
+        max_seq_len,
+        *,
+        do_lower_case=None,
+        never_split=None,
+        unk_token=None,
+        sep_token=None,
+        pad_token=None,
+        cls_token=None,
+        mask_token=None,
+        bos_token=None,
+        eos_token=None,
+        space_token=None,
+        additional_special_tokens=None,
+        strip_accents=None,
     ):
 
         self.unk_token = unk_token
@@ -77,7 +78,12 @@ class TransformerTokenizer(BaseTokenizer):
         self.max_seq_len = max_seq_len
         self.tokenizer_type = 'transformer'
 
-        self.do_lower_case = do_lower_case
+        if do_lower_case is None:
+            self.do_lower_case = getattr(self.vocab, 'do_lower_case', True)
+        else:
+            self.do_lower_case = do_lower_case
+
+        self.strip_accents = strip_accents
 
         self.never_split = set(self.vocab.all_special_tokens)
         if never_split:
@@ -86,7 +92,8 @@ class TransformerTokenizer(BaseTokenizer):
         # trie树主要是为了special_tokens的分词
         self.tokens_trie = self._create_trie(self.never_split)
 
-        self.basic_tokenizer = BasicTokenizer(do_lower_case=self.do_lower_case)
+        self.basic_tokenizer = BasicTokenizer(do_lower_case=self.do_lower_case,
+                                              strip_accents=self.strip_accents)
         self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab.vocab,
                                                       unk_token=self.vocab.unk_token)
 
@@ -99,12 +106,12 @@ class TransformerTokenizer(BaseTokenizer):
         return trie
 
     def tokenize(
-            self,
-            text,
-            do_basic_tokenize=True,
-            use_token_dict_in_basic_tokenizer=True,
-            do_keep_space_space_token=False,
-            use_unk_token=True,
+        self,
+        text,
+        do_basic_tokenize=True,
+        use_token_dict_in_basic_tokenizer=True,
+        do_keep_space_space_token=False,
+        use_unk_token=True,
     ):
 
         if do_keep_space_space_token:
@@ -203,19 +210,18 @@ class TransformerTokenizer(BaseTokenizer):
         return self.vocab.all_special_tokens
 
     def get_token_mapping(
-            self,
-            text,
-            tokens,
-            *,
-            is_mapping_index=True,
-            do_basic_tokenize=True,
-            use_token_dict_in_basic_tokenizer=True,
-            do_keep_space_space_token=False,
-            use_unk_token=False,
-            never_skip_tokens=None,
+        self,
+        text,
+        tokens,
+        *,
+        is_mapping_index=True,
+        do_basic_tokenize=True,
+        use_token_dict_in_basic_tokenizer=True,
+        do_keep_space_space_token=False,
+        use_unk_token=False,
+        never_skip_tokens=None,
     ):
         """给出原始的text和tokenize后的tokens的映射关系"""
-        raw_text = deepcopy(text)
         token_size = len(tokens)
         if self.do_lower_case:
             text = text.lower()
@@ -235,8 +241,9 @@ class TransformerTokenizer(BaseTokenizer):
 
         normalized_text, char_mapping = '', []
         for i, ch in enumerate(text):
-            ch = unicodedata.normalize('NFD', ch)
-            ch = ''.join([c for c in ch if unicodedata.category(c) != 'Mn'])
+            if self.do_lower_case and self.strip_accents is not False:
+                ch = unicodedata.normalize('NFD', ch)
+                ch = ''.join([c for c in ch if unicodedata.category(c) != 'Mn'])
             ch = ''.join([
                 c for c in ch
                 if not (ord(c) == 0 or ord(c) == 0xfffd or self._is_control(c))
@@ -249,7 +256,7 @@ class TransformerTokenizer(BaseTokenizer):
             if self.do_lower_case:
                 token = token.lower()
 
-            while raw_text[offset] == ' ' and self.space_token is None:
+            while text[offset] == ' ' and self.space_token is None:
                 offset += 1
 
             # 针对space token有意义的情况
@@ -257,7 +264,7 @@ class TransformerTokenizer(BaseTokenizer):
                                      or token == self.space_token.lower()):
                 token_mapping.append(
                     char_mapping[offset:offset +
-                                 1] if is_mapping_index else raw_text[offset:offset + 1])
+                                 1] if is_mapping_index else text[offset:offset + 1])
                 offset = offset + 1
             # 针对单个unk token, 使用下一个token的位置来获取unk token对应的占位大小
             elif self.unk_token and (token == self.unk_token
@@ -267,8 +274,7 @@ class TransformerTokenizer(BaseTokenizer):
                 if token_index == len(tokens) - 1:
                     token_mapping.append(
                         char_mapping[offset:offset +
-                                     1] if is_mapping_index else raw_text[offset:offset +
-                                                                          1])
+                                     1] if is_mapping_index else text[offset:offset + 1])
                     offset = offset + 1
                 else:
                     next_token = self.recover_bert_token(tokens[token_index + 1])
@@ -286,13 +292,13 @@ class TransformerTokenizer(BaseTokenizer):
 
                     token_mapping.append(
                         char_mapping[offset:next_token_start_idx]
-                        if is_mapping_index else raw_text[offset:next_token_start_idx])
+                        if is_mapping_index else text[offset:next_token_start_idx])
                     offset = next_token_start_idx
             # 针对用户自定义的不能跳过的特殊符号
             elif never_skip_tokens and token in never_skip_tokens:
                 token_mapping.append(
                     char_mapping[offset:offset +
-                                 1] if is_mapping_index else raw_text[offset:offset + 1])
+                                 1] if is_mapping_index else text[offset:offset + 1])
                 offset = offset + 1
             # 针对[CLS]或者是[SEP]之类的特殊词, 没有对应的映射
             # PS: 由于ark-nlp的分词不会添加特殊词, 因此理论上不会触发该条件
@@ -306,8 +312,7 @@ class TransformerTokenizer(BaseTokenizer):
                 start_idx = text[offset:].index(token) + offset
                 end_idx = start_idx + len(token)
                 token_mapping.append(char_mapping[start_idx:end_idx]
-                                     if is_mapping_index else raw_text[start_idx:end_idx])
-
+                                     if is_mapping_index else text[start_idx:end_idx])
                 offset = end_idx
 
         return token_mapping
@@ -475,7 +480,7 @@ class TokenTokenizer(TransformerTokenizer):
         return self.sentence_to_ids(sequence, **kwargs)
 
 
-class SpanTokenizer(TransformerTokenizer):
+class SpaceTokenizer(TransformerTokenizer):
     """
     Transformer文本编码器, 用于对文本(基于分隔符分割维度)进行分词、ID化、填充等操作
 
@@ -490,10 +495,10 @@ class SpanTokenizer(TransformerTokenizer):
     """  # noqa: ignore flake8"
 
     def __init__(self, vocab, max_seq_len, space_token='[unused1]', **kwargs):
-        super(SpanTokenizer, self).__init__(vocab,
-                                            max_seq_len,
-                                            space_token=space_token,
-                                            **kwargs)
+        super(SpaceTokenizer, self).__init__(vocab,
+                                             max_seq_len,
+                                             space_token=space_token,
+                                             **kwargs)
 
     def tokenize(self, text, do_keep_space_space_token=True, **kwargs):
         return super().tokenize(text,

@@ -178,7 +178,6 @@ class CasRelRETask(SequenceClassificationTask):
                              outputs,
                              h_bar=0.5,
                              t_bar=0.5,
-                             show_example_step=11,
                              **kwargs):
 
         encoded_text, pred_sub_heads, pred_sub_tails = outputs

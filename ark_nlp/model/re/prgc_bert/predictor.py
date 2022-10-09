@@ -15,7 +15,6 @@
 # Author: Xiang Wang, xiangking1995@163.com
 # Status: Active
 
-
 import torch
 import numpy as np
 
@@ -85,7 +84,11 @@ def get_chunks(seq, tags):
     return chunks
 
 
-def tag_mapping_corres(predict_tags, pre_corres, pre_rels=None, label2idx_sub=None, label2idx_obj=None):
+def tag_mapping_corres(predict_tags,
+                       pre_corres,
+                       pre_rels=None,
+                       label2idx_sub=None,
+                       label2idx_obj=None):
     """
     Args:
         predict_tags: np.array, (xi, 2, max_sen_len)
@@ -116,79 +119,59 @@ def tag_mapping_corres(predict_tags, pre_corres, pre_rels=None, label2idx_sub=No
 
 class PRGCREPredictor(object):
     """
-    CasRel bert模型的联合关系抽取任务的预测器
+    PRGC bert模型的联合关系抽取任务的预测器
 
     Args:
         module: 深度学习模型
-        tokernizer: 分词器
+        tokenizer: 分词器
         cat2id (dict): 标签映射
         corres_threshold (float, optional): global correspondence的阈值, 默认值为: 0.5
     """  # noqa: ignore flake8"
 
-    def __init__(
-        self,
-        module,
-        tokernizer,
-        cat2id,
-        corres_threshold=0.5
-    ):
+    def __init__(self, module, tokenizer, cat2id, corres_threshold=0.5):
         self.module = module
         self.module.task = 'TokenLevel'
 
         self.corres_threshold = corres_threshold
 
         self.cat2id = cat2id
-        self.tokenizer = tokernizer
+        self.tokenizer = tokenizer
         self.device = list(self.module.parameters())[0].device
 
         self.id2cat = {}
-        for cat_, idx_ in self.cat2id.items():
-            self.id2cat[idx_] = cat_
+        for cat, index in self.cat2id.items():
+            self.id2cat[index] = cat
 
         self.sublabel2id = {"B-H": 1, "I-H": 2, "O": 0}
         self.oblabel2id = {"B-T": 1, "I-T": 2, "O": 0}
 
-    def _convert_to_transfomer_ids(
-        self,
-        text
-    ):
-        if len(text) > self.tokenizer.max_seq_len - 2:
-            text = text[:self.tokenizer.max_seq_len - 2]
+        self.module.eval()
 
-        tokens = self.tokenizer.tokenize(text)
-        token_mapping = self.tokenizer.get_token_mapping(text, tokens, is_mapping_index=False)
-        # index_token_mapping = self.tokenizer.get_token_mapping(text, tokens)
+    def _convert_to_transformer_ids(self, text):
+        tokens = self.tokenizer.tokenize(text)[:self.tokenizer.max_seq_len - 2]
+        token_mapping = self.tokenizer.get_token_mapping(text, tokens)
 
-        # start_mapping = {j[0]: i for i, j in enumerate(index_token_mapping) if j}
-        # end_mapping = {j[-1]: i for i, j in enumerate(index_token_mapping) if j}
-
-        input_ids, input_mask, segment_ids = self.tokenizer.sequence_to_ids(tokens)
+        input_ids, attention_mask, token_type_ids = self.tokenizer.sequence_to_ids(tokens)
 
         features = {
             'input_ids': input_ids,
-            'attention_mask': input_mask,
-            'token_mapping': token_mapping
+            'attention_mask': attention_mask,
         }
 
-        return features
+        return features, token_mapping
 
-    def _get_input_ids(
-        self,
-        text
-    ):
+    def _get_input_ids(self, text):
         if self.tokenizer.tokenizer_type == 'transformer':
-            return self._convert_to_transfomer_ids(text)
+            return self._convert_to_transformer_ids(text)
         else:
             raise ValueError("The tokenizer type does not exist")
 
-    def _get_module_one_sample_inputs(
-        self,
-        features
-    ):
+    def _get_module_one_sample_inputs(self, features):
         inputs = {}
         for col in features:
             if isinstance(features[col], np.ndarray):
-                inputs[col] = torch.Tensor(features[col]).type(torch.long).unsqueeze(0).to(self.device)
+                inputs[col] = torch.Tensor(features[col]).type(
+                    torch.long).unsqueeze(0).to(self.device)
             else:
                 inputs[col] = features[col]
 
@@ -198,8 +181,7 @@ class PRGCREPredictor(object):
         self,
         text='',
     ):
-        features = self._get_input_ids(text)
-        self.module.eval()
+        features, token_mapping = self._get_input_ids(text)
 
         with torch.no_grad():
 
@@ -207,13 +189,13 @@ class PRGCREPredictor(object):
 
             logits = self.module(**inputs)
 
-            token_mapping = inputs['token_mapping']
-
             output_sub, output_obj, corres_pred, pred_rels, xi = logits
 
             pred_seq_sub = torch.argmax(torch.softmax(output_sub, dim=-1), dim=-1)
             pred_seq_obj = torch.argmax(torch.softmax(output_obj, dim=-1), dim=-1)
-            pred_seqs = torch.cat([pred_seq_sub.unsqueeze(1), pred_seq_obj.unsqueeze(1)], dim=1)
+            pred_seqs = torch.cat([pred_seq_sub.unsqueeze(1),
+                                   pred_seq_obj.unsqueeze(1)],
+                                  dim=1)
 
             mask_tmp1 = inputs['attention_mask'].unsqueeze(-1)
             mask_tmp2 = inputs['attention_mask'].unsqueeze(1)
@@ -223,8 +205,7 @@ class PRGCREPredictor(object):
             pre_corres = torch.where(
                 corres_pred > self.corres_threshold,
                 torch.ones(corres_pred.size(), device=corres_pred.device),
-                torch.zeros(corres_pred.size(), device=corres_pred.device)
-            )
+                torch.zeros(corres_pred.size(), device=corres_pred.device))
 
             pred_seqs = pred_seqs.detach().cpu().numpy()
             pre_corres = pre_corres.detach().cpu().numpy()
@@ -239,13 +220,16 @@ class PRGCREPredictor(object):
                 pre_corres=pre_corres[0],
                 pre_rels=pred_rels[xi_index[0]:xi_index[1]],
                 label2idx_sub=self.sublabel2id,
-                label2idx_obj=self.oblabel2id
-            )
+                label2idx_obj=self.oblabel2id)
 
             triple_set = set()
             for _pre_triple in pre_triples:
-                sub = ''.join([token_mapping[index_] for index_ in range(_pre_triple[0][1]-1, _pre_triple[0][2]-1)])
-                obj = ''.join([token_mapping[index_] for index_ in range(_pre_triple[1][1]-1, _pre_triple[1][2]-1)])
+
+                sub = text[token_mapping[_pre_triple[0][1] -
+                                         1][0]:token_mapping[_pre_triple[0][2] - 1][-1]]
+                obj = text[token_mapping[_pre_triple[1][1] -
+                                         1][0]:token_mapping[_pre_triple[1][2] - 1][-1]]
+
                 rel = self.id2cat[_pre_triple[2]]
 
                 triple_set.add((sub, rel, obj))
