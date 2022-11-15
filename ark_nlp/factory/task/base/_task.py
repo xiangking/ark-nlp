@@ -21,7 +21,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 from ark_nlp.factory.loss_function import get_loss
 from ark_nlp.factory.utils.ema import EMA
-
+from ark_nlp.factory.utils.attack import PGD, FGM
 
 class Task(object):
     """
@@ -50,6 +50,8 @@ class Task(object):
         n_gpu=1,
         device=None,
         cuda_device=0,
+        use_pgd=False,
+        use_fgm=False,
         ema_decay=None,
         **kwargs
     ):
@@ -82,6 +84,13 @@ class Task(object):
         self.ema_decay = ema_decay
         if self.ema_decay:
             self.ema = EMA(self.module.parameters(), decay=self.ema_decay)
+        
+        if use_pgd:
+            self.K = 3
+            self.pgd = PGD(self.module)
+    
+        if use_fgm:
+            self.fgm = FGM(self.module)
 
     def _train_collate_fn(self, batch):
         return default_collate(batch)
