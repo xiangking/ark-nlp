@@ -17,7 +17,6 @@
 
 
 import copy
-import numpy as np
 from tqdm import tqdm
 from ark_nlp.dataset.base._dataset import BaseDataset
 
@@ -73,25 +72,14 @@ class UniLMDataset(BaseDataset):
 
             text, label = row['text'], row['label']
 
-            text_tokens = self.tokenizer.tokenize(text)
-            label_tokens = self.tokenizer.tokenize(label)
-            input_ids = self.tokenizer.sequence_to_ids(text_tokens, label_tokens)
+            input_ids = self.tokenizer.sequence_to_ids(text, label, truncation_method='first')
 
-            input_ids, attention_mask, token_type_ids = input_ids
-
-            text_ids = self.tokenizer.vocab.convert_tokens_to_ids(['[CLS]'] + text_tokens + ['[SEP]'])
-            text_token_type_ids = [0] * len(text_ids)
-
-            if len(text_ids) > (self.tokenizer.max_seq_len - 3) // 2:
-                text_ids = text_ids[:(self.tokenizer.max_seq_len - 3) // 2]
-                text_token_type_ids = text_token_type_ids[:(self.tokenizer.max_seq_len - 3) // 2]
+            input_ids, _, token_type_ids = input_ids
 
             feature = {
                 'input_ids': input_ids,
-                'attention_mask': attention_mask,
                 'token_type_ids': token_type_ids,
-                'text_ids': text_ids,
-                'text_token_type_ids': text_token_type_ids,
+                'text': text,
                 'label': label
             }
 

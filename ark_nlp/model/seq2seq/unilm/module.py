@@ -22,27 +22,23 @@ from torch import Tensor
 import torch.nn.functional as F
 from transformers import BertModel
 from transformers import BertPreTrainedModel
-from transformers.models.bert.modeling_bert import BertPredictionHeadTransform
 
 from ark_nlp.nn.base.bert import BertMixin
 from ark_nlp.nn.base.roformer import RoFormerPreTrainedModel, RoFormerModel
 
 
-class BertLMPredictionHead(nn.Module):
+class BertGenerationOnlyLMHead(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.transform = BertPredictionHeadTransform(config)
-
         self.decoder = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-
         self.bias = nn.Parameter(torch.zeros(config.vocab_size))
 
+        # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
         self.decoder.bias = self.bias
 
     def forward(self, hidden_states):
-        hidden_states = self.transform(hidden_states)
-        hidden_states = self.decoder(hidden_states)
-        return hidden_states
+        logits = self.decoder(hidden_states)
+        return logits
 
 
 class UniLMBert(BertMixin, BertPreTrainedModel):
@@ -76,7 +72,7 @@ class UniLMBert(BertMixin, BertPreTrainedModel):
         for param in self.bert.parameters():
             param.requires_grad = encoder_trained
 
-        self.classifier = BertLMPredictionHead(config)
+        self.classifier = BertGenerationOnlyLMHead(config)
 
         self.init_weights()
 
@@ -90,7 +86,6 @@ class UniLMBert(BertMixin, BertPreTrainedModel):
     def forward(
         self,
         input_ids=None,
-        attention_mask=None,
         token_type_ids=None,
         **kwargs
     ):
@@ -98,7 +93,6 @@ class UniLMBert(BertMixin, BertPreTrainedModel):
         outputs = self.bert(
             input_ids,
             attention_mask=extended_attention_mask,
-            token_type_ids=token_type_ids,
         )
 
         encoder_feature = outputs[0]

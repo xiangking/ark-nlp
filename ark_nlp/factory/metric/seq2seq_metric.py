@@ -20,7 +20,7 @@ from torch import Tensor
 from collections import defaultdict
 
 
-class SeqSeqMetric(object):
+class Seq2SeqMetric(object):
 
     def __init__(self, **kwargs):
         self.preds_list = []
@@ -77,7 +77,7 @@ class SeqSeqMetric(object):
         acc = 0
         f1 = 0
         for preds, labels in zip(preds_list, labels_list):
-            lcs_len = SeqSeqMetric.longest_common_substring(preds, labels)[0]
+            lcs_len = Seq2SeqMetric.longest_common_substring(preds, labels)[0]
             f1 += 2. * lcs_len / (len(preds) + len(labels)) if len(preds) + len(labels) != 0 else 1
             acc += float(preds == labels)
         return acc / len(preds_list), f1 / len(preds_list)

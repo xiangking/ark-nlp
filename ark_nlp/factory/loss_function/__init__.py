@@ -8,6 +8,7 @@ from .focal_loss import FocalLoss
 from .label_smoothing_ce_loss import LabelSmoothingCrossEntropy
 from .global_pointer_ce_loss import GlobalPointerCrossEntropy
 from .r_drop_cross_entropy_loss import RDropCrossEntropyLoss
+from .seq2seq_ce_loss import Seq2SeqCrossEntropyLoss
 
 
 all_losses_dict = dict(
@@ -20,6 +21,7 @@ all_losses_dict = dict(
     labelsmoothingcrossentropy=LabelSmoothingCrossEntropy,
     lsce=LabelSmoothingCrossEntropy,
     gpce=GlobalPointerCrossEntropy,
+    seq2seqce=Seq2SeqCrossEntropyLoss,
 )
 
 
