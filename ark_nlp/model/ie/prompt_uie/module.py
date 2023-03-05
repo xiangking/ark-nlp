@@ -30,7 +30,7 @@ class BertEmbeddings(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        self.use_task_id = config.use_task_id
+        self.use_task_id = getattr(config, "use_task_id", False)
 
         # bert的输入分为三部分：词嵌入、位置嵌入和token类型嵌入
         # （token类型嵌入用于区分词是属于哪个句子，主要用于N个句子拼接输入的情况）
