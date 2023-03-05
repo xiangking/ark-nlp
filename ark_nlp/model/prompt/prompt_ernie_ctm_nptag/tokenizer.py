@@ -30,22 +30,6 @@ class PromptErnieCtmNptagTokenizer(TransformerTokenizer):
         vocab: transformers词典类对象、词典地址或词典名, 用于实现文本分词和ID化
         max_seq_len (int): 预设的文本最大长度
     """
-    def __init__(
-        self,
-        vocab,
-        max_seq_len
-    ):
-        if isinstance(vocab, str):
-            vocab = transformers.AutoTokenizer.from_pretrained(vocab, use_fast=False)
-
-        self.vocab = vocab
-        self.max_seq_len = max_seq_len
-        self.additional_special_tokens = set()
-        self.tokenizer_type = 'transformer'
-
-        self.do_lower_case = self.vocab.do_lower_case
-        self.vocab._tokenize = self._tokenize
-
     def sequence_to_ids(
         self,
         sequence,

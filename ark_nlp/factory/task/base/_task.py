@@ -32,14 +32,12 @@ from ark_nlp.factory.lr_scheduler import get_scheduler
 from ark_nlp.factory.utils.ema import EMA
 from ark_nlp.factory.task.base.task_utils import Handler
 
-
 try:
     import tensorboard
     from torch.utils.tensorboard import SummaryWriter
     tensorboard_available = True
 except ImportError:
     tensorboard_available = False
-
 
 try:
     import wandb
@@ -125,20 +123,16 @@ class Task(object):
             if tensorboard_available:
                 self.tb_writer = SummaryWriter(log_dir=tensorboard_dir)
             else:
-                warnings.warn(
-                    "Please install tensorboard to use tensorboard logging. "
-                )
+                warnings.warn("Please install tensorboard to use tensorboard logging. ")
 
         # 设置wandb
         self.do_wandb_logging = False
         if wandb_project_name:
             self.do_wandb_logging = True
             self.wandb_project_name = wandb_project_name
-        
+
         if not wandb_available and self.do_wandb_logging:
-            warnings.warn(
-                "Please install wandb to use wandb logging. "
-            )
+            warnings.warn("Please install wandb to use wandb logging. ")
             self.do_wandb_logging = False
 
         # 设置callbacks
@@ -259,16 +253,17 @@ class Task(object):
 
         self.handler = Handler()
         self.handler.update_from_dict(kwargs)
-        
+
         wandb_configs = ['epoch_num', 'batch_size']
-        
+
         if self.do_wandb_logging:
-            
+
             wandb_kwargs = kwargs.get('wandb_kwargs', {})
-            
+
             wandb.init(
                 project=self.wandb_project_name,
-                config={k:v for k, v in kwargs.items() if k in wandb_configs},
+                config={k: v
+                        for k, v in kwargs.items() if k in wandb_configs},
                 **wandb_kwargs,
             )
             wandb.run._label(repo="ark-nlp")

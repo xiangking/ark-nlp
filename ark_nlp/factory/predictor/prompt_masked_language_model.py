@@ -37,7 +37,7 @@ class PromptMLMPredictor(Predictor):
         self.prompt_mode = prompt_mode
         self.prefix_special_token_num = prefix_special_token_num
 
-    def _convert_to_transfomer_ids(
+    def _convert_to_transformer_ids(
         self,
         text
     ):
